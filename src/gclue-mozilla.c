@@ -193,6 +193,7 @@ gclue_mozilla_create_query (GClueMozilla  *mozilla,
         guint n_non_ignored_bsss;
         GList *iter;
         gint64 mcc, mnc;
+        g_autoptr(GBytes) body = NULL;
 
         builder = json_builder_new ();
         json_builder_begin_object (builder);
@@ -285,11 +286,8 @@ gclue_mozilla_create_query (GClueMozilla  *mozilla,
 
         uri = gclue_mozilla_get_locate_url (mozilla);
         ret = soup_message_new ("POST", uri);
-        soup_message_set_request (ret,
-                                  "application/json",
-                                  SOUP_MEMORY_TAKE,
-                                  data,
-                                  data_len);
+        body = g_bytes_new_take (data, data_len);
+        soup_message_set_request_body_from_bytes (ret, "application/json", body);
         g_debug ("Sending following request to '%s':\n%s", uri, data);
 
         if (query_data_description) {
@@ -391,6 +389,7 @@ gclue_mozilla_create_submit_query (GClueMozilla  *mozilla,
                                    GError         **error)
 {
         SoupMessage *ret = NULL;
+        SoupMessageHeaders *request_headers;
         JsonBuilder *builder;
         JsonGenerator *generator;
         JsonNode *root_node;
@@ -403,6 +402,7 @@ gclue_mozilla_create_submit_query (GClueMozilla  *mozilla,
         guint64 time_ms;
         gint64 mcc, mnc;
         GClueConfig *config;
+        g_autoptr(GBytes) body = NULL;
 
         if (mozilla->priv->bss_submitted &&
             (!mozilla->priv->tower_valid ||
@@ -537,15 +537,13 @@ gclue_mozilla_create_submit_query (GClueMozilla  *mozilla,
         g_object_unref (generator);
 
         ret = soup_message_new ("POST", url);
+        request_headers = soup_message_get_request_headers (ret);
         if (nick != NULL && nick[0] != '\0')
-                soup_message_headers_append (ret->request_headers,
+                soup_message_headers_append (request_headers,
                                              "X-Nickname",
                                              nick);
-        soup_message_set_request (ret,
-                                  "application/json",
-                                  SOUP_MEMORY_TAKE,
-                                  data,
-                                  data_len);
+        body = g_bytes_new_take (data, data_len);
+        soup_message_set_request_body_from_bytes (ret, "application/json", body);
         g_debug ("Sending following request to '%s':\n%s", url, data);
 
         mozilla->priv->bss_submitted = TRUE;

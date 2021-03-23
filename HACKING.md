@@ -7,7 +7,7 @@
   * gio (>= 2.44.0)
   * gobject-introspection
   * json-glib
-  * libsoup2.4 (>= 2.42)
+  * libsoup3.0
   * pkg-config
 
   Fedora:
