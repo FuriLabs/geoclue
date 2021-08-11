@@ -990,19 +990,10 @@ gclue_wifi_get_accuracy_level (GClueWifi *wifi)
         return wifi->priv->accuracy_level;
 }
 
-/* Can return NULL without setting @error, signifying an empty BSS list. */
+/* Can return NULL, signifying an empty BSS list. */
 static GList *
-get_bss_list (GClueWifi *wifi,
-              GError   **error)
+get_bss_list (GClueWifi *wifi)
 {
-        if (wifi->priv->interface == NULL) {
-                g_set_error_literal (error,
-                                     G_IO_ERROR,
-                                     G_IO_ERROR_FAILED,
-                                     "No WiFi devices available");
-                return NULL;
-        }
-
         return g_hash_table_get_values (wifi->priv->bss_proxies);
 }
 
@@ -1010,15 +1001,15 @@ static SoupMessage *
 gclue_wifi_create_query (GClueWebSource *source,
                          GError        **error)
 {
-        GList *bss_list; /* As in Access Points */
+        GClueWifi *wifi = GCLUE_WIFI (source);
+        GList *bss_list = NULL; /* As in Access Points */
         SoupMessage *msg;
-        g_autoptr(GError) local_error = NULL;
 
-        bss_list = get_bss_list (GCLUE_WIFI (source), &local_error);
-        if (local_error != NULL) {
-                g_propagate_error (error, g_steal_pointer (&local_error));
-                return NULL;
+        if (wifi->priv->interface == NULL) {
+                goto create_query;
         }
+
+        bss_list = get_bss_list (wifi);
 
         /* Empty list? */
         if (bss_list == NULL) {
@@ -1029,6 +1020,7 @@ gclue_wifi_create_query (GClueWebSource *source,
                 return NULL;
         }
 
+create_query:
         msg = gclue_mozilla_create_query (bss_list, NULL, error);
         g_list_free (bss_list);
         return msg;
@@ -1047,15 +1039,19 @@ gclue_wifi_create_submit_query (GClueWebSource  *source,
                                 GClueLocation   *location,
                                 GError         **error)
 {
+        GClueWifi *wifi = GCLUE_WIFI (source);
         GList *bss_list; /* As in Access Points */
         SoupMessage * msg;
-        g_autoptr(GError) local_error = NULL;
 
-        bss_list = get_bss_list (GCLUE_WIFI (source), &local_error);
-        if (local_error != NULL) {
-                g_propagate_error (error, g_steal_pointer (&local_error));
+        if (wifi->priv->interface == NULL) {
+                g_set_error_literal (error,
+                                     G_IO_ERROR,
+                                     G_IO_ERROR_FAILED,
+                                     "No WiFi devices available");
                 return NULL;
         }
+
+        bss_list = get_bss_list (wifi);
 
         /* Empty list? */
         if (bss_list == NULL) {
