@@ -62,6 +62,11 @@ if get_option('compass')
     sources += [ compass_iface_sources , 'gclue-compass.h', 'gclue-compass.c' ]
 endif
 
+if get_option('hybris-source')
+    geoclue_deps += [ dependency('libgbinder') ]
+    sources += [ 'gclue-hybris-source.h', 'gclue-hybris-source.c' ]
+endif
+
 c_args = [ '-DG_LOG_DOMAIN="Geoclue"' ]
 link_with = [ libgeoclue_public_api ]
 executable('geoclue',

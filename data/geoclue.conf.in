@@ -39,6 +39,12 @@ enable=true
 # Enable Modem-GPS source
 enable=true
 
+# Android HAL source configuration options
+[hybris]
+
+# Enable Hybris source
+enable=true
+
 # WiFi source configuration options
 [wifi]
 

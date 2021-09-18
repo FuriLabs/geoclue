@@ -25,6 +25,9 @@ option('nmea-source',
 option('compass',
        type: 'boolean', value: true,
        description: 'Enable setting heading from net.hadess.SensorProxy compass')
+option('hybris-source',
+       type: 'boolean', value: true,
+       description: 'Enable Android HAL GPS source (requires gbinder)')
 option('enable-backend',
        type: 'boolean', value: true,
        description: 'Enable backend (the geoclue service)')
