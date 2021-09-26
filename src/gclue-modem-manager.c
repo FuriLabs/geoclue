@@ -957,11 +957,29 @@ gclue_modem_manager_enable_gps (GClueModem         *modem,
                                 GAsyncReadyCallback callback,
                                 gpointer            user_data)
 {
+        MMModemLocationSource assistance_caps;
+
         g_return_if_fail (GCLUE_IS_MODEM_MANAGER (modem));
         g_return_if_fail (gclue_modem_manager_get_is_gps_available (modem));
 
+        assistance_caps = MM_MODEM_LOCATION_SOURCE_NONE;
+#if MM_CHECK_VERSION(1, 12, 0)
+        /* Prefer MSB assistance */
+        if (modem_has_caps (GCLUE_MODEM_MANAGER (modem),
+                            MM_MODEM_LOCATION_SOURCE_AGPS_MSB)) {
+                assistance_caps |= MM_MODEM_LOCATION_SOURCE_AGPS_MSB;
+                g_debug ("Using MSB assisted GPS");
+        } else if (modem_has_caps (GCLUE_MODEM_MANAGER (modem),
+                                   MM_MODEM_LOCATION_SOURCE_AGPS_MSA)) {
+                assistance_caps |= MM_MODEM_LOCATION_SOURCE_AGPS_MSA;
+                g_debug ("Using MSA assisted GPS");
+        } else {
+                g_debug ("Assisted GPS not available");
+        }
+#endif
+
         enable_caps (GCLUE_MODEM_MANAGER (modem),
-                     MM_MODEM_LOCATION_SOURCE_GPS_NMEA,
+                     MM_MODEM_LOCATION_SOURCE_GPS_NMEA | assistance_caps,
                      cancellable,
                      callback,
                      user_data);
@@ -1024,15 +1042,22 @@ gclue_modem_manager_disable_gps (GClueModem   *modem,
                                  GError      **error)
 {
         GClueModemManager *manager;
+        MMModemLocationSource assistance_caps;
 
         g_return_val_if_fail (GCLUE_IS_MODEM_MANAGER (modem), FALSE);
         g_return_val_if_fail (gclue_modem_manager_get_is_gps_available (modem), FALSE);
         manager = GCLUE_MODEM_MANAGER (modem);
 
+#if MM_CHECK_VERSION(1, 12, 0)
+        assistance_caps = manager->priv->caps & (MM_MODEM_LOCATION_SOURCE_AGPS_MSA | MM_MODEM_LOCATION_SOURCE_AGPS_MSB);
+#else
+        assistance_caps = MM_MODEM_LOCATION_SOURCE_NONE;
+#endif
+
         g_clear_object (&manager->priv->location_nmea);
         g_debug ("Clearing GPS NMEA caps from modem");
         return clear_caps (manager,
-                           MM_MODEM_LOCATION_SOURCE_GPS_NMEA,
+                           MM_MODEM_LOCATION_SOURCE_GPS_NMEA | assistance_caps,
                            cancellable,
                            error);
 }
