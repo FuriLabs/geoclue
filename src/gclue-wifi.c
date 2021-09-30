@@ -52,9 +52,9 @@
  * Contains functions to get the geolocation based on nearby WiFi networks.
  **/
 
-static gboolean
+static GClueLocationSourceStartResult
 gclue_wifi_start (GClueLocationSource *source);
-static gboolean
+static GClueLocationSourceStopResult
 gclue_wifi_stop (GClueLocationSource *source);
 
 static guint
@@ -730,36 +730,42 @@ disconnect_cache_prune_timeout (GClueWifi *wifi)
         priv->cache_prune_timeout_id = 0;
 }
 
-static gboolean
+static GClueLocationSourceStartResult
 gclue_wifi_start (GClueLocationSource *source)
 {
         GClueLocationSourceClass *base_class;
+        GClueLocationSourceStartResult base_result;
 
         g_return_val_if_fail (GCLUE_IS_WIFI (source), FALSE);
 
         base_class = GCLUE_LOCATION_SOURCE_CLASS (gclue_wifi_parent_class);
-        if (!base_class->start (source))
-                return FALSE;
+        base_result = base_class->start (source);
+        if (base_result != GCLUE_LOCATION_SOURCE_START_RESULT_OK)
+                return base_result;
 
         connect_cache_prune_timeout (GCLUE_WIFI (source));
         connect_bss_signals (GCLUE_WIFI (source));
-        return TRUE;
+
+        return base_result;
 }
 
-static gboolean
+static GClueLocationSourceStopResult
 gclue_wifi_stop (GClueLocationSource *source)
 {
         GClueLocationSourceClass *base_class;
+        GClueLocationSourceStopResult base_result;
 
         g_return_val_if_fail (GCLUE_IS_WIFI (source), FALSE);
 
         base_class = GCLUE_LOCATION_SOURCE_CLASS (gclue_wifi_parent_class);
-        if (!base_class->stop (source))
-                return FALSE;
+        base_result = base_class->stop (source);
+        if (base_result == GCLUE_LOCATION_SOURCE_STOP_RESULT_STILL_USED)
+                return base_result;
 
         disconnect_bss_signals (GCLUE_WIFI (source));
         disconnect_cache_prune_timeout (GCLUE_WIFI (source));
-        return TRUE;
+
+        return base_result;
 }
 
 static GClueAccuracyLevel

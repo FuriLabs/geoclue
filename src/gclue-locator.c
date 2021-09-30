@@ -49,9 +49,9 @@
  * location sources from rest of the code
  */
 
-static gboolean
+static GClueLocationSourceStartResult
 gclue_locator_start (GClueLocationSource *source);
-static gboolean
+static GClueLocationSourceStopResult 
 gclue_locator_stop (GClueLocationSource *source);
 
 struct _GClueLocatorPrivate
@@ -433,19 +433,21 @@ gclue_locator_init (GClueLocator *locator)
                                             GClueLocatorPrivate);
 }
 
-static gboolean
+static GClueLocationSourceStartResult
 gclue_locator_start (GClueLocationSource *source)
 {
         GClueLocationSourceClass *base_class;
         GClueLocator *locator;
         GList *node;
+        GClueLocationSourceStopResult base_result;
 
         g_return_val_if_fail (GCLUE_IS_LOCATOR (source), FALSE);
         locator = GCLUE_LOCATOR (source);
 
         base_class = GCLUE_LOCATION_SOURCE_CLASS (gclue_locator_parent_class);
-        if (!base_class->start (source))
-                return FALSE;
+        base_result = base_class->start (source);
+        if (base_result != GCLUE_LOCATION_SOURCE_START_RESULT_OK)
+                return base_result;
 
         for (node = locator->priv->sources; node != NULL; node = node->next) {
                 GClueLocationSource *src = GCLUE_LOCATION_SOURCE (node->data);
@@ -468,22 +470,24 @@ gclue_locator_start (GClueLocationSource *source)
                 start_source (locator, src);
         }
 
-        return TRUE;
+        return base_result;
 }
 
-static gboolean
+static GClueLocationSourceStopResult
 gclue_locator_stop (GClueLocationSource *source)
 {
         GClueLocationSourceClass *base_class;
         GClueLocator *locator;
         GList *node;
+        GClueLocationSourceStopResult base_result;
 
         g_return_val_if_fail (GCLUE_IS_LOCATOR (source), FALSE);
         locator = GCLUE_LOCATOR (source);
 
         base_class = GCLUE_LOCATION_SOURCE_CLASS (gclue_locator_parent_class);
-        if (!base_class->stop (source))
-                return FALSE;
+        base_result = base_class->stop (source);
+        if (base_result == GCLUE_LOCATION_SOURCE_STOP_RESULT_STILL_USED)
+                return base_result;
 
         for (node = locator->priv->active_sources; node != NULL; node = node->next) {
                 GClueLocationSource *src = GCLUE_LOCATION_SOURCE (node->data);
@@ -497,7 +501,7 @@ gclue_locator_stop (GClueLocationSource *source)
 
         g_list_free (locator->priv->active_sources);
         locator->priv->active_sources = NULL;
-        return TRUE;
+        return base_result;
 }
 
 GClueLocator *

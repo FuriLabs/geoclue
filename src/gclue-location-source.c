@@ -31,9 +31,9 @@
  * The interface all geolocation sources must implement.
  **/
 
-static gboolean
+static GClueLocationSourceStartResult
 start_source (GClueLocationSource *source);
-static gboolean
+static GClueLocationSourceStopResult
 stop_source (GClueLocationSource *source);
 
 struct _GClueLocationSourcePrivate
@@ -284,14 +284,14 @@ gclue_location_source_init (GClueLocationSource *source)
         source->priv->time_threshold = gclue_min_uint_new ();
 }
 
-static gboolean
+static GClueLocationSourceStartResult
 start_source (GClueLocationSource *source)
 {
         source->priv->active_counter++;
         if (source->priv->active_counter > 1) {
                 g_debug ("%s already active, not starting.",
                          G_OBJECT_TYPE_NAME (source));
-                return TRUE;
+                return GCLUE_LOCATION_SOURCE_START_RESULT_ALREADY_STARTED;
         }
 
         if (source->priv->compute_movement) {
@@ -305,23 +305,23 @@ start_source (GClueLocationSource *source)
 
         g_object_notify (G_OBJECT (source), "active");
         g_debug ("%s now active", G_OBJECT_TYPE_NAME (source));
-        return TRUE;
+        return GCLUE_LOCATION_SOURCE_START_RESULT_OK;
 }
 
-static gboolean
+static GClueLocationSourceStopResult
 stop_source (GClueLocationSource *source)
 {
         if (source->priv->active_counter == 0) {
                 g_debug ("%s already inactive, not stopping.",
                          G_OBJECT_TYPE_NAME (source));
-                return TRUE;
+                return GCLUE_LOCATION_SOURCE_STOP_RESULT_ALREADY_STOPPED;
         }
 
         source->priv->active_counter--;
         if (source->priv->active_counter > 0) {
                 g_debug ("%s still in use, not stopping.",
                          G_OBJECT_TYPE_NAME (source));
-                return FALSE;
+                return GCLUE_LOCATION_SOURCE_STOP_RESULT_STILL_USED;
         }
 
         if (source->priv->compass) {
@@ -333,7 +333,7 @@ stop_source (GClueLocationSource *source)
         g_object_notify (G_OBJECT (source), "active");
         g_debug ("%s now inactive", G_OBJECT_TYPE_NAME (source));
 
-        return TRUE;
+        return GCLUE_LOCATION_SOURCE_STOP_RESULT_OK;
 }
 
 /**
