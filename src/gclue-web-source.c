@@ -37,8 +37,6 @@
  **/
 
 static gboolean
-gclue_web_source_start (GClueLocationSource *source);
-static gboolean
 get_internet_available (void);
 static void
 refresh_accuracy_level (GClueWebSource *web);
@@ -306,8 +304,6 @@ gclue_web_source_class_init (GClueWebSourceClass *klass)
         klass->refresh_async = gclue_web_source_real_refresh_async;
         klass->refresh_finish = gclue_web_source_real_refresh_finish;
 
-        source_class->start = gclue_web_source_start;
-
         gsource_class->finalize = gclue_web_source_finalize;
         gsource_class->constructed = gclue_web_source_constructed;
 }
@@ -332,18 +328,6 @@ gclue_web_source_refresh (GClueWebSource *source)
         g_return_if_fail (GCLUE_IS_WEB_SOURCE (source));
 
         GCLUE_WEB_SOURCE_GET_CLASS (source)->refresh_async (source, NULL, query_callback, NULL);
-}
-
-static gboolean
-gclue_web_source_start (GClueLocationSource *source)
-{
-        GClueLocationSourceClass *base_class;
-
-        base_class = GCLUE_LOCATION_SOURCE_CLASS (gclue_web_source_parent_class);
-        if (!base_class->start (source))
-                return FALSE;
-
-        return TRUE;
 }
 
 static void
