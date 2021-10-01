@@ -669,8 +669,19 @@ gclue_location_create_from_rmc (const char     *rmc,
         if (lat == INVALID_COORDINATE || lon == INVALID_COORDINATE)
                 goto error;
 
-        gdouble speed = g_ascii_strtod (parts[7], NULL) * KNOTS_IN_METERS_PER_SECOND;
-        gdouble heading = g_ascii_strtod (parts[8], NULL);
+        gdouble speed = GCLUE_LOCATION_SPEED_UNKNOWN;
+        if (parts[7][0] != '\0')
+                speed = g_ascii_strtod (parts[7], NULL) * KNOTS_IN_METERS_PER_SECOND;
+
+        gdouble heading = GCLUE_LOCATION_HEADING_UNKNOWN;
+        if (parts[8][0] != '\0')
+                heading = g_ascii_strtod (parts[8], NULL);
+
+        /* Some receivers use '0.0,0.0' as invalid speed and heading */
+        if (speed == 0.0 && heading == 0.0) {
+                speed = GCLUE_LOCATION_SPEED_UNKNOWN;
+                heading = GCLUE_LOCATION_HEADING_UNKNOWN;
+        }
 
         location = g_object_new (GCLUE_TYPE_LOCATION,
                                  "latitude", lat,
