@@ -24,7 +24,7 @@
  */
 
 #include "gclue-location.h"
-#include "gclue-nmea-source.h"
+#include "gclue-nmea-utils.h"
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>

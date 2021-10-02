@@ -24,7 +24,7 @@
 #include <string.h>
 #include <libmm-glib.h>
 #include "gclue-modem-manager.h"
-#include "gclue-nmea-source.h"
+#include "gclue-nmea-utils.h"
 #include "gclue-marshal.h"
 #include "gclue-3g-tower.h"
 
