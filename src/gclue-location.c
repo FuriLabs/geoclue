@@ -972,7 +972,7 @@ void
 gclue_location_set_heading_from_prev_location (GClueLocation *location,
                                                GClueLocation *prev_location)
 {
-        gdouble dx, dy, angle, lat, lon, prev_lat, prev_lon;
+        gdouble dlat, dlon, x, y, angle, lat, lon, prev_lat, prev_lon;
 
         g_return_if_fail (GCLUE_IS_LOCATION (location));
         g_return_if_fail (prev_location == NULL ||
@@ -989,35 +989,36 @@ gclue_location_set_heading_from_prev_location (GClueLocation *location,
         prev_lat = gclue_location_get_latitude (prev_location);
         prev_lon = gclue_location_get_longitude (prev_location);
 
-        dx = (lat - prev_lat);
-        dy = (lon - prev_lon);
-
-        /* atan2 takes in coordinate values of a 2D space and returns the angle
-         * which the line from origin to that coordinate makes with the positive
-         * X-axis, in the range (-PI,+PI]. Converting it into degrees we get the
-         * angle in range (-180,180]. This means East = 0 degree,
-         * West = -180 degrees, North = 90 degrees, South = -90 degrees.
+        /* atan2(y, x) is a function which takes in coordinate values of
+         * a 2D point and returns the angle of line from origin to that
+         * coordinate makes with the positive X-axis, in the range (-PI,+PI].
          *
-         * Passing atan2 a negative value of dx will flip the angles about
-         * Y-axis. This means the angle now returned will be the angle with
-         * respect to negative X-axis. Which makes West = 0 degree,
-         * East = 180 degrees, North = 90 degrees, South = -90 degrees. */
-        angle = atan2(dy, -dx) * 180.0 / M_PI;
-
-        /* Now, North is supposed to be 0 degree. Lets subtract 90 degrees
-         * from angle. After this step West = -90 degrees, East = 90 degrees,
-         * North = 0 degree, South = -180 degrees. */
-        angle -= 90.0;
-
-        /* As we know, angle ~= angle + 360; using this on negative values would
-         * bring the the angle in range [0,360).
+         * We want to match the inclusive end (+PI) of atan2's range to our
+         * desired zero direction (north), so we take the vector pointing
+         * south as our X-axis and the vector pointing east as our Y-axis
+         * and measure our movement vector coordinates */
+        dlon = (lon - prev_lon);
+        dlat = (lat - prev_lat);
+        /* in that basis.
          *
-         * After this step West = 270 degrees, East = 90 degrees,
-         * North = 0 degree, South = 180 degrees. */
-        if (angle < 0)
-                angle += 360.0;
-
-        location->priv->heading = angle;
+         * Latitudes decrease towards the south and longitudes
+         * increase towards the east, so: */
+        x = -dlat;
+        y = dlon;
+        angle = atan2(y, x) * 180.0 / M_PI;
+        /* We now have the angle of our movement vector measured from the
+         * vector pointing south in degrees, with the positive direction
+         * being counterclockwise.
+         *
+         * We want to convert it to heading: Degrees from from north with
+         * positive values only and positive direction being clockwise.
+         *
+         * If angle is positive (the movement is more towards east than
+         * west), we need to subtract it from the heading of our reference
+         * vector (south == 180 deg). If the angle is negative, we need to
+         * add its negative to the heading of the reference vector. Both
+         * cases result in */
+        location->priv->heading = 180.0 - angle;
 
         g_object_notify (G_OBJECT (location), "heading");
 }
