@@ -78,6 +78,9 @@ enum
 
 static GParamSpec *gParamSpecs[LAST_PROP];
 
+#define MAX_SPEED        500       /* Meters per second */
+#define MAX_LOCATION_AGE (30 * 60) /* Seconds. */
+
 static void
 set_location (GClueLocator  *locator,
               GClueLocation *location)
@@ -90,20 +93,40 @@ set_location (GClueLocator  *locator,
         g_debug ("New location available");
 
         if (cur_location != NULL) {
-            if (gclue_location_get_timestamp (location) <
-                gclue_location_get_timestamp (cur_location)) {
+            guint64 cur_timestamp, new_timestamp;
+            double dist, speed;
+
+            cur_timestamp = gclue_location_get_timestamp (cur_location);
+            new_timestamp = gclue_location_get_timestamp (location);
+            if (new_timestamp < cur_timestamp) {
                     g_debug ("New location older than current, ignoring.");
                     return;
             }
 
-            if (gclue_location_get_distance_from (location, cur_location)
-                * 1000 <
-                gclue_location_get_accuracy (location) &&
+            dist = gclue_location_get_distance_from (location, cur_location) * 1000;
+            if (new_timestamp > cur_timestamp) {
+                guint64 age = new_timestamp - cur_timestamp;
+
+                if (age < MAX_LOCATION_AGE) {
+                    speed = dist / age;
+                } else {
+                    /* The previous location is too old?
+                     * Force the speed to be within the allowed range then.
+                     */
+                    speed = 0;
+                }
+            } else {
+                speed = G_MAXDOUBLE;
+            }
+
+            if ((dist <= gclue_location_get_accuracy (location) ||
+                 speed > MAX_SPEED) &&
                 gclue_location_get_accuracy (location) >
                 gclue_location_get_accuracy (cur_location)) {
                     /* We only take the new location if either the previous one
-                     * lies outside its accuracy circle or its more or as
-                     * accurate as previous one.
+                     * lies outside its accuracy circle and was reachable with
+                     * a reasonable speed, OR it is more or as accurate as
+                     * the previous one.
                      */
                     g_debug ("Ignoring less accurate new location");
                     return;
