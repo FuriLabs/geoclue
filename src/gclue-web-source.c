@@ -298,7 +298,6 @@ gclue_web_source_constructed (GObject *object)
 static void
 gclue_web_source_class_init (GClueWebSourceClass *klass)
 {
-        GClueLocationSourceClass *source_class = GCLUE_LOCATION_SOURCE_CLASS (klass);
         GObjectClass *gsource_class = G_OBJECT_CLASS (klass);
 
         klass->refresh_async = gclue_web_source_real_refresh_async;
