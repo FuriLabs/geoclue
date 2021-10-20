@@ -230,13 +230,13 @@ static void
 gclue_location_constructed (GObject *object)
 {
         GClueLocation *location = GCLUE_LOCATION (object);
-        GTimeVal tv;
+        gint64 timestamp;
 
         if (location->priv->timestamp != 0)
                 return;
 
-        g_get_current_time (&tv);
-        gclue_location_set_timestamp (location, tv.tv_sec);
+        timestamp = g_get_real_time () / G_USEC_PER_SEC;
+        gclue_location_set_timestamp (location, timestamp);
 }
 
 static void
