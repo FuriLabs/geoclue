@@ -310,7 +310,7 @@ gclue_web_source_class_init (GClueWebSourceClass *klass)
 static void
 gclue_web_source_init (GClueWebSource *web)
 {
-        web->priv = G_TYPE_INSTANCE_GET_PRIVATE ((web), GCLUE_TYPE_WEB_SOURCE, GClueWebSourcePrivate);
+        web->priv = gclue_web_source_get_instance_private (web);
 }
 
 /**

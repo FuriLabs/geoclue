@@ -712,9 +712,7 @@ gclue_simple_async_initable_init (GAsyncInitableIface *iface)
 static void
 gclue_simple_init (GClueSimple *simple)
 {
-        simple->priv = G_TYPE_INSTANCE_GET_PRIVATE (simple,
-                                                  GCLUE_TYPE_SIMPLE,
-                                                  GClueSimplePrivate);
+        simple->priv = gclue_simple_get_instance_private (simple);
         simple->priv->cancellable = g_cancellable_new ();
 }
 

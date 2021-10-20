@@ -141,7 +141,7 @@ gclue_cdma_init (GClueCDMA *source)
 {
         GClueCDMAPrivate *priv;
 
-        source->priv = G_TYPE_INSTANCE_GET_PRIVATE ((source), GCLUE_TYPE_CDMA, GClueCDMAPrivate);
+        source->priv = gclue_cdma_get_instance_private (source);
         priv = source->priv;
 
         priv->cancellable = g_cancellable_new ();

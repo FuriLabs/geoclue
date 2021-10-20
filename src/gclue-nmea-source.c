@@ -696,9 +696,7 @@ gclue_nmea_source_init (GClueNMEASource *source)
         GClueConfig *config;
         int error;
 
-        source->priv = G_TYPE_INSTANCE_GET_PRIVATE ((source),
-                                                    GCLUE_TYPE_NMEA_SOURCE,
-                                                    GClueNMEASourcePrivate);
+        source->priv = gclue_nmea_source_get_instance_private (source);
         priv = source->priv;
 
         glib_poll = avahi_glib_poll_new (NULL, G_PRIORITY_DEFAULT);

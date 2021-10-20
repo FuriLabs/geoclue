@@ -943,9 +943,7 @@ gclue_service_client_initable_iface_init (GInitableIface *iface)
 static void
 gclue_service_client_init (GClueServiceClient *client)
 {
-        client->priv = G_TYPE_INSTANCE_GET_PRIVATE (client,
-                                                    GCLUE_TYPE_SERVICE_CLIENT,
-                                                    GClueServiceClientPrivate);
+        client->priv = gclue_service_client_get_instance_private (client);
         gclue_dbus_client_set_requested_accuracy_level
                 (GCLUE_DBUS_CLIENT (client), DEFAULT_ACCURACY_LEVEL);
 }

@@ -320,10 +320,7 @@ gclue_config_init (GClueConfig *config)
 {
         GError *error = NULL;
 
-        config->priv =
-                G_TYPE_INSTANCE_GET_PRIVATE (config,
-                                            GCLUE_TYPE_CONFIG,
-                                            GClueConfigPrivate);
+        config->priv = gclue_config_get_instance_private(config);
         config->priv->key_file = g_key_file_new ();
         g_key_file_load_from_file (config->priv->key_file,
                                    CONFIG_FILE_PATH,

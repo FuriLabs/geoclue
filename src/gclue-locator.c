@@ -427,10 +427,7 @@ gclue_locator_class_init (GClueLocatorClass *klass)
 static void
 gclue_locator_init (GClueLocator *locator)
 {
-        locator->priv =
-                G_TYPE_INSTANCE_GET_PRIVATE (locator,
-                                            GCLUE_TYPE_LOCATOR,
-                                            GClueLocatorPrivate);
+        locator->priv = gclue_locator_get_instance_private (locator);
 }
 
 static GClueLocationSourceStartResult

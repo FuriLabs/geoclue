@@ -864,7 +864,7 @@ on_interface_removed (WPASupplicant *supplicant,
 static void
 gclue_wifi_init (GClueWifi *wifi)
 {
-        wifi->priv = G_TYPE_INSTANCE_GET_PRIVATE ((wifi), GCLUE_TYPE_WIFI, GClueWifiPrivate);
+        wifi->priv = gclue_wifi_get_instance_private (wifi);
 
         wifi->priv->bss_proxies = g_hash_table_new_full (g_str_hash,
                                                          g_str_equal,

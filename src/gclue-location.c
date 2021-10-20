@@ -392,9 +392,7 @@ gclue_location_class_init (GClueLocationClass *klass)
 static void
 gclue_location_init (GClueLocation *location)
 {
-        location->priv = G_TYPE_INSTANCE_GET_PRIVATE ((location),
-                                                      GCLUE_TYPE_LOCATION,
-                                                      GClueLocationPrivate);
+        location->priv = gclue_location_get_instance_private (location);
 
         location->priv->altitude = GCLUE_LOCATION_ALTITUDE_UNKNOWN;
         location->priv->accuracy = GCLUE_LOCATION_ACCURACY_UNKNOWN;

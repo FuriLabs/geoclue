@@ -796,9 +796,7 @@ gclue_modem_manager_constructed (GObject *object)
 static void
 gclue_modem_manager_init (GClueModemManager *manager)
 {
-        manager->priv = G_TYPE_INSTANCE_GET_PRIVATE ((manager),
-                                                     GCLUE_TYPE_MODEM_MANAGER,
-                                                     GClueModemManagerPrivate);
+        manager->priv = gclue_modem_manager_get_instance_private (manager);
 }
 
 static void

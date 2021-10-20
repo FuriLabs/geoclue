@@ -155,7 +155,7 @@ gclue_modem_gps_init (GClueModemGPS *source)
         GClueModemGPSPrivate *priv;
         GClueMinUINT *threshold;
 
-        source->priv = G_TYPE_INSTANCE_GET_PRIVATE ((source), GCLUE_TYPE_MODEM_GPS, GClueModemGPSPrivate);
+        source->priv = gclue_modem_gps_get_instance_private (source);
         priv = source->priv;
 
         priv->cancellable = g_cancellable_new ();

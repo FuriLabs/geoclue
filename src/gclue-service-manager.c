@@ -658,9 +658,7 @@ gclue_service_manager_class_init (GClueServiceManagerClass *klass)
 static void
 gclue_service_manager_init (GClueServiceManager *manager)
 {
-        manager->priv = G_TYPE_INSTANCE_GET_PRIVATE (manager,
-                                                     GCLUE_TYPE_SERVICE_MANAGER,
-                                                     GClueServiceManagerPrivate);
+        manager->priv = gclue_service_manager_get_instance_private (manager);
 
         manager->priv->agents = g_hash_table_new_full (g_direct_hash,
                                                        g_direct_equal,

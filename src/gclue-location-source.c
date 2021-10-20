@@ -276,10 +276,7 @@ gclue_location_source_class_init (GClueLocationSourceClass *klass)
 static void
 gclue_location_source_init (GClueLocationSource *source)
 {
-        source->priv =
-                G_TYPE_INSTANCE_GET_PRIVATE (source,
-                                             GCLUE_TYPE_LOCATION_SOURCE,
-                                             GClueLocationSourcePrivate);
+        source->priv = gclue_location_source_get_instance_private (source);
         source->priv->compute_movement = TRUE;
         source->priv->time_threshold = gclue_min_uint_new ();
 }

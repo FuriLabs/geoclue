@@ -415,9 +415,7 @@ gclue_client_info_async_initable_init (GAsyncInitableIface *iface)
 static void
 gclue_client_info_init (GClueClientInfo *info)
 {
-        info->priv = G_TYPE_INSTANCE_GET_PRIVATE (info,
-                                                  GCLUE_TYPE_CLIENT_INFO,
-                                                  GClueClientInfoPrivate);
+        info->priv = gclue_client_info_get_instance_private(info);
 }
 
 void

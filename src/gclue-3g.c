@@ -152,7 +152,7 @@ gclue_3g_init (GClue3G *source)
 {
         GClue3GPrivate *priv;
 
-        source->priv = G_TYPE_INSTANCE_GET_PRIVATE ((source), GCLUE_TYPE_3G, GClue3GPrivate);
+        source->priv = gclue_3g_get_instance_private (source);
         priv = source->priv;
 
         priv->cancellable = g_cancellable_new ();
