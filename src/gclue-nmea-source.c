@@ -92,16 +92,13 @@ avahi_service_new (const char        *identifier,
                    guint16            port,
                    GClueAccuracyLevel accuracy)
 {
-        GTimeVal tv;
-
         AvahiServiceInfo *service = g_slice_new0 (AvahiServiceInfo);
 
         service->identifier = g_strdup (identifier);
         service->host_name = g_strdup (host_name);
         service->port = port;
         service->accuracy = accuracy;
-        g_get_current_time (&tv);
-        service->timestamp = tv.tv_sec;
+        service->timestamp = g_get_real_time () / G_USEC_PER_SEC;
 
         return service;
 }
