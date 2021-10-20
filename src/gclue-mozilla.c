@@ -298,12 +298,12 @@ gclue_mozilla_create_submit_query (GClueLocation   *location,
         JsonBuilder *builder;
         JsonGenerator *generator;
         JsonNode *root_node;
-        char *data, *timestamp;
+        char *data, *timestr;
         const char *url, *nick;
         gsize data_len;
         GList *iter;
         gdouble lat, lon, accuracy, altitude;
-        GTimeVal tv;
+        GDateTime *datetime;
 
         url = get_submit_config (&nick);
         if (url == NULL)
@@ -337,12 +337,16 @@ gclue_mozilla_create_submit_query (GClueLocation   *location,
                 json_builder_add_double_value (builder, altitude);
         }
 
-        tv.tv_sec = gclue_location_get_timestamp (location);
-        tv.tv_usec = 0;
-        timestamp = g_time_val_to_iso8601 (&tv);
+        datetime = g_date_time_new_from_unix_local
+                (gclue_location_get_timestamp (location));
+        /* We need to be compatible with GLib 2.56 so we cannot use this:
+         * timestr = g_date_time_format_iso8601 (datetime);
+         * Construct the format manually instead: */
+        timestr = g_date_time_format (datetime, "%Y-%m-%dT%H:%M:%S%:::z");
         json_builder_set_member_name (builder, "time");
-        json_builder_add_string_value (builder, timestamp);
-        g_free (timestamp);
+        json_builder_add_string_value (builder, timestr);
+        g_free (timestr);
+        g_object_unref (datetime);
 
         json_builder_set_member_name (builder, "radioType");
         json_builder_add_string_value (builder, "gsm");
