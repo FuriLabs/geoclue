@@ -362,7 +362,7 @@ on_bss_proxy_ready (GObject      *source_object,
 
         if (wpa_bss_get_signal (bss) <= -90) {
                 const char *path;
-                char bssid[BSSID_STR_LEN] = { 0 };
+                char bssid[BSSID_STR_LEN + 1] = { 0 };
 
                 get_bssid_from_bss (bss, bssid);
                 g_debug ("WiFi AP '%s' has very low strength (%u dBm)"
