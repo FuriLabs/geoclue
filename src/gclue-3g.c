@@ -251,8 +251,7 @@ gclue_3g_get_available_accuracy_level (GClueWebSource *web,
 
 static void
 on_fix_3g (GClueModem   *modem,
-           guint         mcc,
-           guint         mnc,
+           const gchar  *opc,
            gulong        lac,
            gulong        cell_id,
            GClueTowerTec tec,
@@ -262,8 +261,8 @@ on_fix_3g (GClueModem   *modem,
 
         if (priv->tower == NULL)
                 priv->tower = g_slice_new0 (GClue3GTower);
-        priv->tower->mcc = mcc;
-        priv->tower->mnc = mnc;
+        g_strlcpy (priv->tower->opc, opc,
+                   GCLUE_3G_TOWER_OPERATOR_CODE_STR_LEN + 1);
         priv->tower->lac = lac;
         priv->tower->cell_id = cell_id;
         priv->tower->tec = tec;

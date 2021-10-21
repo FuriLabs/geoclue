@@ -262,22 +262,48 @@ gclue_modem_interface_init (GClueModemInterface *iface)
         iface->disable_gps = gclue_modem_manager_disable_gps;
 }
 
+#if !MM_CHECK_VERSION(1, 18, 0)
+static void
+opc_from_mccmnc (MMLocation3gpp *location_3gpp,
+                 gchar          *opc_buf)
+{
+        guint mcc, mnc;
+
+        mcc = mm_location_3gpp_get_mobile_country_code (location_3gpp);
+        mnc = mm_location_3gpp_get_mobile_network_code (location_3gpp);
+
+        if (mcc < 1000 && mnc < 1000) {
+                g_snprintf (opc_buf, GCLUE_3G_TOWER_OPERATOR_CODE_STR_LEN + 1,
+                            "%03u%03u", mcc, mnc);
+        } else {
+                g_warning ("Invalid MCC or MNC value");
+                opc_buf[0] = '\0';
+        }
+}
+#endif
+
 static gboolean
 is_location_3gpp_same (GClueModemManager *manager,
-                       guint       new_mcc,
-                       guint       new_mnc,
-                       gulong      new_lac,
-                       gulong      new_cell_id)
+                       const gchar       *new_opc,
+                       gulong             new_lac,
+                       gulong             new_cell_id)
 {
         GClueModemManagerPrivate *priv = manager->priv;
-        guint mcc, mnc;
+        const gchar *opc;
         gulong lac, cell_id;
+#if !MM_CHECK_VERSION(1, 18, 0)
+        gchar opc_buf[GCLUE_3G_TOWER_OPERATOR_CODE_STR_LEN + 1];
+#endif
 
         if (priv->location_3gpp == NULL)
                 return FALSE;
 
-        mcc = mm_location_3gpp_get_mobile_country_code (priv->location_3gpp);
-        mnc = mm_location_3gpp_get_mobile_network_code (priv->location_3gpp);
+#if MM_CHECK_VERSION(1, 18, 0)
+        opc = mm_location_3gpp_get_operator_code (priv->location_3gpp);
+#else
+        opc_from_mccmnc (priv->location_3gpp, opc_buf);
+        opc = opc_buf;
+#endif
         lac = mm_location_3gpp_get_location_area_code (priv->location_3gpp);
 
         // Most likely this is an LTE connection and with the mozilla
@@ -290,8 +316,7 @@ is_location_3gpp_same (GClueModemManager *manager,
 
         cell_id = mm_location_3gpp_get_cell_id (priv->location_3gpp);
 
-        return (mcc == new_mcc &&
-                mnc == new_mnc &&
+        return (g_strcmp0 (opc, new_opc) == 0 &&
                 lac == new_lac &&
                 cell_id == new_cell_id);
 }
@@ -306,9 +331,12 @@ on_get_3gpp_ready (GObject      *source_object,
         MMModemLocation *modem_location = MM_MODEM_LOCATION (source_object);
         g_autoptr(MMLocation3gpp) location_3gpp = NULL;
         GError *error = NULL;
-        guint mcc, mnc;
+        const gchar *opc;
         gulong lac, cell_id;
         GClueTowerTec tec = GCLUE_TOWER_TEC_3G;
+#if !MM_CHECK_VERSION(1, 18, 0)
+        gchar opc_buf[GCLUE_3G_TOWER_OPERATOR_CODE_STR_LEN + 1];
+#endif
 
         location_3gpp = mm_modem_location_get_3gpp_finish (modem_location,
                                                            res,
@@ -325,8 +353,15 @@ on_get_3gpp_ready (GObject      *source_object,
                 return;
         }
 
-        mcc = mm_location_3gpp_get_mobile_country_code (location_3gpp);
-        mnc = mm_location_3gpp_get_mobile_network_code (location_3gpp);
+#if MM_CHECK_VERSION(1, 18, 0)
+        opc = mm_location_3gpp_get_operator_code (location_3gpp);
+#else
+        opc_from_mccmnc (location_3gpp, opc_buf);
+        opc = opc_buf;
+#endif
+        if (!opc || !opc[0])
+                return;
+
         lac = mm_location_3gpp_get_location_area_code (location_3gpp);
 
         // Most likely this is an LTE connection and with the mozilla
@@ -340,14 +375,14 @@ on_get_3gpp_ready (GObject      *source_object,
 
         cell_id = mm_location_3gpp_get_cell_id (location_3gpp);
 
-        if (is_location_3gpp_same (manager, mcc, mnc, lac, cell_id)) {
+        if (is_location_3gpp_same (manager, opc, lac, cell_id)) {
                 g_debug ("New 3GPP location is same as last one");
                 return;
         }
         g_clear_object (&priv->location_3gpp);
         priv->location_3gpp = g_steal_pointer (&location_3gpp);
 
-        g_signal_emit (manager, signals[FIX_3G], 0, mcc, mnc, lac, cell_id, tec);
+        g_signal_emit (manager, signals[FIX_3G], 0, opc, lac, cell_id, tec);
 }
 
 static void

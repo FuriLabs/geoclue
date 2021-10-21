@@ -32,9 +32,11 @@ typedef enum {
 
 typedef struct _GClue3GTower GClue3GTower;
 
+#define GCLUE_3G_TOWER_OPERATOR_CODE_STR_LEN 6
+#define GCLUE_3G_TOWER_COUNTRY_CODE_STR_LEN 3
+
 struct _GClue3GTower {
-        guint   mcc;
-        guint   mnc;
+        gchar   opc[GCLUE_3G_TOWER_OPERATOR_CODE_STR_LEN + 1];
         gulong  lac;
         gulong  cell_id;
         GClueTowerTec tec;

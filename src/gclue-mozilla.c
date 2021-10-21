@@ -112,6 +112,30 @@ get_url (void)
         return gclue_config_get_wifi_url (config);
 }
 
+static gboolean
+operator_code_to_mcc_mnc (const gchar *opc,
+                          gint64      *mcc_p,
+                          gint64      *mnc_p)
+{
+        gchar *end;
+        gchar mcc_str[GCLUE_3G_TOWER_COUNTRY_CODE_STR_LEN + 1] = { 0 };
+
+        g_strlcpy (mcc_str, opc, GCLUE_3G_TOWER_COUNTRY_CODE_STR_LEN + 1);
+        *mcc_p = g_ascii_strtoll (mcc_str, &end, 10);
+        if (*end != '\0')
+                goto error;
+
+        *mnc_p = g_ascii_strtoll (opc + GCLUE_3G_TOWER_COUNTRY_CODE_STR_LEN,
+                                  &end, 10);
+        if (*end != '\0')
+                goto error;
+
+        return TRUE;
+error:
+        g_warning ("Operator code conversion failed");
+        return FALSE;
+}
+
 SoupMessage *
 gclue_mozilla_create_query (GList        *bss_list, /* As in Access Points */
                             GClue3GTower *tower,
@@ -126,6 +150,7 @@ gclue_mozilla_create_query (GList        *bss_list, /* As in Access Points */
         const char *uri;
         guint n_non_ignored_bsss;
         GList *iter;
+        gint64 mcc, mnc;
 
         builder = json_builder_new ();
         json_builder_begin_object (builder);
@@ -147,7 +172,9 @@ gclue_mozilla_create_query (GList        *bss_list, /* As in Access Points */
                 n_non_ignored_bsss++;
         }
 
-        if (tower != NULL) {
+        if (tower != NULL &&
+            operator_code_to_mcc_mnc (tower->opc, &mcc, &mnc)) {
+
                 json_builder_set_member_name (builder, "radioType");
                 json_builder_add_string_value (builder, "gsm");
 
@@ -159,9 +186,9 @@ gclue_mozilla_create_query (GList        *bss_list, /* As in Access Points */
                 json_builder_set_member_name (builder, "cellId");
                 json_builder_add_int_value (builder, tower->cell_id);
                 json_builder_set_member_name (builder, "mobileCountryCode");
-                json_builder_add_int_value (builder, tower->mcc);
+                json_builder_add_int_value (builder, mcc);
                 json_builder_set_member_name (builder, "mobileNetworkCode");
-                json_builder_add_int_value (builder, tower->mnc);
+                json_builder_add_int_value (builder, mnc);
                 json_builder_set_member_name (builder, "locationAreaCode");
                 json_builder_add_int_value (builder, tower->lac);
                 if (tower->tec == GCLUE_TOWER_TEC_4G) {
@@ -304,6 +331,7 @@ gclue_mozilla_create_submit_query (GClueLocation   *location,
         GList *iter;
         gdouble lat, lon, accuracy, altitude;
         GDateTime *datetime;
+        gint64 mcc, mnc;
 
         url = get_submit_config (&nick);
         if (url == NULL)
@@ -382,7 +410,9 @@ gclue_mozilla_create_submit_query (GClueLocation   *location,
                 json_builder_end_array (builder); /* wifi */
         }
 
-        if (tower != NULL) {
+        if (tower != NULL &&
+            operator_code_to_mcc_mnc (tower->opc, &mcc, &mnc)) {
+
                 json_builder_set_member_name (builder, "cell");
                 json_builder_begin_array (builder);
 
@@ -393,9 +423,9 @@ gclue_mozilla_create_submit_query (GClueLocation   *location,
                 json_builder_set_member_name (builder, "cid");
                 json_builder_add_int_value (builder, tower->cell_id);
                 json_builder_set_member_name (builder, "mcc");
-                json_builder_add_int_value (builder, tower->mcc);
+                json_builder_add_int_value (builder, mcc);
                 json_builder_set_member_name (builder, "mnc");
-                json_builder_add_int_value (builder, tower->mnc);
+                json_builder_add_int_value (builder, mnc);
                 json_builder_set_member_name (builder, "lac");
                 json_builder_add_int_value (builder, tower->lac);
 
