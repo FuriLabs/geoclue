@@ -346,7 +346,7 @@ gclue_mozilla_create_submit_query (GClueLocation   *location,
         json_builder_set_member_name (builder, "time");
         json_builder_add_string_value (builder, timestr);
         g_free (timestr);
-        g_object_unref (datetime);
+        g_date_time_unref (datetime);
 
         json_builder_set_member_name (builder, "radioType");
         json_builder_add_string_value (builder, "gsm");
