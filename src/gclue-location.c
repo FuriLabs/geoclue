@@ -732,6 +732,59 @@ gclue_location_create_from_nmea (const char     *nmea,
 }
 
 /**
+ * gclue_location_create_from_nmeas:
+ * @nmea: A NULL terminated array NMEA sentence strings
+ * @prev_location: Previous location provided from the location source
+ * @error: Place-holder for errors.
+ *
+ * Creates a new #GClueLocation object by combining data from multiple NMEA
+ * sentences.
+ *
+ * Returns: a new #GClueLocation object if GGA or RMC sentences are found,
+ * a %NULL on all other cases and errors. Unref using #g_object_unref() when
+ * done with it.
+ **/
+GClueLocation *
+gclue_location_create_from_nmeas (const char     *nmeas[],
+                                  GClueLocation  *prev_location,
+                                  GError        **error)
+{
+        GClueLocation *gga_loc = NULL;
+        GClueLocation *rmc_loc = NULL;
+        const char **iter;
+
+        for (iter = nmeas; *iter != NULL; iter++) {
+                if (!gga_loc && gclue_nmea_is_gga (*iter))
+                        gga_loc = gclue_location_create_from_gga (*iter, NULL);
+                if (!rmc_loc && gclue_nmea_is_rmc (*iter))
+                        rmc_loc = gclue_location_create_from_rmc
+                                (*iter, prev_location, NULL);
+                if (gga_loc && rmc_loc)
+                    break;
+        }
+
+        if (gga_loc && rmc_loc) {
+                gclue_location_set_speed
+                        (gga_loc, gclue_location_get_speed(rmc_loc));
+                gclue_location_set_heading
+                        (gga_loc, gclue_location_get_heading(rmc_loc));
+                g_object_unref (rmc_loc);
+
+                return gga_loc;
+        }
+        if (gga_loc)
+                return gga_loc;
+        if (rmc_loc)
+                return rmc_loc;
+
+        g_set_error_literal (error,
+                             G_IO_ERROR,
+                             G_IO_ERROR_INVALID_ARGUMENT,
+                             "Valid NMEA GGA or RMC sentence not found");
+        return NULL;
+}
+
+/**
  * gclue_location_duplicate:
  * @location: the #GClueLocation instance to duplicate.
  *
