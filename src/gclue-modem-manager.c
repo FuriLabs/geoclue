@@ -405,7 +405,9 @@ on_get_gps_nmea_ready (GObject      *source_object,
         GClueModemManagerPrivate *priv = manager->priv;
         MMModemLocation *modem_location = MM_MODEM_LOCATION (source_object);
         MMLocationGpsNmea *location_nmea;
-        const char *sentence;
+        static const gchar *sentences[3];
+        const gchar *gga, *rmc;
+        gint i = 0;
         GError *error = NULL;
 
         location_nmea = mm_modem_location_get_gps_nmea_finish (modem_location,
@@ -423,27 +425,28 @@ on_get_gps_nmea_ready (GObject      *source_object,
                 return;
         }
 
-        sentence = mm_location_gps_nmea_get_trace (location_nmea, "$GPGGA");
-        if (sentence != NULL && gclue_nmea_is_gga (sentence)) {
-                if (is_location_gga_same (manager, sentence)) {
-                        g_debug ("New GGA trace is same as last one: %s", sentence);
+        gga = mm_location_gps_nmea_get_trace (location_nmea, "$GPGGA");
+        if (gga != NULL && gclue_nmea_is_gga (gga)) {
+                if (is_location_gga_same (manager, gga)) {
+                        g_debug ("New GGA trace is same as last one: %s", gga);
+                        g_object_unref (location_nmea);
                         return;
                 }
-                g_debug ("New GPGGA trace: %s", sentence);
-                goto new_trace;
+                g_debug ("New GPGGA trace: %s", gga);
+                sentences[i++] = gga;
         }
-        sentence = mm_location_gps_nmea_get_trace (location_nmea, "$GPRMC");
-        if (sentence != NULL && gclue_nmea_is_rmc (sentence)) {
-                g_debug ("New GPRMC trace: %s", sentence);
-                goto new_trace;
+        rmc = mm_location_gps_nmea_get_trace (location_nmea, "$GPRMC");
+        if (rmc != NULL && gclue_nmea_is_rmc (rmc)) {
+                g_debug ("New GPRMC trace: %s", rmc);
+                sentences[i++] = rmc;
         }
+        sentences[i] = NULL;
 
-        g_debug ("No GGA or RMC trace");
-        goto out;
+        if (sentences[0] == NULL)
+                g_debug ("No GGA or RMC trace");
+        else
+                g_signal_emit (manager, signals[FIX_GPS], 0, sentences);
 
-new_trace:
-        g_signal_emit (manager, signals[FIX_GPS], 0, sentence);
-out:
         g_clear_object (&priv->location_nmea);
         priv->location_nmea = location_nmea;
 }

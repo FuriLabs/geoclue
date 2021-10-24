@@ -209,7 +209,7 @@ gclue_modem_gps_get_singleton (void)
 
 static void
 on_fix_gps (GClueModem *modem,
-            const char *nmea,
+            const char *nmeas[],
             gpointer    user_data)
 {
         GClueLocationSource *source = GCLUE_LOCATION_SOURCE (user_data);
@@ -218,9 +218,9 @@ on_fix_gps (GClueModem *modem,
         GError *error = NULL;
 
         prev_location = gclue_location_source_get_location (source);
-        location = gclue_location_create_from_nmea (nmea,
-                                                    prev_location,
-                                                    &error);
+        location = gclue_location_create_from_nmeas (nmeas,
+                                                     prev_location,
+                                                     &error);
 
         if (error != NULL) {
             g_warning ("Error: %s", error->message);

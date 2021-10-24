@@ -105,10 +105,10 @@ gclue_modem_default_init (GClueModemInterface *iface)
                       0,
                       NULL,
                       NULL,
-                      g_cclosure_marshal_VOID__STRING,
+                      g_cclosure_marshal_VOID__BOXED,
                       G_TYPE_NONE,
                       1,
-                      G_TYPE_STRING);
+                      G_TYPE_STRV);
 }
 
 gboolean
