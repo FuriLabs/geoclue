@@ -448,6 +448,7 @@ browse_callback (AvahiServiceBrowser   *service_browser,
         }
 }
 
+#define NMEA_STR_LEN 128
 static void
 on_read_nmea_sentence (GObject      *object,
                        GAsyncResult *result,
@@ -460,44 +461,74 @@ on_read_nmea_sentence (GObject      *object,
         GClueLocation *location;
         gsize data_size = 0 ;
         char *message;
+        gint i;
+        static const gchar *sentences[3] = { 0 };
+        static gchar gga[NMEA_STR_LEN] = { 0 };
+        static gchar rmc[NMEA_STR_LEN] = { 0 };
+
 
         message = g_data_input_stream_read_line_finish (data_input_stream,
                                                         result,
                                                         &data_size,
                                                         &error);
 
-        if (message == NULL) {
-                if (error != NULL) {
-                        if (error->code == G_IO_ERROR_CLOSED)
-                                g_debug ("Socket closed.");
-                        else if (error->code != G_IO_ERROR_CANCELLED)
-                                g_warning ("Error when receiving message: %s",
-                                           error->message);
-                        g_error_free (error);
-                } else {
-                        g_debug ("Nothing to read");
+        do {
+                if (message == NULL) {
+                        if (error != NULL) {
+                                if (error->code == G_IO_ERROR_CLOSED)
+                                        g_debug ("Socket closed.");
+                                else if (error->code != G_IO_ERROR_CANCELLED)
+                                        g_warning ("Error when receiving message: %s",
+                                                   error->message);
+                                g_error_free (error);
+                        } else {
+                                g_debug ("Nothing to read");
+                        }
+                        g_object_unref (data_input_stream);
+
+                        if (source->priv->active_service != NULL)
+                                /* In case service did not advertise it exiting
+                                 * or we failed to receive it's notification.
+                                 */
+                                remove_service (source, source->priv->active_service);
+
+                        gga[0] = '\0';
+                        rmc[0] = '\0';
+                        return;
                 }
-                g_object_unref (data_input_stream);
+                g_debug ("Network source sent: \"%s\"", message);
 
-                if (source->priv->active_service != NULL)
-                        /* In case service did not advertise it exiting
-                         * or we failed to receive it's notification.
-                         */
-                        remove_service (source, source->priv->active_service);
+                if (gclue_nmea_is_gga (message)) {
+                        g_strlcpy (gga, message, NMEA_STR_LEN);
+                } else if (gclue_nmea_is_rmc (message)) {
+                        g_strlcpy (rmc, message, NMEA_STR_LEN);
+                } else {
+                        g_debug ("Ignoring NMEA sentence, as it's neither GGA or RMC: %s", message);
+                }
 
-                return;
-        }
-        g_debug ("Network source sent: \"%s\"", message);
+                message = (char *) g_buffered_input_stream_peek_buffer
+                        (G_BUFFERED_INPUT_STREAM (data_input_stream),
+                         &data_size);
+                if (g_strstr_len (message, data_size, "\n")) {
+                    message = g_data_input_stream_read_line
+                            (data_input_stream, &data_size, NULL, &error);
+                } else {
+                    break;
+                }
+        } while (TRUE);
 
-        if (!gclue_nmea_is_nmea (message)) {
-                g_debug ("Ignoring NMEA sentence, as it's niether GGA or RMC: %s", message);
-                goto READ_NEXT_LINE;
-         }
+        i = 0;
+        if (gga[0])
+                sentences[i++] = gga;
+        if (rmc[0])
+                sentences[i++] = rmc;
+        sentences[i] = NULL;
 
-        prev_location = gclue_location_source_get_location (GCLUE_LOCATION_SOURCE (source));
-        location = gclue_location_create_from_nmea (message,
-                                                    prev_location,
-                                                    &error);
+        prev_location = gclue_location_source_get_location
+                (GCLUE_LOCATION_SOURCE (source));
+        location = gclue_location_create_from_nmeas (sentences,
+                                                     prev_location,
+                                                     &error);
 
         if (error != NULL) {
                 g_warning ("Error: %s", error->message);
@@ -507,7 +538,10 @@ on_read_nmea_sentence (GObject      *object,
                         (GCLUE_LOCATION_SOURCE (source), location);
         }
 
-READ_NEXT_LINE:
+        gga[0] = '\0';
+        rmc[0] = '\0';
+        sentences[0] = NULL;
+
         g_data_input_stream_read_line_async (data_input_stream,
                                              G_PRIORITY_DEFAULT,
                                              source->priv->cancellable,
