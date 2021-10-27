@@ -703,35 +703,6 @@ out:
 }
 
 /**
- * gclue_location_create_from_nmea:
- * @nmea: NMEA sentence
- * @prev_location: Previous location provided from the location source
- * @error: Place-holder for errors.
- *
- * Creates a new #GClueLocation object from a NMEA sentence.
- *
- * Returns: a new #GClueLocation object if it is either GGA or RMC.
- * a %NULL on all other cases and errors. Unref using
- * #g_object_unref() when done with it.
- **/
-GClueLocation *
-gclue_location_create_from_nmea (const char     *nmea,
-                                 GClueLocation  *prev_location,
-                                 GError        **error)
-{
-        if (gclue_nmea_is_gga (nmea))
-                return gclue_location_create_from_gga (nmea, error);
-        if (gclue_nmea_is_rmc (nmea))
-                return gclue_location_create_from_rmc (nmea, prev_location, error);
-
-        g_set_error_literal (error,
-                             G_IO_ERROR,
-                             G_IO_ERROR_INVALID_ARGUMENT,
-                             "Sentence not valid NMEA GGA or NMEA RMC");
-        return NULL;
-}
-
-/**
  * gclue_location_create_from_nmeas:
  * @nmea: A NULL terminated array NMEA sentence strings
  * @prev_location: Previous location provided from the location source
