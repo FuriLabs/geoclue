@@ -213,7 +213,8 @@ gclue_cdma_start (GClueLocationSource *source)
         GClueCDMAPrivate *priv;
         GClueLocationSourceStartResult base_result;
 
-        g_return_val_if_fail (GCLUE_IS_LOCATION_SOURCE (source), FALSE);
+        g_return_val_if_fail (GCLUE_IS_LOCATION_SOURCE (source),
+                              GCLUE_LOCATION_SOURCE_START_RESULT_FAILED);
         priv = GCLUE_CDMA (source)->priv;
 
         base_class = GCLUE_LOCATION_SOURCE_CLASS (gclue_cdma_parent_class);

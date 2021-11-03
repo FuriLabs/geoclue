@@ -736,7 +736,8 @@ gclue_wifi_start (GClueLocationSource *source)
         GClueLocationSourceClass *base_class;
         GClueLocationSourceStartResult base_result;
 
-        g_return_val_if_fail (GCLUE_IS_WIFI (source), FALSE);
+        g_return_val_if_fail (GCLUE_IS_WIFI (source),
+                              GCLUE_LOCATION_SOURCE_START_RESULT_FAILED);
 
         base_class = GCLUE_LOCATION_SOURCE_CLASS (gclue_wifi_parent_class);
         base_result = base_class->start (source);

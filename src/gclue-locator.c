@@ -461,7 +461,8 @@ gclue_locator_start (GClueLocationSource *source)
         GList *node;
         GClueLocationSourceStartResult base_result;
 
-        g_return_val_if_fail (GCLUE_IS_LOCATOR (source), FALSE);
+        g_return_val_if_fail (GCLUE_IS_LOCATOR (source),
+                              GCLUE_LOCATION_SOURCE_START_RESULT_FAILED);
         locator = GCLUE_LOCATOR (source);
 
         base_class = GCLUE_LOCATION_SOURCE_CLASS (gclue_locator_parent_class);

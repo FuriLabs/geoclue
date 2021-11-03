@@ -240,7 +240,8 @@ gclue_modem_gps_start (GClueLocationSource *source)
         GClueModemGPSPrivate *priv;
         GClueLocationSourceStartResult base_result;
 
-        g_return_val_if_fail (GCLUE_IS_LOCATION_SOURCE (source), FALSE);
+        g_return_val_if_fail (GCLUE_IS_LOCATION_SOURCE (source),
+                              GCLUE_LOCATION_SOURCE_START_RESULT_FAILED);
         priv = GCLUE_MODEM_GPS (source)->priv;
 
         base_class = GCLUE_LOCATION_SOURCE_CLASS (gclue_modem_gps_parent_class);

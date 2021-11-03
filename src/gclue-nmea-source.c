@@ -728,7 +728,8 @@ gclue_nmea_source_start (GClueLocationSource *source)
         GClueLocationSourceClass *base_class;
         GClueLocationSourceStartResult base_result;
 
-        g_return_val_if_fail (GCLUE_IS_NMEA_SOURCE (source), FALSE);
+        g_return_val_if_fail (GCLUE_IS_NMEA_SOURCE (source),
+                              GCLUE_LOCATION_SOURCE_START_RESULT_FAILED);
 
         base_class = GCLUE_LOCATION_SOURCE_CLASS (gclue_nmea_source_parent_class);
         base_result = base_class->start (source);
