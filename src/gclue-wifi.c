@@ -491,6 +491,23 @@ on_scan_timeout (gpointer user_data)
         return G_SOURCE_REMOVE;
 }
 
+static gboolean
+on_scan_wait_done (gpointer wifi)
+{
+        GClueWifiPrivate *priv;
+
+        g_return_val_if_fail (GCLUE_IS_WIFI (wifi), G_SOURCE_REMOVE);
+        priv = GCLUE_WIFI(wifi)->priv;
+
+        if (priv->bss_list_changed) {
+                priv->bss_list_changed = FALSE;
+                g_debug ("Refreshing location…");
+                gclue_web_source_refresh (GCLUE_WEB_SOURCE (wifi));
+        }
+
+        return G_SOURCE_REMOVE;
+}
+
 static void
 on_scan_done (WPAInterface *object,
               gboolean      success,
@@ -510,11 +527,7 @@ on_scan_done (WPAInterface *object,
         if (priv->interface == NULL)
                 return;
 
-        if (priv->bss_list_changed) {
-                priv->bss_list_changed = FALSE;
-                g_debug ("Refreshing location…");
-                gclue_web_source_refresh (GCLUE_WEB_SOURCE (wifi));
-        }
+        g_timeout_add_seconds (1, on_scan_wait_done, wifi);
 
         /* If there was another scan already scheduled, cancel that and
          * re-schedule. Regardless of our internal book-keeping, this can happen
