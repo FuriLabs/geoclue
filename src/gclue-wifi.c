@@ -34,6 +34,11 @@
  */
 #define WIFI_SCAN_TIMEOUT_LOW_ACCURACY  300
 
+/* WiFi APs at and below this signal level in scan results are ignored.
+ * In dBm units.
+ */
+#define WIFI_SCAN_BSS_NOISE_LEVEL -90
+
 #define BSSID_LEN 6
 #define BSSID_STR_LEN 17
 #define MAX_SSID_LEN 32
@@ -318,11 +323,11 @@ on_bss_signal_notify (GObject    *gobject,
         WPABSS *bss = WPA_BSS (gobject);
         const char *path;
 
-        if (wpa_bss_get_signal (bss) <= -90) {
+        if (wpa_bss_get_signal (bss) <= WIFI_SCAN_BSS_NOISE_LEVEL) {
                 char bssid[BSSID_STR_LEN + 1] = { 0 };
 
                 get_bssid_from_bss (bss, bssid);
-                g_debug ("WiFi AP '%s' still has very low strength (%u dBm)"
+                g_debug ("WiFi AP '%s' still has very low strength (%d dBm)"
                          ", ignoring again…",
                          bssid,
                          wpa_bss_get_signal (bss));
@@ -364,12 +369,12 @@ on_bss_proxy_ready (GObject      *source_object,
         get_ssid_from_bss (bss, ssid);
         g_debug ("WiFi AP '%s' added.", ssid);
 
-        if (wpa_bss_get_signal (bss) <= -90) {
+        if (wpa_bss_get_signal (bss) <= WIFI_SCAN_BSS_NOISE_LEVEL) {
                 const char *path;
                 char bssid[BSSID_STR_LEN + 1] = { 0 };
 
                 get_bssid_from_bss (bss, bssid);
-                g_debug ("WiFi AP '%s' has very low strength (%u dBm)"
+                g_debug ("WiFi AP '%s' has very low strength (%d dBm)"
                          ", ignoring for now…",
                          bssid,
                          wpa_bss_get_signal (bss));
