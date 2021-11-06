@@ -91,6 +91,7 @@ struct _GClueWifiPrivate {
 
         GHashTable *location_cache;  /* (element-type GVariant GClueLocation) (owned) */
         guint cache_prune_timeout_id;
+        guint cache_hits, cache_misses;
 
 #if GLIB_CHECK_VERSION(2, 64, 0)
         GMemoryMonitor *memory_monitor;
@@ -1218,6 +1219,7 @@ gclue_wifi_refresh_async (GClueWebSource      *source,
                         g_debug ("Cache hit for key %s: got location %p (%s)",
                                  cache_key_str, cached_location,
                                  gclue_location_get_description (cached_location));
+                        wifi->priv->cache_hits++;
 
                         /* Duplicate the location so its timestamp is updated. */
                         new_location = duplicate_location_new_timestamp (cached_location);
@@ -1228,6 +1230,7 @@ gclue_wifi_refresh_async (GClueWebSource      *source,
                 }
 
                 g_debug ("Cache miss for key %s; querying web service", cache_key_str);
+                wifi->priv->cache_misses++;
         }
 
         /* Fall back to querying the web service. */
@@ -1246,6 +1249,7 @@ refresh_cb (GObject      *source_object,
         g_autoptr(GError) local_error = NULL;
         GVariant *cache_key;
         g_autofree gchar *cache_key_str = NULL;
+        double cache_hit_ratio;
 
         /* Finish querying the web service. */
         location = GCLUE_WEB_SOURCE_CLASS (gclue_wifi_parent_class)->refresh_finish (source, result, &local_error);
@@ -1260,10 +1264,21 @@ refresh_cb (GObject      *source_object,
         cache_key_str = g_variant_print (cache_key, FALSE);
         g_hash_table_replace (wifi->priv->location_cache, g_variant_ref (cache_key), g_object_ref (location));
 
-        g_debug ("Adding %s / %s to cache (new size: %u)",
+        if (wifi->priv->cache_hits || wifi->priv->cache_misses) {
+                double cache_attempts;
+
+                cache_attempts = wifi->priv->cache_hits;
+                cache_attempts += wifi->priv->cache_misses;
+                cache_hit_ratio = wifi->priv->cache_hits * 100.0 / cache_attempts;
+        } else {
+                cache_hit_ratio = 0;
+        }
+
+        g_debug ("Adding %s / %s to cache (new size: %u; hit ratio %.2f%%)",
                  cache_key_str,
                  gclue_location_get_description (location),
-                 g_hash_table_size (wifi->priv->location_cache));
+                 g_hash_table_size (wifi->priv->location_cache),
+                 cache_hit_ratio);
 
         /* Update the location and return. */
         gclue_location_source_set_location (GCLUE_LOCATION_SOURCE (source), location);
