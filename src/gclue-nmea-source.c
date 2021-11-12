@@ -498,9 +498,9 @@ on_read_nmea_sentence (GObject      *object,
                 }
                 g_debug ("Network source sent: \"%s\"", message);
 
-                if (gclue_nmea_is_gga (message)) {
+                if (gclue_nmea_type_is (message, "GGA")) {
                         g_strlcpy (gga, message, NMEA_STR_LEN);
-                } else if (gclue_nmea_is_rmc (message)) {
+                } else if (gclue_nmea_type_is (message, "RMC")) {
                         g_strlcpy (rmc, message, NMEA_STR_LEN);
                 } else {
                         g_debug ("Ignoring NMEA sentence, as it's neither GGA or RMC: %s", message);

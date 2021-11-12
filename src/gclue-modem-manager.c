@@ -426,7 +426,7 @@ on_get_gps_nmea_ready (GObject      *source_object,
         }
 
         gga = mm_location_gps_nmea_get_trace (location_nmea, "$GPGGA");
-        if (gga != NULL && gclue_nmea_is_gga (gga)) {
+        if (gga != NULL && gclue_nmea_type_is (gga, "GGA")) {
                 if (is_location_gga_same (manager, gga)) {
                         g_debug ("New GGA trace is same as last one: %s", gga);
                         return;
@@ -435,7 +435,7 @@ on_get_gps_nmea_ready (GObject      *source_object,
                 sentences[i++] = gga;
         }
         rmc = mm_location_gps_nmea_get_trace (location_nmea, "$GPRMC");
-        if (rmc != NULL && gclue_nmea_is_rmc (rmc)) {
+        if (rmc != NULL && gclue_nmea_type_is (rmc, "RMC")) {
                 g_debug ("New GPRMC trace: %s", rmc);
                 sentences[i++] = rmc;
         }

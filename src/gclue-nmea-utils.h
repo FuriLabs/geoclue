@@ -23,9 +23,7 @@
 
 G_BEGIN_DECLS
 
-gboolean         gclue_nmea_is_gga               (const char *msg);
-gboolean         gclue_nmea_is_rmc               (const char *msg);
-gboolean         gclue_nmea_is_nmea              (const char *msg);
+gboolean         gclue_nmea_type_is              (const char *msg, const char *nmeatype);
 
 G_END_DECLS
 

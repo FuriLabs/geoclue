@@ -16,52 +16,23 @@
  *
  */
 
+#include <string.h>
 #include "gclue-nmea-utils.h"
 
 /**
- * gclue_nmea_is_gga:
+ * gclue_nmea_type_is:
  * @msg: NMEA sentence
+ * @nmeatype: A three character NMEA sentence type string ("GGA", "RMC" etc.)
  *
- * Returns: whether given NMEA sentence is a GGA
+ * Returns: whether given NMEA sentence is of the given type
  **/
 gboolean
-gclue_nmea_is_gga (const char *msg)
+gclue_nmea_type_is (const char *msg, const char *nmeatype)
 {
-        return g_str_has_prefix (msg, "$GA" "GGA") ||  /* Galieo */
-               g_str_has_prefix (msg, "$GB" "GGA") ||  /* BeiDou */
-               g_str_has_prefix (msg, "$BD" "GGA") ||  /* BeiDou */
-               g_str_has_prefix (msg, "$GL" "GGA") ||  /* GLONASS */
-               g_str_has_prefix (msg, "$GN" "GGA") ||  /* GNSS (combined) */
-               g_str_has_prefix (msg, "$GP" "GGA") ||  /* GPS, SBAS, QZSS */
-               g_str_has_prefix (msg, "$QZ" "GGA");    /* QZSS */
+        g_assert (strnlen (nmeatype, 4) < 4);
+
+        return strnlen (msg, 7) > 6 &&
+                g_str_has_prefix (msg, "$") &&
+                g_str_has_prefix (msg+3, nmeatype);
 }
 
-/**
- * gclue_nmea_is_rmc:
- * @msg: NMEA sentence
- *
- * Returns: whether given NMEA sentence is a RMC
- **/
-gboolean
-gclue_nmea_is_rmc (const char *msg)
-{
-        return g_str_has_prefix (msg, "$GA" "RMC") ||  /* Galieo */
-               g_str_has_prefix (msg, "$GB" "RMC") ||  /* BeiDou */
-               g_str_has_prefix (msg, "$BD" "RMC") ||  /* BeiDou */
-               g_str_has_prefix (msg, "$GL" "RMC") ||  /* GLONASS */
-               g_str_has_prefix (msg, "$GN" "RMC") ||  /* GNSS (combined) */
-               g_str_has_prefix (msg, "$GP" "RMC") ||  /* GPS, SBAS, QZSS */
-               g_str_has_prefix (msg, "$QZ" "RMC");    /* QZSS */
-}
-
-/**
- * gclue_nmea_is_nmea:
- * @msg: sentence
- *
- * Returns: whether given sentence is valid NMEA
- **/
-gboolean
-gclue_nmea_is_nmea(const char *msg)
-{
-        return gclue_nmea_is_gga(msg) || gclue_nmea_is_rmc(msg);
-}

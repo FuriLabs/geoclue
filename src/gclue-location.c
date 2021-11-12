@@ -736,9 +736,9 @@ gclue_location_create_from_nmeas (const char     *nmeas[],
         const char **iter;
 
         for (iter = nmeas; *iter != NULL; iter++) {
-                if (!gga_loc && gclue_nmea_is_gga (*iter))
+                if (!gga_loc && gclue_nmea_type_is (*iter, "GGA"))
                         gga_loc = gclue_location_create_from_gga (*iter, NULL);
-                if (!rmc_loc && gclue_nmea_is_rmc (*iter))
+                if (!rmc_loc && gclue_nmea_type_is (*iter, "RMC"))
                         rmc_loc = gclue_location_create_from_rmc
                                 (*iter, prev_location, NULL);
                 if (gga_loc && rmc_loc)
