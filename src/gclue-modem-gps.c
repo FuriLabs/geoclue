@@ -214,7 +214,7 @@ on_fix_gps (GClueModem *modem,
 {
         GClueLocationSource *source = GCLUE_LOCATION_SOURCE (user_data);
         GClueLocation *prev_location;
-        GClueLocation *location;
+        g_autoptr(GClueLocation) location = NULL;
         GError *error = NULL;
 
         prev_location = gclue_location_source_get_location (source);

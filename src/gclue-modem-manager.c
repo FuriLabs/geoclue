@@ -304,7 +304,7 @@ on_get_3gpp_ready (GObject      *source_object,
         GClueModemManager *manager = GCLUE_MODEM_MANAGER (user_data);
         GClueModemManagerPrivate *priv = manager->priv;
         MMModemLocation *modem_location = MM_MODEM_LOCATION (source_object);
-        MMLocation3gpp *location_3gpp;
+        g_autoptr(MMLocation3gpp) location_3gpp = NULL;
         GError *error = NULL;
         guint mcc, mnc;
         gulong lac, cell_id;
@@ -345,7 +345,7 @@ on_get_3gpp_ready (GObject      *source_object,
                 return;
         }
         g_clear_object (&priv->location_3gpp);
-        priv->location_3gpp = location_3gpp;
+        priv->location_3gpp = g_steal_pointer (&location_3gpp);
 
         g_signal_emit (manager, signals[FIX_3G], 0, mcc, mnc, lac, cell_id, tec);
 }
@@ -357,7 +357,7 @@ on_get_cdma_ready (GObject      *source_object,
 {
         GClueModemManager *manager = GCLUE_MODEM_MANAGER (user_data);
         MMModemLocation *modem_location = MM_MODEM_LOCATION (source_object);
-        MMLocationCdmaBs *location_cdma;
+        g_autoptr(MMLocationCdmaBs) location_cdma = NULL;
         GError *error = NULL;
 
         location_cdma = mm_modem_location_get_cdma_bs_finish (modem_location,
@@ -404,7 +404,7 @@ on_get_gps_nmea_ready (GObject      *source_object,
         GClueModemManager *manager = GCLUE_MODEM_MANAGER (user_data);
         GClueModemManagerPrivate *priv = manager->priv;
         MMModemLocation *modem_location = MM_MODEM_LOCATION (source_object);
-        MMLocationGpsNmea *location_nmea;
+        g_autoptr(MMLocationGpsNmea) location_nmea = NULL;
         static const gchar *sentences[3];
         const gchar *gga, *rmc;
         gint i = 0;
@@ -429,7 +429,6 @@ on_get_gps_nmea_ready (GObject      *source_object,
         if (gga != NULL && gclue_nmea_is_gga (gga)) {
                 if (is_location_gga_same (manager, gga)) {
                         g_debug ("New GGA trace is same as last one: %s", gga);
-                        g_object_unref (location_nmea);
                         return;
                 }
                 g_debug ("New GPGGA trace: %s", gga);
@@ -448,7 +447,7 @@ on_get_gps_nmea_ready (GObject      *source_object,
                 g_signal_emit (manager, signals[FIX_GPS], 0, sentences);
 
         g_clear_object (&priv->location_nmea);
-        priv->location_nmea = location_nmea;
+        priv->location_nmea = g_steal_pointer (&location_nmea);
 }
 
 static void

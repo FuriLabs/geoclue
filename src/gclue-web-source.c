@@ -335,18 +335,20 @@ submit_query_callback (SoupSession *session,
                        gpointer     user_data)
 {
         SoupURI *uri;
+        g_autofree char *str = NULL;
 
         uri = soup_message_get_uri (query);
+        str = soup_uri_to_string (uri, FALSE);
         if (query->status_code != SOUP_STATUS_OK &&
             query->status_code != SOUP_STATUS_NO_CONTENT) {
                 g_warning ("Failed to submit location data to '%s': %s",
-                           soup_uri_to_string (uri, FALSE),
+                           str,
                            query->reason_phrase);
 		return;
 	}
 
         g_debug ("Successfully submitted location data to '%s'",
-                 soup_uri_to_string (uri, FALSE));
+                 str);
 }
 
 #define SUBMISSION_ACCURACY_THRESHOLD 100

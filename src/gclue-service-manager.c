@@ -127,7 +127,7 @@ delete_client (GClueServiceManager *manager,
 
                 if (compare_func (l->data, compare_func_data) == 0) {
                         g_object_unref (G_OBJECT (l->data));
-                        priv->clients = g_list_remove_link (priv->clients, l);
+                        priv->clients = g_list_delete_link (priv->clients, l);
                         priv->num_clients--;
                         if (priv->num_clients == 0) {
                                 g_object_notify (G_OBJECT (manager), "active");

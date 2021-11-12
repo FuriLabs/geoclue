@@ -458,7 +458,7 @@ on_read_nmea_sentence (GObject      *object,
         GDataInputStream *data_input_stream = G_DATA_INPUT_STREAM (object);
         GError *error = NULL;
         GClueLocation *prev_location;
-        GClueLocation *location;
+        g_autoptr(GClueLocation) location = NULL;
         gsize data_size = 0 ;
         char *message;
         gint i;
