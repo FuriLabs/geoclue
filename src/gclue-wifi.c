@@ -83,6 +83,7 @@ struct _GClueWifiPrivate {
         gulong bss_added_id;
         gulong bss_removed_id;
         gulong scan_done_id;
+        guint scan_wait_id;
 
         guint scan_timeout;
 
@@ -145,6 +146,8 @@ gclue_wifi_finalize (GObject *gwifi)
 
         disconnect_bss_signals (wifi);
         disconnect_cache_prune_timeout (wifi);
+        if (wifi->priv->scan_wait_id != 0)
+            g_source_remove (wifi->priv->scan_wait_id);
 
         g_clear_object (&wifi->priv->supplicant);
         g_clear_object (&wifi->priv->interface);
@@ -504,6 +507,7 @@ on_scan_wait_done (gpointer wifi)
                 g_debug ("Refreshing location…");
                 gclue_web_source_refresh (GCLUE_WEB_SOURCE (wifi));
         }
+        priv->scan_wait_id = 0;
 
         return G_SOURCE_REMOVE;
 }
@@ -527,7 +531,10 @@ on_scan_done (WPAInterface *object,
         if (priv->interface == NULL)
                 return;
 
-        g_timeout_add_seconds (1, on_scan_wait_done, wifi);
+        if (priv->scan_wait_id != 0)
+            g_source_remove (priv->scan_wait_id);
+
+        priv->scan_wait_id = g_timeout_add_seconds (1, on_scan_wait_done, wifi);
 
         /* If there was another scan already scheduled, cancel that and
          * re-schedule. Regardless of our internal book-keeping, this can happen
