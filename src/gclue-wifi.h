@@ -63,7 +63,6 @@ struct _GClueWifiClass {
 };
 
 GClueWifi *        gclue_wifi_get_singleton      (GClueAccuracyLevel level);
-GClueAccuracyLevel gclue_wifi_get_accuracy_level (GClueWifi *wifi);
 
 G_END_DECLS
 

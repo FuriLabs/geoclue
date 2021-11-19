@@ -42,6 +42,8 @@ static void
 refresh_accuracy_level (GClueWebSource *web);
 
 struct _GClueWebSourcePrivate {
+        GClueAccuracyLevel accuracy_level;
+
         SoupSession *soup_session;
 
         SoupMessage *query;
@@ -53,6 +55,14 @@ struct _GClueWebSourcePrivate {
 
         gboolean internet_available;
 };
+
+enum
+{
+        PROP_0,
+        PROP_ACCURACY_LEVEL,
+        LAST_PROP
+};
+static GParamSpec *gParamSpecs[LAST_PROP];
 
 G_DEFINE_ABSTRACT_TYPE_WITH_CODE (GClueWebSource,
                                   gclue_web_source,
@@ -296,6 +306,42 @@ gclue_web_source_constructed (GObject *object)
 }
 
 static void
+gclue_web_source_get_property (GObject    *object,
+                               guint       prop_id,
+                               GValue     *value,
+                               GParamSpec *pspec)
+{
+        GClueWebSource *web = GCLUE_WEB_SOURCE (object);
+
+        switch (prop_id) {
+        case PROP_ACCURACY_LEVEL:
+                g_value_set_enum (value, web->priv->accuracy_level);
+                break;
+
+        default:
+                G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+        }
+}
+
+static void
+gclue_web_source_set_property (GObject      *object,
+                               guint         prop_id,
+                               const GValue *value,
+                               GParamSpec   *pspec)
+{
+        GClueWebSource *web = GCLUE_WEB_SOURCE (object);
+
+        switch (prop_id) {
+        case PROP_ACCURACY_LEVEL:
+                web->priv->accuracy_level = g_value_get_enum (value);
+                break;
+
+        default:
+                G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+        }
+}
+
+static void
 gclue_web_source_class_init (GClueWebSourceClass *klass)
 {
         GObjectClass *gsource_class = G_OBJECT_CLASS (klass);
@@ -303,8 +349,21 @@ gclue_web_source_class_init (GClueWebSourceClass *klass)
         klass->refresh_async = gclue_web_source_real_refresh_async;
         klass->refresh_finish = gclue_web_source_real_refresh_finish;
 
+        gsource_class->get_property = gclue_web_source_get_property;
+        gsource_class->set_property = gclue_web_source_set_property;
         gsource_class->finalize = gclue_web_source_finalize;
         gsource_class->constructed = gclue_web_source_constructed;
+
+        gParamSpecs[PROP_ACCURACY_LEVEL] = g_param_spec_enum ("accuracy-level",
+                                                              "AccuracyLevel",
+                                                              "Max accuracy level",
+                                                              GCLUE_TYPE_ACCURACY_LEVEL,
+                                                              GCLUE_ACCURACY_LEVEL_CITY,
+                                                              G_PARAM_READWRITE |
+                                                              G_PARAM_CONSTRUCT_ONLY);
+        g_object_class_install_property (gsource_class,
+                                         PROP_ACCURACY_LEVEL,
+                                         gParamSpecs[PROP_ACCURACY_LEVEL]);
 }
 
 static void

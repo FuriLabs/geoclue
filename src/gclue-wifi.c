@@ -147,8 +147,6 @@ struct _GClueWifiPrivate {
 
         guint scan_timeout;
 
-        GClueAccuracyLevel accuracy_level;
-
         GHashTable *location_cache;  /* (element-type GVariant LocationCacheValue) (owned) */
         guint cache_prune_timeout_id;
         guint cache_hits, cache_misses;
@@ -158,14 +156,6 @@ struct _GClueWifiPrivate {
         gulong low_memory_warning_id;
 #endif
 };
-
-enum
-{
-        PROP_0,
-        PROP_ACCURACY_LEVEL,
-        LAST_PROP
-};
-static GParamSpec *gParamSpecs[LAST_PROP];
 
 static SoupMessage *
 gclue_wifi_create_query (GClueWebSource *source,
@@ -219,42 +209,6 @@ static void
 gclue_wifi_constructed (GObject *object);
 
 static void
-gclue_wifi_get_property (GObject    *object,
-                         guint       prop_id,
-                         GValue     *value,
-                         GParamSpec *pspec)
-{
-        GClueWifi *wifi = GCLUE_WIFI (object);
-
-        switch (prop_id) {
-        case PROP_ACCURACY_LEVEL:
-                g_value_set_enum (value, wifi->priv->accuracy_level);
-                break;
-
-        default:
-                G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-        }
-}
-
-static void
-gclue_wifi_set_property (GObject      *object,
-                         guint         prop_id,
-                         const GValue *value,
-                         GParamSpec   *pspec)
-{
-        GClueWifi *wifi = GCLUE_WIFI (object);
-
-        switch (prop_id) {
-        case PROP_ACCURACY_LEVEL:
-                wifi->priv->accuracy_level = g_value_get_enum (value);
-                break;
-
-        default:
-                G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-        }
-}
-
-static void
 gclue_wifi_class_init (GClueWifiClass *klass)
 {
         GClueWebSourceClass *web_class = GCLUE_WEB_SOURCE_CLASS (klass);
@@ -270,21 +224,8 @@ gclue_wifi_class_init (GClueWifiClass *klass)
         web_class->parse_response = gclue_wifi_parse_response;
         web_class->get_available_accuracy_level =
                 gclue_wifi_get_available_accuracy_level;
-        gwifi_class->get_property = gclue_wifi_get_property;
-        gwifi_class->set_property = gclue_wifi_set_property;
         gwifi_class->finalize = gclue_wifi_finalize;
         gwifi_class->constructed = gclue_wifi_constructed;
-
-        gParamSpecs[PROP_ACCURACY_LEVEL] = g_param_spec_enum ("accuracy-level",
-                                                              "AccuracyLevel",
-                                                              "Max accuracy level",
-                                                              GCLUE_TYPE_ACCURACY_LEVEL,
-                                                              GCLUE_ACCURACY_LEVEL_CITY,
-                                                              G_PARAM_READWRITE |
-                                                              G_PARAM_CONSTRUCT_ONLY);
-        g_object_class_install_property (gwifi_class,
-                                         PROP_ACCURACY_LEVEL,
-                                         gParamSpecs[PROP_ACCURACY_LEVEL]);
 }
 
 static void
@@ -576,6 +517,15 @@ on_scan_wait_done (gpointer wifi)
         return G_SOURCE_REMOVE;
 }
 
+static GClueAccuracyLevel
+get_accuracy_level (GClueWifi *wifi)
+{
+        GClueAccuracyLevel level;
+
+        g_object_get (G_OBJECT (wifi), "accuracy-level", &level, NULL);
+        return level;
+}
+
 static void
 on_scan_done (WPAInterface *object,
               gboolean      success,
@@ -613,7 +563,7 @@ on_scan_done (WPAInterface *object,
          * user's location can change quickly. With low accuracy, we don't since
          * we wouldn't want to drain power unnecessarily.
          */
-        if (priv->accuracy_level >= GCLUE_ACCURACY_LEVEL_STREET)
+        if (get_accuracy_level (wifi) >= GCLUE_ACCURACY_LEVEL_STREET)
                 timeout = WIFI_SCAN_TIMEOUT_HIGH_ACCURACY;
         else
                 timeout = WIFI_SCAN_TIMEOUT_LOW_ACCURACY;
@@ -881,12 +831,13 @@ static GClueAccuracyLevel
 gclue_wifi_get_available_accuracy_level (GClueWebSource *source,
                                          gboolean        net_available)
 {
-        GClueWifiPrivate *priv = GCLUE_WIFI (source)->priv;
+        GClueWifi *wifi = GCLUE_WIFI (source);
+        GClueWifiPrivate *priv = wifi->priv;
 
         if (!net_available)
                 return GCLUE_ACCURACY_LEVEL_NONE;
         else if (priv->interface != NULL &&
-                 priv->accuracy_level != GCLUE_ACCURACY_LEVEL_CITY)
+                 get_accuracy_level (wifi) != GCLUE_ACCURACY_LEVEL_CITY)
                 return GCLUE_ACCURACY_LEVEL_STREET;
         else
                 return GCLUE_ACCURACY_LEVEL_CITY;
@@ -999,7 +950,7 @@ gclue_wifi_constructed (GObject *object)
 
         G_OBJECT_CLASS (gclue_wifi_parent_class)->constructed (object);
 
-        if (wifi->priv->accuracy_level == GCLUE_ACCURACY_LEVEL_CITY) {
+        if (get_accuracy_level (wifi) == GCLUE_ACCURACY_LEVEL_CITY) {
                 GClueConfig *config = gclue_config_get_singleton ();
 
                 if (!gclue_config_get_enable_wifi_source (config))
@@ -1094,15 +1045,6 @@ gclue_wifi_get_singleton (GClueAccuracyLevel level)
                 g_object_ref (wifi[i]);
 
         return wifi[i];
-}
-
-GClueAccuracyLevel
-gclue_wifi_get_accuracy_level (GClueWifi *wifi)
-{
-        g_return_val_if_fail (GCLUE_IS_WIFI (wifi),
-                              GCLUE_ACCURACY_LEVEL_NONE);
-
-        return wifi->priv->accuracy_level;
 }
 
 /* Can return NULL, signifying an empty BSS list. */
