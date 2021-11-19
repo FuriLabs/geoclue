@@ -92,11 +92,15 @@ on_is_3g_available_notify (GObject    *gobject,
 {
         GClue3G *source = GCLUE_3G (user_data);
         GClue3GPrivate *priv = source->priv;
+        gboolean available_3g;
+
+        available_3g = gclue_modem_get_is_3g_available (priv->modem);
+        g_debug ("3G available notify %d", (int)available_3g);
 
         gclue_web_source_refresh (GCLUE_WEB_SOURCE (source));
 
         if (gclue_location_source_get_active (GCLUE_LOCATION_SOURCE (source)) &&
-            gclue_modem_get_is_3g_available (priv->modem))
+            available_3g)
                 gclue_modem_enable_3g (priv->modem,
                                        priv->cancellable,
                                        on_3g_enabled,
@@ -259,6 +263,9 @@ on_fix_3g (GClueModem   *modem,
 {
         GClue3GPrivate *priv = GCLUE_3G (user_data)->priv;
 
+        if (tec == GCLUE_TOWER_TEC_NO_FIX)
+                return;
+
         if (priv->tower == NULL)
                 priv->tower = g_slice_new0 (GClue3GTower);
         g_strlcpy (priv->tower->opc, opc,
@@ -296,6 +303,7 @@ gclue_3g_start (GClueLocationSource *source)
                           G_CALLBACK (on_fix_3g),
                           source);
 
+        /* Emits fix-3g signal even if the location hasn't actually changed to prime us */
         if (gclue_modem_get_is_3g_available (priv->modem))
                 gclue_modem_enable_3g (priv->modem,
                                        priv->cancellable,

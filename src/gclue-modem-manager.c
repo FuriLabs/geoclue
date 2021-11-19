@@ -45,6 +45,7 @@ struct _GClueModemManagerPrivate {
         MMModem *modem;
         MMModemLocation *modem_location;
         MMLocation3gpp *location_3gpp;
+        gboolean location_3gpp_ignore_previous;
         MMLocationGpsNmea *location_nmea;
 
         GCancellable *cancellable;
@@ -295,7 +296,7 @@ is_location_3gpp_same (GClueModemManager *manager,
         gchar opc_buf[GCLUE_3G_TOWER_OPERATOR_CODE_STR_LEN + 1];
 #endif
 
-        if (priv->location_3gpp == NULL)
+        if (priv->location_3gpp == NULL || priv->location_3gpp_ignore_previous)
                 return FALSE;
 
 #if MM_CHECK_VERSION(1, 18, 0)
@@ -319,6 +320,18 @@ is_location_3gpp_same (GClueModemManager *manager,
         return (g_strcmp0 (opc, new_opc) == 0 &&
                 lac == new_lac &&
                 cell_id == new_cell_id);
+}
+
+static void clear_3gpp_location (GClueModemManager *manager)
+{
+        GClueModemManagerPrivate *priv = manager->priv;
+
+        if (!priv->location_3gpp && !priv->location_3gpp_ignore_previous) {
+                return;
+        }
+
+        g_clear_object (&priv->location_3gpp);
+        g_signal_emit (manager, signals[FIX_3G], 0, NULL, 0, 0, GCLUE_TOWER_TEC_NO_FIX);
 }
 
 static void
@@ -353,6 +366,8 @@ on_get_3gpp_ready (GObject      *source_object,
 
         if (location_3gpp == NULL) {
                 g_debug ("No 3GPP");
+                clear_3gpp_location (manager);
+                priv->location_3gpp_ignore_previous = FALSE;
                 return;
         }
 
@@ -384,6 +399,7 @@ on_get_3gpp_ready (GObject      *source_object,
         }
         g_clear_object (&priv->location_3gpp);
         priv->location_3gpp = g_steal_pointer (&location_3gpp);
+        priv->location_3gpp_ignore_previous = FALSE;
 
         g_signal_emit (manager, signals[FIX_3G], 0, opc, lac, cell_id, tec);
 }
@@ -574,6 +590,8 @@ on_modem_location_setup (GObject      *modem_object,
         priv = manager->priv;
         g_debug ("Modem '%s' setup.", mm_object_get_path (priv->mm_object));
 
+        /* Make sure that we actually emit that signal */
+        priv->location_3gpp_ignore_previous = TRUE;
         on_location_changed (modem_object, NULL, manager);
 
         g_task_return_boolean (task, TRUE);
@@ -778,6 +796,8 @@ on_mm_object_removed (GDBusObjectManager *object_manager,
         if (priv->mm_object == NULL || priv->mm_object != mm_object)
                 return;
         g_debug ("Modem '%s' removed.", mm_object_get_path (priv->mm_object));
+
+        clear_3gpp_location (manager);
 
         g_signal_handlers_disconnect_by_func (G_OBJECT (priv->modem_location),
                                               G_CALLBACK (on_location_changed),
@@ -1086,7 +1106,7 @@ gclue_modem_manager_disable_3g (GClueModem   *modem,
         g_return_val_if_fail (gclue_modem_manager_get_is_3g_available (modem), FALSE);
         manager = GCLUE_MODEM_MANAGER (modem);
 
-        g_clear_object (&manager->priv->location_3gpp);
+        clear_3gpp_location (manager);
         g_debug ("Clearing 3GPP location caps from modem");
         return clear_caps (manager,
                            MM_MODEM_LOCATION_SOURCE_3GPP_LAC_CI,
@@ -1105,7 +1125,7 @@ gclue_modem_manager_disable_cdma (GClueModem   *modem,
         g_return_val_if_fail (gclue_modem_manager_get_is_cdma_available (modem), FALSE);
         manager = GCLUE_MODEM_MANAGER (modem);
 
-        g_clear_object (&manager->priv->location_3gpp);
+        clear_3gpp_location (manager);
         g_debug ("Clearing CDMA location caps from modem");
         return clear_caps (manager,
                            MM_MODEM_LOCATION_SOURCE_CDMA_BS,

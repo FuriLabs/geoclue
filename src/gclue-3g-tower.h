@@ -28,6 +28,7 @@ typedef enum {
   GCLUE_TOWER_TEC_UNKNOWN = 0,
   GCLUE_TOWER_TEC_3G = 1,
   GCLUE_TOWER_TEC_4G = 2,
+  GCLUE_TOWER_TEC_NO_FIX = 99,
 } GClueTowerTec;
 
 typedef struct _GClue3GTower GClue3GTower;
