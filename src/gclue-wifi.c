@@ -152,8 +152,6 @@ gclue_wifi_finalize (GObject *gwifi)
 
         disconnect_bss_signals (wifi);
         disconnect_cache_prune_timeout (wifi);
-        if (wifi->priv->scan_wait_id != 0)
-            g_source_remove (wifi->priv->scan_wait_id);
 
         g_clear_object (&wifi->priv->supplicant);
         g_clear_object (&wifi->priv->interface);
@@ -474,6 +472,11 @@ cancel_wifi_scan (GClueWifi *wifi)
         if (priv->scan_timeout != 0) {
                 g_source_remove (priv->scan_timeout);
                 priv->scan_timeout = 0;
+        }
+
+        if (priv->scan_wait_id != 0) {
+                g_source_remove (priv->scan_wait_id);
+                priv->scan_wait_id = 0;
         }
 
         if (priv->scan_done_id != 0) {
