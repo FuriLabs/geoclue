@@ -24,6 +24,7 @@
 #include <string.h>
 #include <config.h>
 #include "gclue-wifi.h"
+#include "gclue-3g.h"
 #include "gclue-config.h"
 #include "gclue-error.h"
 #include "gclue-mozilla.h"
@@ -134,6 +135,7 @@ static void location_cache_value_free (gpointer data)
 }
 
 struct _GClueWifiPrivate {
+        GClueMozilla *mozilla;
         WPASupplicant *supplicant;
         WPAInterface *interface;
         GHashTable *bss_proxies;
@@ -203,6 +205,7 @@ gclue_wifi_finalize (GObject *gwifi)
         g_clear_pointer (&wifi->priv->bss_proxies, g_hash_table_unref);
         g_clear_pointer (&wifi->priv->ignored_bss_proxies, g_hash_table_unref);
         g_clear_pointer (&wifi->priv->location_cache, g_hash_table_unref);
+        g_clear_object (&wifi->priv->mozilla);
 }
 
 static void
@@ -499,6 +502,11 @@ on_scan_timeout (gpointer user_data)
         return G_SOURCE_REMOVE;
 }
 
+gboolean gclue_wifi_should_skip_bsss (GClueAccuracyLevel level)
+{
+        return level < GCLUE_ACCURACY_LEVEL_STREET;
+}
+
 static gboolean
 on_scan_wait_done (gpointer wifi)
 {
@@ -507,9 +515,13 @@ on_scan_wait_done (gpointer wifi)
         g_return_val_if_fail (GCLUE_IS_WIFI (wifi), G_SOURCE_REMOVE);
         priv = GCLUE_WIFI(wifi)->priv;
 
+        /* We have the latest scan result */
+        gclue_mozilla_set_wifi (priv->mozilla, wifi);
+
         if (priv->bss_list_changed) {
                 priv->bss_list_changed = FALSE;
                 g_debug ("Refreshing location…");
+                gclue_mozilla_set_bss_dirty (priv->mozilla);
                 gclue_web_source_refresh (GCLUE_WEB_SOURCE (wifi));
         }
         priv->scan_wait_id = 0;
@@ -811,6 +823,8 @@ gclue_wifi_start (GClueLocationSource *source)
 static GClueLocationSourceStopResult
 gclue_wifi_stop (GClueLocationSource *source)
 {
+        GClueWifi *wifi = GCLUE_WIFI (source);
+        GClueWifiPrivate *priv = wifi->priv;
         GClueLocationSourceClass *base_class;
         GClueLocationSourceStopResult base_result;
 
@@ -824,6 +838,10 @@ gclue_wifi_stop (GClueLocationSource *source)
         disconnect_bss_signals (GCLUE_WIFI (source));
         disconnect_cache_prune_timeout (GCLUE_WIFI (source));
 
+        if (gclue_mozilla_test_set_wifi (priv->mozilla, wifi, NULL)) {
+                g_debug ("Removed us as the WiFi source on stop");
+        }
+
         return base_result;
 }
 
@@ -836,11 +854,10 @@ gclue_wifi_get_available_accuracy_level (GClueWebSource *source,
 
         if (!net_available)
                 return GCLUE_ACCURACY_LEVEL_NONE;
-        else if (priv->interface != NULL &&
-                 get_accuracy_level (wifi) != GCLUE_ACCURACY_LEVEL_CITY)
-                return GCLUE_ACCURACY_LEVEL_STREET;
-        else
+        else if (!priv->interface)
                 return GCLUE_ACCURACY_LEVEL_CITY;
+        else
+                return MIN (get_accuracy_level (wifi), GCLUE_ACCURACY_LEVEL_STREET);
 }
 
 static void
@@ -918,6 +935,10 @@ on_interface_removed (WPASupplicant *supplicant,
         disconnect_bss_signals (wifi);
         g_clear_object (&wifi->priv->interface);
 
+        if (gclue_mozilla_test_set_wifi (priv->mozilla, wifi, NULL)) {
+                g_debug ("Removed interface was the WiFi source");
+        }
+
         gclue_web_source_refresh (GCLUE_WEB_SOURCE (wifi));
 }
 
@@ -926,6 +947,7 @@ gclue_wifi_init (GClueWifi *wifi)
 {
         wifi->priv = gclue_wifi_get_instance_private (wifi);
 
+        wifi->priv->mozilla = gclue_mozilla_get_singleton ();
         wifi->priv->bss_proxies = g_hash_table_new_full (g_str_hash,
                                                          g_str_equal,
                                                          g_free,
@@ -1012,23 +1034,29 @@ on_wifi_destroyed (gpointer data,
 GClueWifi *
 gclue_wifi_get_singleton (GClueAccuracyLevel level)
 {
-        static GClueWifi *wifi[] = { NULL, NULL };
+        static GClueWifi *wifi[] = { NULL, NULL, NULL };
         guint i;
+        GClueConfig *config = gclue_config_get_singleton ();
+        gboolean wifi_enabled;
         gboolean scramble_location = FALSE;
         gboolean compute_movement = FALSE;
 
         g_return_val_if_fail (level >= GCLUE_ACCURACY_LEVEL_CITY, NULL);
-        if (level == GCLUE_ACCURACY_LEVEL_NEIGHBORHOOD)
-                level = GCLUE_ACCURACY_LEVEL_CITY;
 
+        wifi_enabled = gclue_config_get_enable_wifi_source (config);
         if (level == GCLUE_ACCURACY_LEVEL_CITY) {
-                GClueConfig *config = gclue_config_get_singleton ();
-
                 i = 0;
-                if (gclue_config_get_enable_wifi_source (config))
+                if (wifi_enabled)
                         scramble_location = TRUE;
-        } else {
+        } else if (level == GCLUE_ACCURACY_LEVEL_NEIGHBORHOOD) {
+                g_return_val_if_fail (wifi_enabled, NULL);
+
                 i = 1;
+                scramble_location = TRUE;
+        } else {
+                g_return_val_if_fail (wifi_enabled, NULL);
+
+                i = 2;
                 compute_movement = TRUE;
         }
 
@@ -1048,8 +1076,8 @@ gclue_wifi_get_singleton (GClueAccuracyLevel level)
 }
 
 /* Can return NULL, signifying an empty BSS list. */
-static GList *
-get_bss_list (GClueWifi *wifi)
+GList *
+gclue_wifi_get_bss_list (GClueWifi *wifi)
 {
         return g_hash_table_get_values (wifi->priv->bss_proxies);
 }
@@ -1059,17 +1087,16 @@ gclue_wifi_create_query (GClueWebSource *source,
                          GError        **error)
 {
         GClueWifi *wifi = GCLUE_WIFI (source);
-        GList *bss_list = NULL; /* As in Access Points */
+        GClueAccuracyLevel level;
+        gboolean skip_tower;
         SoupMessage *msg;
 
         if (wifi->priv->interface == NULL) {
                 goto create_query;
         }
 
-        bss_list = get_bss_list (wifi);
-
         /* Empty list? */
-        if (bss_list == NULL) {
+        if (!g_hash_table_size (wifi->priv->bss_proxies)) {
                 g_set_error_literal (error,
                                      G_IO_ERROR,
                                      G_IO_ERROR_FAILED,
@@ -1078,8 +1105,14 @@ gclue_wifi_create_query (GClueWebSource *source,
         }
 
 create_query:
-        msg = gclue_mozilla_create_query (bss_list, NULL, error);
-        g_list_free (bss_list);
+        level = get_accuracy_level (wifi);
+        skip_tower = gclue_3g_should_skip_tower (level);
+        if (skip_tower) {
+                g_debug ("Will skip 3GPP tower in query as our accuracy level is %d",
+                         (int)level);
+        }
+
+        msg = gclue_mozilla_create_query (wifi->priv->mozilla, skip_tower, FALSE, error);
         return msg;
 }
 
@@ -1097,7 +1130,6 @@ gclue_wifi_create_submit_query (GClueWebSource  *source,
                                 GError         **error)
 {
         GClueWifi *wifi = GCLUE_WIFI (source);
-        GList *bss_list; /* As in Access Points */
         SoupMessage * msg;
 
         if (wifi->priv->interface == NULL) {
@@ -1108,10 +1140,8 @@ gclue_wifi_create_submit_query (GClueWebSource  *source,
                 return NULL;
         }
 
-        bss_list = get_bss_list (wifi);
-
         /* Empty list? */
-        if (bss_list == NULL) {
+        if (!g_hash_table_size (wifi->priv->bss_proxies)) {
                 g_set_error_literal (error,
                                      G_IO_ERROR,
                                      G_IO_ERROR_FAILED,
@@ -1119,11 +1149,9 @@ gclue_wifi_create_submit_query (GClueWebSource  *source,
                 return NULL;
         }
 
-        msg = gclue_mozilla_create_submit_query (location,
-                                                 bss_list,
-                                                 NULL,
+        msg = gclue_mozilla_create_submit_query (wifi->priv->mozilla,
+                                                 location,
                                                  error);
-        g_list_free (bss_list);
         return msg;
 }
 
@@ -1166,6 +1194,36 @@ variant_hash (gconstpointer key)
         return g_bytes_hash (bytes);
 }
 
+static void location_cache_key_fill_tower (GClueWifi *wifi, GClue3GTower *tower)
+{
+        GClueWifiPrivate *priv = wifi->priv;
+        GClue3GTower *moztower;
+        GClueAccuracyLevel level;
+
+        memset (tower, 0, sizeof (*tower));
+        tower->tec = GCLUE_TOWER_TEC_NO_FIX;
+
+        moztower = gclue_mozilla_get_tower (priv->mozilla);
+        level = get_accuracy_level (wifi);
+        if (!moztower || gclue_3g_should_skip_tower (level)) {
+                return;
+        }
+
+        g_assert (moztower->tec != GCLUE_TOWER_TEC_NO_FIX);
+        *tower = *moztower;
+}
+
+static void location_cache_key_add_tower (GClueWifi *wifi, GVariantBuilder *builder)
+{
+        GClue3GTower tower;
+
+        location_cache_key_fill_tower (wifi, &tower);
+        g_variant_builder_add (builder, "u", (guint32)tower.tec);
+        g_variant_builder_add (builder, "s", tower.opc);
+        g_variant_builder_add (builder, "t", (guint64)tower.lac);
+        g_variant_builder_add (builder, "t", (guint64)tower.cell_id);
+}
+
 static GPtrArray *
 get_location_cache_bss_array (GClueWifi *wifi)
 {
@@ -1198,7 +1256,10 @@ get_location_cache_hashtable_key (GClueWifi *wifi, GPtrArray *bss_array)
         GVariantBuilder builder;
 
         /* Serialise to a variant. */
-        g_variant_builder_init (&builder, G_VARIANT_TYPE ("aay"));
+        g_variant_builder_init (&builder, G_VARIANT_TYPE ("(usttaay)"));
+        location_cache_key_add_tower (wifi, &builder);
+
+        g_variant_builder_open (&builder, G_VARIANT_TYPE ("aay"));
         for (i = 0; i < bss_array->len; i++) {
                 WPABSS *bss = WPA_BSS (bss_array->pdata[i]);
                 GVariant *bssid;
@@ -1209,6 +1270,7 @@ get_location_cache_hashtable_key (GClueWifi *wifi, GPtrArray *bss_array)
 
                 g_variant_builder_add_value (&builder, bssid);
         }
+        g_variant_builder_close (&builder);
 
         return g_variant_builder_end (&builder);
 }

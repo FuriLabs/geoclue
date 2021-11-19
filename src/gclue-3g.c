@@ -24,9 +24,11 @@
 #include <libsoup/soup.h>
 #include <string.h>
 #include "gclue-3g.h"
+#include "gclue-3g-tower.h"
 #include "gclue-modem-manager.h"
 #include "gclue-location.h"
 #include "gclue-mozilla.h"
+#include "gclue-wifi.h"
 
 /**
  * SECTION:gclue-3g
@@ -35,14 +37,24 @@
  * Contains functions to get the geolocation based on 3GPP cell towers.
  **/
 
+/* Should be slightly less than MAX_LOCATION_AGE in gclue-locator.c, so we don't
+ * get replaced by a less accurate WiFi location while still connected to a tower.
+ * Technically, this can only happen on the NEIGHBORHOOD accuracy level (since at
+ * this level WiFi does scrambling), but it won't hurt on higher ones, too.
+ * In seconds.
+ */
+#define LOCATION_3GPP_TIMEOUT (25 * 60)
+
+static unsigned int gclue_3g_running;
+
 struct _GClue3GPrivate {
+        GClueMozilla *mozilla;
         GClueModem *modem;
 
         GCancellable *cancellable;
 
         gulong threeg_notify_id;
-
-        GClue3GTower *tower;
+        guint location_3gpp_timeout_id;
 };
 
 G_DEFINE_TYPE_WITH_CODE (GClue3G,
@@ -115,6 +127,17 @@ gclue_3g_parse_response (GClueWebSource *web,
         return gclue_mozilla_parse_response (content, error);
 }
 
+static void cancel_location_3gpp_timeout (GClue3G *g3g)
+{
+        GClue3GPrivate *priv = g3g->priv;
+
+        if (!priv->location_3gpp_timeout_id)
+                return;
+
+        g_source_remove (priv->location_3gpp_timeout_id);
+        priv->location_3gpp_timeout_id = 0;
+}
+
 static void
 gclue_3g_finalize (GObject *g3g)
 {
@@ -129,7 +152,10 @@ gclue_3g_finalize (GObject *g3g)
                                      priv->threeg_notify_id);
         priv->threeg_notify_id = 0;
 
+        cancel_location_3gpp_timeout (source);
+
         g_clear_object (&priv->modem);
+        g_clear_object (&priv->mozilla);
         g_clear_object (&priv->cancellable);
 }
 
@@ -161,12 +187,15 @@ gclue_3g_init (GClue3G *source)
 
         priv->cancellable = g_cancellable_new ();
 
+        priv->mozilla = gclue_mozilla_get_singleton ();
+
         priv->modem = gclue_modem_manager_get_singleton ();
         priv->threeg_notify_id =
                         g_signal_connect (priv->modem,
                                           "notify::is-3g-available",
                                           G_CALLBACK (on_is_3g_available_notify),
                                           source);
+        priv->location_3gpp_timeout_id = 0;
 }
 
 static void
@@ -181,27 +210,32 @@ on_3g_destroyed (gpointer data,
 /**
  * gclue_3g_new:
  *
- * Get the #GClue3G singleton.
+ * Get the #GClue3G singleton, for the specified max accuracy level @level.
  *
  * Returns: (transfer full): a new ref to #GClue3G. Use g_object_unref()
  * when done.
  **/
 GClue3G *
-gclue_3g_get_singleton (void)
+gclue_3g_get_singleton (GClueAccuracyLevel level)
 {
-        static GClue3G *source = NULL;
+        static GClue3G *source[] = { NULL, NULL };
+        int i;
 
-        if (source == NULL) {
-                source = g_object_new (GCLUE_TYPE_3G,
-                                       "compute-movement", FALSE,
-                                       NULL);
-                g_object_weak_ref (G_OBJECT (source),
+        g_return_val_if_fail (level >= GCLUE_ACCURACY_LEVEL_CITY, NULL);
+
+        i = gclue_wifi_should_skip_bsss (level) ? 0 : 1;
+        if (source[i] == NULL) {
+                source[i] = g_object_new (GCLUE_TYPE_3G,
+                                          "accuracy-level", level,
+                                          "compute-movement", FALSE,
+                                          NULL);
+                g_object_weak_ref (G_OBJECT (source[i]),
                                    on_3g_destroyed,
-                                   &source);
+                                   &source[i]);
         } else
-                g_object_ref (source);
+                g_object_ref (source[i]);
 
-        return source;
+        return source[i];
 }
 
 static SoupMessage *
@@ -209,8 +243,10 @@ gclue_3g_create_query (GClueWebSource *web,
                        GError        **error)
 {
         GClue3GPrivate *priv = GCLUE_3G (web)->priv;
+        GClueAccuracyLevel level;
+        gboolean skip_bss;
 
-        if (priv->tower == NULL) {
+        if (!gclue_mozilla_has_tower (priv->mozilla)) {
                 g_set_error_literal (error,
                                      G_IO_ERROR,
                                      G_IO_ERROR_NOT_INITIALIZED,
@@ -218,7 +254,14 @@ gclue_3g_create_query (GClueWebSource *web,
                 return NULL; /* Not initialized yet */
         }
 
-        return gclue_mozilla_create_query (NULL, priv->tower, error);
+        g_object_get (G_OBJECT(web), "accuracy-level", &level, NULL);
+        skip_bss = gclue_wifi_should_skip_bsss (level);
+        if (skip_bss) {
+                g_debug ("Will skip BSSs in query as our accuracy level is %d",
+                         (int)level);
+        }
+
+        return gclue_mozilla_create_query (priv->mozilla, FALSE, skip_bss, error);
 }
 
 static SoupMessage *
@@ -228,7 +271,7 @@ gclue_3g_create_submit_query (GClueWebSource  *web,
 {
         GClue3GPrivate *priv = GCLUE_3G (web)->priv;
 
-        if (priv->tower == NULL) {
+        if (!gclue_mozilla_has_tower (priv->mozilla)) {
                 g_set_error_literal (error,
                                      G_IO_ERROR,
                                      G_IO_ERROR_NOT_INITIALIZED,
@@ -236,9 +279,8 @@ gclue_3g_create_submit_query (GClueWebSource  *web,
                 return NULL; /* Not initialized yet */
         }
 
-        return gclue_mozilla_create_submit_query (location,
-                                                  NULL,
-                                                  priv->tower,
+        return gclue_mozilla_create_submit_query (priv->mozilla,
+                                                  location,
                                                   error);
 }
 
@@ -253,6 +295,41 @@ gclue_3g_get_available_accuracy_level (GClueWebSource *web,
                 return GCLUE_ACCURACY_LEVEL_NONE;
 }
 
+gboolean gclue_3g_should_skip_tower (GClueAccuracyLevel level)
+{
+        return level < GCLUE_ACCURACY_LEVEL_NEIGHBORHOOD;
+}
+
+static gboolean
+on_location_3gpp_timeout (gpointer user_data)
+{
+        GClue3G *g3g = GCLUE_3G (user_data);
+        GClue3GPrivate *priv = g3g->priv;
+
+        if (!gclue_mozilla_has_tower (priv->mozilla)) {
+                g_debug ("3GPP location timeout, but no tower");
+                priv->location_3gpp_timeout_id = 0;
+                return G_SOURCE_REMOVE;
+        }
+
+        g_debug ("3GPP location timeout, re-sending existing location");
+        gclue_web_source_refresh (GCLUE_WEB_SOURCE (g3g));
+
+        return G_SOURCE_CONTINUE;
+}
+
+static void set_location_3gpp_timeout (GClue3G *g3g)
+{
+        GClue3GPrivate *priv = g3g->priv;
+
+        g_debug ("Scheduling new 3GPP location timeout");
+
+        cancel_location_3gpp_timeout (g3g);
+        priv->location_3gpp_timeout_id = g_timeout_add_seconds (LOCATION_3GPP_TIMEOUT,
+                                                                on_location_3gpp_timeout,
+                                                                g3g);
+}
+
 static void
 on_fix_3g (GClueModem   *modem,
            const gchar  *opc,
@@ -261,18 +338,26 @@ on_fix_3g (GClueModem   *modem,
            GClueTowerTec tec,
            gpointer    user_data)
 {
-        GClue3GPrivate *priv = GCLUE_3G (user_data)->priv;
+        GClue3G *g3g = GCLUE_3G (user_data);
+        GClue3GPrivate *priv = g3g->priv;
 
-        if (tec == GCLUE_TOWER_TEC_NO_FIX)
-                return;
+        g_debug ("3GPP %s fix available",
+                 tec == GCLUE_TOWER_TEC_NO_FIX ? "no" : "new");
 
-        if (priv->tower == NULL)
-                priv->tower = g_slice_new0 (GClue3GTower);
-        g_strlcpy (priv->tower->opc, opc,
-                   GCLUE_3G_TOWER_OPERATOR_CODE_STR_LEN + 1);
-        priv->tower->lac = lac;
-        priv->tower->cell_id = cell_id;
-        priv->tower->tec = tec;
+        if (tec != GCLUE_TOWER_TEC_NO_FIX) {
+                GClue3GTower tower;
+
+                g_strlcpy (tower.opc, opc,
+                           GCLUE_3G_TOWER_OPERATOR_CODE_STR_LEN + 1);
+                tower.lac = lac;
+                tower.cell_id = cell_id;
+                tower.tec = tec;
+                set_location_3gpp_timeout (g3g);
+                gclue_mozilla_set_tower (priv->mozilla, &tower);
+        } else {
+                cancel_location_3gpp_timeout (g3g);
+                gclue_mozilla_set_tower (priv->mozilla, NULL);
+        }
 
         gclue_web_source_refresh (GCLUE_WEB_SOURCE (user_data));
 }
@@ -293,10 +378,10 @@ gclue_3g_start (GClueLocationSource *source)
         if (base_result != GCLUE_LOCATION_SOURCE_START_RESULT_OK)
                 return base_result;
 
-        if (priv->tower != NULL) {
-                g_slice_free (GClue3GTower, priv->tower);
-                priv->tower = NULL;
+        if (gclue_3g_running == 0) {
+                g_debug ("First 3GPP source starting up");
         }
+        gclue_3g_running++;
 
         g_signal_connect (priv->modem,
                           "fix-3g",
@@ -315,7 +400,8 @@ gclue_3g_start (GClueLocationSource *source)
 static GClueLocationSourceStopResult
 gclue_3g_stop (GClueLocationSource *source)
 {
-        GClue3GPrivate *priv = GCLUE_3G (source)->priv;
+        GClue3G *g3g = GCLUE_3G (source);
+        GClue3GPrivate *priv = g3g->priv;
         GClueLocationSourceClass *base_class;
         GError *error = NULL;
         GClueLocationSourceStopResult base_result;
@@ -324,12 +410,22 @@ gclue_3g_stop (GClueLocationSource *source)
 
         base_class = GCLUE_LOCATION_SOURCE_CLASS (gclue_3g_parent_class);
         base_result = base_class->stop (source);
-        if (base_result == GCLUE_LOCATION_SOURCE_STOP_RESULT_STILL_USED)
+        if (base_result != GCLUE_LOCATION_SOURCE_STOP_RESULT_OK)
                 return base_result;
 
         g_signal_handlers_disconnect_by_func (G_OBJECT (priv->modem),
                                               G_CALLBACK (on_fix_3g),
                                               source);
+
+        cancel_location_3gpp_timeout (g3g);
+
+        g_assert (gclue_3g_running > 0);
+        gclue_3g_running--;
+        if (gclue_3g_running > 0) {
+                return base_result;
+        }
+
+        g_debug ("Last 3GPP source stopping, disabling location gathering and invalidating existing tower");
 
         if (gclue_modem_get_is_3g_available (priv->modem))
                 if (!gclue_modem_disable_3g (priv->modem,
@@ -339,6 +435,8 @@ gclue_3g_stop (GClueLocationSource *source)
                                    error->message);
                         g_error_free (error);
                 }
+
+        gclue_mozilla_set_tower (priv->mozilla, NULL);
 
         return base_result;
 }

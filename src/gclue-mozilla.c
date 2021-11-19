@@ -25,8 +25,10 @@
 #include <string.h>
 #include <config.h>
 #include "gclue-mozilla.h"
+#include "gclue-3g-tower.h"
 #include "gclue-config.h"
 #include "gclue-error.h"
+#include "gclue-wifi.h"
 
 /**
  * SECTION:gclue-mozilla
@@ -39,6 +41,22 @@
  * Service</ulink> to achieve that. The URL is kept in our configuration file so
  * its easy to switch to Google's API.
  **/
+
+struct _GClueMozillaPrivate
+{
+        GClueWifi *wifi;
+
+        GClue3GTower tower;
+        gboolean tower_valid;
+        gboolean tower_submitted;
+
+        gboolean bss_submitted;
+};
+
+G_DEFINE_TYPE_WITH_CODE (GClueMozilla,
+                         gclue_mozilla,
+                         G_TYPE_OBJECT,
+                         G_ADD_PRIVATE (GClueMozilla))
 
 #define BSSID_LEN 6
 #define BSSID_STR_LEN 17
@@ -137,12 +155,14 @@ error:
 }
 
 SoupMessage *
-gclue_mozilla_create_query (GList        *bss_list, /* As in Access Points */
-                            GClue3GTower *tower,
+gclue_mozilla_create_query (GClueMozilla  *mozilla,
+                            gboolean skip_tower,
+                            gboolean skip_bss,
                             GError      **error)
 {
         SoupMessage *ret = NULL;
         JsonBuilder *builder;
+        g_autoptr(GList) bss_list = NULL;
         JsonGenerator *generator;
         JsonNode *root_node;
         char *data;
@@ -155,6 +175,9 @@ gclue_mozilla_create_query (GList        *bss_list, /* As in Access Points */
         builder = json_builder_new ();
         json_builder_begin_object (builder);
 
+        if (mozilla->priv->wifi && !skip_bss) {
+                bss_list = gclue_wifi_get_bss_list (mozilla->priv->wifi);
+        }
         /* We send pure geoip query using empty object if both bss_list and
          * tower are NULL.
          *
@@ -172,9 +195,8 @@ gclue_mozilla_create_query (GList        *bss_list, /* As in Access Points */
                 n_non_ignored_bsss++;
         }
 
-        if (tower != NULL &&
-            operator_code_to_mcc_mnc (tower->opc, &mcc, &mnc)) {
-
+        if (mozilla->priv->tower_valid && !skip_tower &&
+            operator_code_to_mcc_mnc (mozilla->priv->tower.opc, &mcc, &mnc)) {
                 json_builder_set_member_name (builder, "radioType");
                 json_builder_add_string_value (builder, "gsm");
 
@@ -184,14 +206,14 @@ gclue_mozilla_create_query (GList        *bss_list, /* As in Access Points */
                 json_builder_begin_object (builder);
 
                 json_builder_set_member_name (builder, "cellId");
-                json_builder_add_int_value (builder, tower->cell_id);
+                json_builder_add_int_value (builder, mozilla->priv->tower.cell_id);
                 json_builder_set_member_name (builder, "mobileCountryCode");
                 json_builder_add_int_value (builder, mcc);
                 json_builder_set_member_name (builder, "mobileNetworkCode");
                 json_builder_add_int_value (builder, mnc);
                 json_builder_set_member_name (builder, "locationAreaCode");
-                json_builder_add_int_value (builder, tower->lac);
-                if (tower->tec == GCLUE_TOWER_TEC_4G) {
+                json_builder_add_int_value (builder, mozilla->priv->tower.lac);
+                if (mozilla->priv->tower.tec == GCLUE_TOWER_TEC_4G) {
                         json_builder_set_member_name (builder, "radioType");
                         json_builder_add_string_value (builder, "lte");
 		}
@@ -316,9 +338,8 @@ get_submit_config (const char **nick)
 }
 
 SoupMessage *
-gclue_mozilla_create_submit_query (GClueLocation   *location,
-                                   GList           *bss_list, /* As in Access Points */
-                                   GClue3GTower    *tower,
+gclue_mozilla_create_submit_query (GClueMozilla  *mozilla,
+                                   GClueLocation   *location,
                                    GError         **error)
 {
         SoupMessage *ret = NULL;
@@ -326,12 +347,24 @@ gclue_mozilla_create_submit_query (GClueLocation   *location,
         JsonGenerator *generator;
         JsonNode *root_node;
         char *data, *timestr;
+        g_autoptr(GList) bss_list = NULL;
         const char *url, *nick;
         gsize data_len;
         GList *iter;
         gdouble lat, lon, accuracy, altitude;
         GDateTime *datetime;
         gint64 mcc, mnc;
+
+        if (mozilla->priv->bss_submitted &&
+            (!mozilla->priv->tower_valid ||
+             mozilla->priv->tower_submitted))
+        {
+                g_debug ("Already created submit req for this data (bss submitted %d; tower: valid %d submitted %d)",
+                         (int)mozilla->priv->bss_submitted,
+                         (int)mozilla->priv->tower_valid,
+                         (int)mozilla->priv->tower_submitted);
+                goto out;
+        }
 
         url = get_submit_config (&nick);
         if (url == NULL)
@@ -379,6 +412,9 @@ gclue_mozilla_create_submit_query (GClueLocation   *location,
         json_builder_set_member_name (builder, "radioType");
         json_builder_add_string_value (builder, "gsm");
 
+        if (mozilla->priv->wifi) {
+                bss_list = gclue_wifi_get_bss_list (mozilla->priv->wifi);
+        }
         if (bss_list != NULL) {
                 json_builder_set_member_name (builder, "wifi");
                 json_builder_begin_array (builder);
@@ -410,9 +446,8 @@ gclue_mozilla_create_submit_query (GClueLocation   *location,
                 json_builder_end_array (builder); /* wifi */
         }
 
-        if (tower != NULL &&
-            operator_code_to_mcc_mnc (tower->opc, &mcc, &mnc)) {
-
+        if (mozilla->priv->tower_valid &&
+            operator_code_to_mcc_mnc (mozilla->priv->tower.opc, &mcc, &mnc)) {
                 json_builder_set_member_name (builder, "cell");
                 json_builder_begin_array (builder);
 
@@ -421,13 +456,13 @@ gclue_mozilla_create_submit_query (GClueLocation   *location,
                 json_builder_set_member_name (builder, "radio");
                 json_builder_add_string_value (builder, "gsm");
                 json_builder_set_member_name (builder, "cid");
-                json_builder_add_int_value (builder, tower->cell_id);
+                json_builder_add_int_value (builder, mozilla->priv->tower.cell_id);
                 json_builder_set_member_name (builder, "mcc");
                 json_builder_add_int_value (builder, mcc);
                 json_builder_set_member_name (builder, "mnc");
                 json_builder_add_int_value (builder, mnc);
                 json_builder_set_member_name (builder, "lac");
-                json_builder_add_int_value (builder, tower->lac);
+                json_builder_add_int_value (builder, mozilla->priv->tower.lac);
 
                 json_builder_end_object (builder);
 
@@ -459,6 +494,9 @@ gclue_mozilla_create_submit_query (GClueLocation   *location,
                                   data_len);
         g_debug ("Sending following request to '%s':\n%s", url, data);
 
+        mozilla->priv->bss_submitted = TRUE;
+        mozilla->priv->tower_submitted = TRUE;
+
 out:
         return ret;
 }
@@ -484,4 +522,133 @@ gclue_mozilla_should_ignore_bss (WPABSS *bss)
         }
 
         return FALSE;
+}
+
+static void
+gclue_mozilla_finalize (GObject *object)
+{
+        GClueMozilla *mozilla = GCLUE_MOZILLA (object);
+
+        g_clear_weak_pointer (&mozilla->priv->wifi);
+
+        G_OBJECT_CLASS (gclue_mozilla_parent_class)->finalize (object);
+}
+
+static void
+gclue_mozilla_init (GClueMozilla *mozilla)
+{
+        mozilla->priv = gclue_mozilla_get_instance_private (mozilla);
+        mozilla->priv->wifi = NULL;
+        mozilla->priv->tower_valid = FALSE;
+        mozilla->priv->bss_submitted = FALSE;
+}
+
+static void
+gclue_mozilla_class_init (GClueMozillaClass *klass)
+{
+        GObjectClass *object_class = G_OBJECT_CLASS (klass);
+
+        object_class->finalize = gclue_mozilla_finalize;
+}
+
+GClueMozilla *
+gclue_mozilla_get_singleton (void)
+{
+        static GClueMozilla *mozilla = NULL;
+
+        if (!mozilla) {
+                mozilla = g_object_new (GCLUE_TYPE_MOZILLA, NULL);
+                g_object_add_weak_pointer (G_OBJECT (mozilla), (gpointer) &mozilla);
+        } else
+                g_object_ref (mozilla);
+
+        return mozilla;
+}
+
+void
+gclue_mozilla_set_wifi (GClueMozilla *mozilla,
+                        GClueWifi *wifi)
+{
+        g_return_if_fail (GCLUE_IS_MOZILLA (mozilla));
+
+        if (mozilla->priv->wifi == wifi)
+                return;
+
+        g_clear_weak_pointer (&mozilla->priv->wifi);
+
+        if (!wifi) {
+                return;
+        }
+
+        mozilla->priv->wifi = wifi;
+        g_object_add_weak_pointer (G_OBJECT (mozilla->priv->wifi),
+                                   (gpointer) &mozilla->priv->wifi);
+}
+
+gboolean
+gclue_mozilla_test_set_wifi (GClueMozilla *mozilla,
+                             GClueWifi *old, GClueWifi *new)
+{
+        if (mozilla->priv->wifi != old)
+                return FALSE;
+
+        gclue_mozilla_set_wifi (mozilla, new);
+        return TRUE;
+}
+
+void
+gclue_mozilla_set_bss_dirty (GClueMozilla *mozilla)
+{
+        g_return_if_fail (GCLUE_IS_MOZILLA (mozilla));
+
+        mozilla->priv->bss_submitted = FALSE;
+}
+
+static gboolean gclue_mozilla_tower_identical (const GClue3GTower *t1,
+                                               const GClue3GTower *t2)
+{
+        return g_strcmp0 (t1->opc, t2->opc) == 0 && t1->lac == t2->lac &&
+                t1->cell_id == t2->cell_id && t1->tec == t2->tec;
+}
+
+void
+gclue_mozilla_set_tower (GClueMozilla *mozilla,
+                         const GClue3GTower *tower)
+{
+        g_return_if_fail (GCLUE_IS_MOZILLA (mozilla));
+
+        if (!tower) {
+                mozilla->priv->tower_valid = FALSE;
+                return;
+        }
+
+        if (mozilla->priv->tower_valid &&
+            mozilla->priv->tower_submitted) {
+                mozilla->priv->tower_submitted =
+                        gclue_mozilla_tower_identical (&mozilla->priv->tower,
+                                                       tower);
+        } else
+                mozilla->priv->tower_submitted = FALSE;
+
+        mozilla->priv->tower = *tower;
+        mozilla->priv->tower_valid = TRUE;
+}
+
+gboolean
+gclue_mozilla_has_tower (GClueMozilla *mozilla)
+{
+        g_return_val_if_fail (GCLUE_IS_MOZILLA (mozilla), FALSE);
+
+        return mozilla->priv->tower_valid;
+}
+
+GClue3GTower *
+gclue_mozilla_get_tower (GClueMozilla *mozilla)
+{
+        g_return_val_if_fail (GCLUE_IS_MOZILLA (mozilla), NULL);
+
+        if (!mozilla->priv->tower_valid)
+                return NULL;
+
+        return &mozilla->priv->tower;
 }

@@ -364,7 +364,7 @@ gclue_locator_constructed (GObject *object)
 
 #if GCLUE_USE_3G_SOURCE
         if (gclue_config_get_enable_3g_source (gconfig)) {
-                GClue3G *source = gclue_3g_get_singleton ();
+                GClue3G *source = gclue_3g_get_singleton (locator->priv->accuracy_level);
                 locator->priv->sources = g_list_append (locator->priv->sources,
                                                         source);
         }
