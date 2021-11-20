@@ -262,7 +262,7 @@ start_client (GClueServiceClient *client, GClueAccuracyLevel accuracy_level)
 
         gclue_dbus_client_set_active (GCLUE_DBUS_CLIENT (client), TRUE);
         priv->locator = gclue_locator_new (accuracy_level);
-        gclue_locator_set_time_threshold (priv->locator, 0);
+        gclue_locator_set_time_threshold (priv->locator, priv->time_threshold);
         g_signal_connect (priv->locator,
                           "notify::location",
                           G_CALLBACK (on_locator_location_changed),
@@ -833,8 +833,9 @@ gclue_service_client_handle_set_property (GDBusConnection *connection,
         } else if (ret && strcmp (property_name, "TimeThreshold") == 0) {
                 priv->time_threshold = gclue_dbus_client_get_time_threshold
                         (client);
-                gclue_locator_set_time_threshold (priv->locator,
-                                                  priv->time_threshold);
+                if (GCLUE_IS_LOCATOR (priv->locator))
+                        gclue_locator_set_time_threshold (priv->locator,
+                                                          priv->time_threshold);
                 g_debug ("%s: New time-threshold:  %u",
                          G_OBJECT_TYPE_NAME (client),
                          priv->time_threshold);
