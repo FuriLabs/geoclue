@@ -20,9 +20,13 @@
  */
 
 #include <glib.h>
+#include <config.h>
 #include "gclue-location-source.h"
+
+#if GCLUE_USE_COMPASS
 #include "gclue-compass.h"
 #include "gclue-config.h"
+#endif
 
 /**
  * SECTION:gclue-location-source
@@ -49,7 +53,9 @@ struct _GClueLocationSourcePrivate
         gboolean compute_movement;
         gboolean scramble_location;
 
+#if GCLUE_USE_COMPASS
         GClueCompass *compass;
+#endif
 
         guint heading_changed_id;
 };
@@ -73,6 +79,7 @@ enum
 
 static GParamSpec *gParamSpecs[LAST_PROP];
 
+#if GCLUE_USE_COMPASS
 static gboolean
 set_heading_from_compass (GClueLocationSource *source,
                           GClueLocation       *location)
@@ -113,6 +120,7 @@ on_compass_heading_changed (GObject    *gobject,
         if (set_heading_from_compass (source, source->priv->location))
                 g_object_notify (G_OBJECT (source), "location");
 }
+#endif /* GCLUE_USE_COMPASS */
 
 static void
 gclue_location_source_get_property (GObject    *object,
@@ -293,6 +301,7 @@ start_source (GClueLocationSource *source)
                 return GCLUE_LOCATION_SOURCE_START_RESULT_ALREADY_STARTED;
         }
 
+#if GCLUE_USE_COMPASS
         if (source->priv->compute_movement) {
                 GClueConfig *config = gclue_config_get_singleton ();
 
@@ -308,6 +317,7 @@ start_source (GClueLocationSource *source)
                         g_debug ("Compass is disabled in config");
                 }
         }
+#endif
 
         g_object_notify (G_OBJECT (source), "active");
         g_debug ("%s now active", G_OBJECT_TYPE_NAME (source));
@@ -330,11 +340,13 @@ stop_source (GClueLocationSource *source)
                 return GCLUE_LOCATION_SOURCE_STOP_RESULT_STILL_USED;
         }
 
+#if GCLUE_USE_COMPASS
         if (source->priv->compass) {
                 g_signal_handler_disconnect (source->priv->compass,
                                              source->priv->heading_changed_id);
                 g_clear_object (&source->priv->compass);
         }
+#endif
 
         g_object_notify (G_OBJECT (source), "active");
         g_debug ("%s now inactive", G_OBJECT_TYPE_NAME (source));
@@ -447,7 +459,9 @@ gclue_location_source_set_location (GClueLocationSource *source,
                 gclue_location_set_speed (priv->location, speed);
         }
 
+#if GCLUE_USE_COMPASS
         set_heading_from_compass (source, location);
+#endif
         heading = gclue_location_get_heading (location);
         if (heading == GCLUE_LOCATION_HEADING_UNKNOWN) {
                 if (cur_location != NULL && priv->compute_movement)

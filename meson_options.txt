@@ -22,6 +22,9 @@ option('modem-gps-source',
 option('nmea-source',
        type: 'boolean', value: true,
        description: 'Enable network NMEA source (requires Avahi libraries)')
+option('compass',
+       type: 'boolean', value: true,
+       description: 'Enable setting heading from net.hadess.SensorProxy compass')
 option('enable-backend',
        type: 'boolean', value: true,
        description: 'Enable backend (the geoclue service)')

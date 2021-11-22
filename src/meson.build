@@ -3,8 +3,7 @@ geoclue_deps = base_deps + [ dependency('json-glib-1.0', version: '>= 0.14.0'),
 
 sources = [ libgeoclue_public_api_gen_sources[1],
             geoclue_iface_sources,
-            wpa_supplicant_sources,
-            compass_iface_sources ]
+            wpa_supplicant_sources ]
 
 sources += gnome.genmarshal('gclue-marshal',
                             prefix: 'gclue_marshal',
@@ -17,7 +16,6 @@ include_dirs = [ configinc,
 sources += [ 'gclue-main.c',
              'gclue-3g-tower.h',
              'gclue-client-info.h', 'gclue-client-info.c',
-             'gclue-compass.h', 'gclue-compass.c',
              'gclue-config.h', 'gclue-config.c',
              'gclue-error.h', 'gclue-error.c',
              'gclue-location-source.h', 'gclue-location-source.c',
@@ -56,6 +54,10 @@ if get_option('nmea-source')
     geoclue_deps += [ dependency('avahi-client', version: '>= 0.6.10'),
                       dependency('avahi-glib', version: '>= 0.6.10') ]
     sources += [ 'gclue-nmea-source.h', 'gclue-nmea-source.c' ]
+endif
+
+if get_option('compass')
+    sources += [ compass_iface_sources , 'gclue-compass.h', 'gclue-compass.c' ]
 endif
 
 c_args = [ '-DG_LOG_DOMAIN="Geoclue"' ]
