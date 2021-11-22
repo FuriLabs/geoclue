@@ -89,7 +89,8 @@ set_heading_from_compass (GClueLocationSource *source,
             heading == curr_heading)
                 return FALSE;
 
-        g_debug ("%s got new heading %f", G_OBJECT_TYPE_NAME (source), heading);
+        g_debug ("%s got new heading from compass: %f",
+                 G_OBJECT_TYPE_NAME (source), heading);
         /* We trust heading from compass more than any other source so we always
          * override existing heading
          */
