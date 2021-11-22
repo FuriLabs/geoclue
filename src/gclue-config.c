@@ -480,6 +480,13 @@ gclue_config_get_wifi_submit_data (GClueConfig *config)
         return config->priv->wifi_submit;
 }
 
+void
+gclue_config_set_wifi_submit_data (GClueConfig *config,
+                                   gboolean     submit)
+{
+        config->priv->wifi_submit = submit;
+}
+
 gboolean
 gclue_config_get_enable_wifi_source (GClueConfig *config)
 {
@@ -515,12 +522,4 @@ gclue_config_set_nmea_socket (GClueConfig *config,
                                    const char  *nmea_socket)
 {
         config->priv->nmea_socket = g_strdup(nmea_socket);
-}
-
-void
-gclue_config_set_wifi_submit_data (GClueConfig *config,
-                                   gboolean     submit)
-{
-
-        config->priv->wifi_submit = submit;
 }
