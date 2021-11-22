@@ -43,6 +43,7 @@ struct _GClueConfigPrivate
         gboolean enable_cdma_source;
         gboolean enable_modem_gps_source;
         gboolean enable_wifi_source;
+        gboolean enable_compass;
         char *wifi_submit_url;
         char *wifi_submit_nick;
         char *nmea_socket;
@@ -122,7 +123,7 @@ static void
 load_app_configs (GClueConfig *config)
 {
         const char *known_groups[] = { "agent", "wifi", "3g", "cdma",
-                                       "modem-gps", "network-nmea",
+                                       "modem-gps", "network-nmea", "compass",
                                        NULL };
         GClueConfigPrivate *priv = config->priv;
         gsize num_groups = 0, i;
@@ -316,6 +317,13 @@ load_network_nmea_config (GClueConfig *config)
 }
 
 static void
+load_compass_config (GClueConfig *config)
+{
+        config->priv->enable_compass =
+                load_enable_source_config (config, "compass");
+}
+
+static void
 gclue_config_init (GClueConfig *config)
 {
         GError *error = NULL;
@@ -341,6 +349,7 @@ gclue_config_init (GClueConfig *config)
         load_cdma_config (config);
         load_modem_gps_config (config);
         load_network_nmea_config (config);
+        load_compass_config (config);
 }
 
 GClueConfig *
@@ -522,4 +531,10 @@ gclue_config_set_nmea_socket (GClueConfig *config,
                                    const char  *nmea_socket)
 {
         config->priv->nmea_socket = g_strdup(nmea_socket);
+}
+
+gboolean
+gclue_config_get_enable_compass (GClueConfig *config)
+{
+        return config->priv->enable_compass;
 }

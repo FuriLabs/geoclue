@@ -22,6 +22,7 @@
 #include <glib.h>
 #include "gclue-location-source.h"
 #include "gclue-compass.h"
+#include "gclue-config.h"
 
 /**
  * SECTION:gclue-location-source
@@ -293,12 +294,19 @@ start_source (GClueLocationSource *source)
         }
 
         if (source->priv->compute_movement) {
-                source->priv->compass = gclue_compass_get_singleton ();
-                source->priv->heading_changed_id = g_signal_connect
-                        (G_OBJECT (source->priv->compass),
-                         "notify::heading",
-                         G_CALLBACK (on_compass_heading_changed),
-                         source);
+                GClueConfig *config = gclue_config_get_singleton ();
+
+                if (gclue_config_get_enable_compass (config)) {
+                        source->priv->compass = gclue_compass_get_singleton ();
+                        source->priv->heading_changed_id = g_signal_connect
+                                (G_OBJECT (source->priv->compass),
+                                 "notify::heading",
+                                 G_CALLBACK (on_compass_heading_changed),
+                                 source);
+                } else {
+                        source->priv->compass = NULL;
+                        g_debug ("Compass is disabled in config");
+                }
         }
 
         g_object_notify (G_OBJECT (source), "active");

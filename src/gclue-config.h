@@ -91,6 +91,7 @@ gboolean            gclue_config_get_enable_cdma_source (GClueConfig     *config
 gboolean            gclue_config_get_enable_modem_gps_source
                                                         (GClueConfig     *config);
 gboolean            gclue_config_get_enable_nmea_source (GClueConfig     *config);
+gboolean            gclue_config_get_enable_compass     (GClueConfig     *config);
 
 G_END_DECLS
 
