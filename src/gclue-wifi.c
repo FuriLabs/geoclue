@@ -1288,9 +1288,6 @@ refresh_cb (GObject      *source_object,
                  g_hash_table_size (wifi->priv->location_cache),
                  cache_hit_ratio);
 
-        /* Update the location and return. */
-        gclue_location_source_set_location (GCLUE_LOCATION_SOURCE (source), location);
-
         g_task_return_pointer (task, g_steal_pointer (&location), g_object_unref);
 }
 
