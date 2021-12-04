@@ -1022,6 +1022,12 @@ gclue_location_set_heading_from_prev_location (GClueLocation *location,
         prev_lat = gclue_location_get_latitude (prev_location);
         prev_lon = gclue_location_get_longitude (prev_location);
 
+        if (lat == prev_lat && lon == prev_lon) {
+               location->priv->heading = GCLUE_LOCATION_HEADING_UNKNOWN;
+
+               return;
+        }
+
         /* atan2(y, x) is a function which takes in coordinate values of
          * a 2D point and returns the angle of line from origin to that
          * coordinate makes with the positive X-axis, in the range (-PI,+PI].
