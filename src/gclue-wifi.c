@@ -49,6 +49,12 @@
  * full cache (excluding overheads). */
 #define CACHE_ENTRY_MAX_AGE_SECONDS (48 * 60 * 60)
 
+/* The signal strength can typically vary by ±5 for a stationary laptop, so
+ * match cache entries with that tolerance.
+ * In dBm units.
+ */
+#define CACHE_ENTRY_MATCH_SIGNAL_WINDOW 10
+
 /**
  * SECTION:gclue-wifi
  * @short_description: WiFi-based geolocation
@@ -78,6 +84,55 @@ gclue_wifi_refresh_finish (GClueWebSource  *source,
 static void
 disconnect_cache_prune_timeout (GClueWifi *wifi);
 
+typedef struct {
+        GArray *signals;
+        GClueLocation *location;
+} LocationCacheElement;
+
+static LocationCacheElement *
+location_cache_element_new (GArray *signals,
+                            GClueLocation *location)
+{
+        LocationCacheElement *element;
+
+        element = g_slice_new (LocationCacheElement);
+        element->signals = signals;
+        element->location = g_object_ref (location);
+        return element;
+}
+
+static void location_cache_element_free (gpointer data)
+{
+        LocationCacheElement *element = data;
+
+        if (element->signals)
+                g_array_free (element->signals, TRUE);
+        g_clear_object (&element->location);
+        g_slice_free (LocationCacheElement, element);
+}
+
+typedef struct {
+        GList *elements;
+} LocationCacheValue;
+
+static LocationCacheValue *
+location_cache_value_new (void)
+{
+        LocationCacheValue *value;
+
+        value = g_slice_new (LocationCacheValue);
+        value->elements = NULL;
+        return value;
+}
+
+static void location_cache_value_free (gpointer data)
+{
+        LocationCacheValue *value = data;
+
+        g_list_free_full (value->elements, location_cache_element_free);
+        g_slice_free (LocationCacheValue, value);
+}
+
 struct _GClueWifiPrivate {
         WPASupplicant *supplicant;
         WPAInterface *interface;
@@ -94,7 +149,7 @@ struct _GClueWifiPrivate {
 
         GClueAccuracyLevel accuracy_level;
 
-        GHashTable *location_cache;  /* (element-type GVariant GClueLocation) (owned) */
+        GHashTable *location_cache;  /* (element-type GVariant LocationCacheValue) (owned) */
         guint cache_prune_timeout_id;
         guint cache_hits, cache_misses;
 
@@ -657,22 +712,46 @@ cache_prune (GClueWifi *wifi)
         GHashTableIter iter;
         gpointer value;
         guint64 cutoff_seconds;
-        guint old_cache_size;
+        guint old_cache_size, removed_elements = 0;
 
         old_cache_size = g_hash_table_size (priv->location_cache);
         cutoff_seconds = g_get_real_time () / G_USEC_PER_SEC - CACHE_ENTRY_MAX_AGE_SECONDS;
 
         g_hash_table_iter_init (&iter, priv->location_cache);
         while (g_hash_table_iter_next (&iter, NULL, &value)) {
-                GClueLocation *location = GCLUE_LOCATION (value);
-                guint64 timestamp_seconds = gclue_location_get_timestamp (location);
+                LocationCacheValue *lcvalue = (LocationCacheValue *)value;
+                GList *l = lcvalue->elements;
 
-                if (timestamp_seconds <= cutoff_seconds)
-                        g_hash_table_iter_remove (&iter);
+                g_assert (l);
+                while (l) {
+                        LocationCacheElement *element = (LocationCacheElement *)l->data;
+                        GList *lnext = l->next;
+
+                        /* Keep this location? */
+                        if (gclue_location_get_timestamp (element->location) >
+                            cutoff_seconds)
+                                goto next_el;
+
+                        location_cache_element_free (element);
+                        lcvalue->elements = g_list_delete_link (lcvalue->elements, l);
+                        removed_elements++;
+
+                        /* Deleted the last entry (element) in this hash bucket?
+                         * Remove this hash table entry then.
+                         */
+                        if (!lcvalue->elements) {
+                                g_assert (!lnext);
+                                g_hash_table_iter_remove (&iter);
+                        }
+
+                next_el:
+                        l = lnext;
+                }
         }
 
-        g_debug ("Pruned cache (old size: %u, new size: %u)",
-                 old_cache_size, g_hash_table_size (priv->location_cache));
+        g_debug ("Pruned cache (old size: %u, new size: %u, removed elements: %u)",
+                 old_cache_size, g_hash_table_size (priv->location_cache),
+                 removed_elements);
 }
 
 #if GLIB_CHECK_VERSION(2, 64, 0)
@@ -907,7 +986,7 @@ gclue_wifi_init (GClueWifi *wifi)
         wifi->priv->location_cache = g_hash_table_new_full (variant_hash,
                                                             g_variant_equal,
                                                             (GDestroyNotify) g_variant_unref,
-                                                            g_object_unref);
+                                                            location_cache_value_free);
 }
 
 static void
@@ -1145,20 +1224,18 @@ variant_hash (gconstpointer key)
         return g_bytes_hash (bytes);
 }
 
-static GVariant *
-get_location_cache_key (GClueWifi *wifi)
+static GPtrArray *
+get_location_cache_bss_array (GClueWifi *wifi)
 {
         GHashTableIter iter;
         gpointer value;
         g_autoptr(GPtrArray) bss_array = g_ptr_array_new_with_free_func (NULL);  /* (element-type WPABSS) */
-        guint i;
-        GVariantBuilder builder;
 
         /* The Mozilla service puts BSSID and signal strength for each BSS into
-         * its query. The signal strength can typically vary by ±5 for a
-         * stationary laptop, so quantise by that. Pack the whole lot into a
-         * #GVariant for simplicity, sorted by MAC address. The sorting has to
-         * happen in an array beforehand, as variants are immutable. */
+         * its query. Pack the whole lot into a #GVariant for simplicity, sorted
+         * by MAC address. The sorting has to happen in an array beforehand,
+         * as variants are immutable.
+         */
         g_hash_table_iter_init (&iter, wifi->priv->bss_proxies);
 
         while (g_hash_table_iter_next (&iter, NULL, &value)) {
@@ -1169,25 +1246,138 @@ get_location_cache_key (GClueWifi *wifi)
 
         g_ptr_array_sort (bss_array, bss_compare);
 
+        return g_steal_pointer (&bss_array);
+}
+
+static GVariant *
+get_location_cache_hashtable_key (GClueWifi *wifi, GPtrArray *bss_array)
+{
+        guint i;
+        GVariantBuilder builder;
+
         /* Serialise to a variant. */
-        g_variant_builder_init (&builder, G_VARIANT_TYPE ("a(ayn)"));
+        g_variant_builder_init (&builder, G_VARIANT_TYPE ("aay"));
         for (i = 0; i < bss_array->len; i++) {
                 WPABSS *bss = WPA_BSS (bss_array->pdata[i]);
                 GVariant *bssid;
-
-                g_variant_builder_open (&builder, G_VARIANT_TYPE ("(ayn)"));
 
                 bssid = wpa_bss_get_bssid (bss);
                 if (bssid == NULL)
                         continue;
 
                 g_variant_builder_add_value (&builder, bssid);
-                g_variant_builder_add (&builder, "n", wpa_bss_get_signal (bss) / 10);
-
-                g_variant_builder_close (&builder);
         }
 
         return g_variant_builder_end (&builder);
+}
+
+static GArray *
+get_location_cache_signal_array (GClueWifi *wifi, GPtrArray *bss_array)
+{
+        g_autoptr(GArray) signal_array = NULL;
+        guint i;
+
+        signal_array = g_array_sized_new (FALSE, FALSE, sizeof (gint16), bss_array->len);
+        for (i = 0; i < bss_array->len; i++) {
+                WPABSS *bss = WPA_BSS (bss_array->pdata[i]);
+                gint16 signal = wpa_bss_get_signal (bss);
+
+                g_array_append_val (signal_array, signal);
+        }
+
+        return g_steal_pointer (&signal_array);
+}
+
+static gboolean cached_signals_match (GArray *signals1, GArray *signals2)
+{
+        guint i;
+
+        if (signals1->len != signals2->len) {
+                g_warning ("Different signal count in one hash table entry: %u vs %u",
+                           signals1->len, signals2->len);
+                return FALSE;
+        }
+
+        for (i = 0; i < signals1->len; i++) {
+                gint s1 = g_array_index (signals1, gint16, i);
+                gint s2 = g_array_index (signals2, gint16, i);
+
+                if (ABS (s1 - s2) > CACHE_ENTRY_MATCH_SIGNAL_WINDOW / 2)
+                        return FALSE;
+        }
+
+        return TRUE;
+}
+
+static GClueLocation *
+find_cached_location (GHashTable *cache, GVariant *key, GArray *signals)
+{
+        g_autofree gchar *key_str = g_variant_print (key, FALSE);
+        GClueLocation *location = NULL;
+        LocationCacheValue *value;
+        GList *l;
+
+        value = g_hash_table_lookup (cache, key);
+        if (!value) {
+                g_debug ("Cache miss for key %s", key_str);
+                return NULL;
+        }
+
+        g_assert (value->elements);
+        for (l = value->elements; l; l = l->next) {
+                LocationCacheElement *element = l->data;
+
+                if (location &&
+                    gclue_location_get_accuracy (element->location) >=
+                    gclue_location_get_accuracy (location)) {
+                        /* Have at least as accurate location already,
+                         * don't bother with comparing signals.
+                         */
+                        continue;
+                }
+
+                if (!cached_signals_match (element->signals, signals))
+                        continue;
+
+                location = element->location;
+        }
+
+        if (location) {
+                g_debug ("Cache hit for key %s: got location %p (%s)",
+                         key_str, location,
+                         gclue_location_get_description (location));
+        } else {
+                g_debug ("Cache had key %s, but with different signals", key_str);
+        }
+
+        return location;
+}
+
+typedef struct {
+        GVariant *cache_key;
+        GArray *signals;
+} RefreshTaskData;
+
+static RefreshTaskData *
+refresh_task_data_new (GVariant *cache_key,
+                       GArray *signals)
+{
+        RefreshTaskData *tdata;
+
+        tdata = g_slice_new (RefreshTaskData);
+        tdata->cache_key = g_variant_ref (cache_key);
+        tdata->signals = signals;
+        return tdata;
+}
+
+static void refresh_task_data_free (gpointer data)
+{
+        RefreshTaskData *rdata = data;
+
+        g_clear_pointer (&rdata->cache_key, g_variant_unref);
+        if (rdata->signals)
+                g_array_free (rdata->signals, TRUE);
+        g_slice_free (RefreshTaskData, rdata);
 }
 
 static GClueLocation *
@@ -1212,21 +1402,20 @@ gclue_wifi_refresh_async (GClueWebSource      *source,
 {
         GClueWifi *wifi = GCLUE_WIFI (source);
         g_autoptr(GTask) task = g_task_new (source, cancellable, callback, user_data);
-        g_autoptr(GVariant) cache_key = get_location_cache_key (wifi);
-        g_autofree gchar *cache_key_str = g_variant_print (cache_key, FALSE);
-        GClueLocation *cached_location = g_hash_table_lookup (wifi->priv->location_cache, cache_key);
+        g_autoptr(GPtrArray) bss_array = get_location_cache_bss_array (wifi);
+        g_autoptr(GVariant) cache_key = get_location_cache_hashtable_key (wifi, bss_array);
+        g_autoptr(GArray) signal_array = get_location_cache_signal_array (wifi, bss_array);
+        GClueLocation *cached_location = find_cached_location (wifi->priv->location_cache,
+                                                               cache_key, signal_array);
+        RefreshTaskData *tdata;
 
         g_task_set_source_tag (task, gclue_wifi_refresh_async);
-        g_task_set_task_data (task, g_steal_pointer (&cache_key), (GDestroyNotify) g_variant_unref);
 
         if (gclue_location_source_get_active (GCLUE_LOCATION_SOURCE (source))) {
                 /* Try the cache. */
                 if (cached_location != NULL) {
                         g_autoptr(GClueLocation) new_location = NULL;
 
-                        g_debug ("Cache hit for key %s: got location %p (%s)",
-                                 cache_key_str, cached_location,
-                                 gclue_location_get_description (cached_location));
                         wifi->priv->cache_hits++;
 
                         /* Duplicate the location so its timestamp is updated. */
@@ -1237,12 +1426,32 @@ gclue_wifi_refresh_async (GClueWebSource      *source,
                         return;
                 }
 
-                g_debug ("Cache miss for key %s; querying web service", cache_key_str);
                 wifi->priv->cache_misses++;
         }
 
+        tdata = refresh_task_data_new (cache_key, g_steal_pointer (&signal_array));
+        g_task_set_task_data (task, tdata, refresh_task_data_free);
+
         /* Fall back to querying the web service. */
         GCLUE_WEB_SOURCE_CLASS (gclue_wifi_parent_class)->refresh_async (source, cancellable, refresh_cb, g_steal_pointer (&task));
+}
+
+static void
+add_cached_location (GHashTable *cache,
+                     GVariant *key, GArray **signals,
+                     GClueLocation *location)
+{
+        LocationCacheValue *value;
+        LocationCacheElement *element;
+
+        value = g_hash_table_lookup (cache, key);
+        if (!value) {
+                value = location_cache_value_new ();
+                g_hash_table_insert (cache, g_variant_ref (key), value);
+        }
+
+        element = location_cache_element_new (g_steal_pointer (signals), location);
+        value->elements = g_list_prepend (value->elements, element);
 }
 
 static void
@@ -1255,7 +1464,7 @@ refresh_cb (GObject      *source_object,
         g_autoptr(GTask) task = g_steal_pointer (&user_data);
         g_autoptr(GClueLocation) location = NULL;
         g_autoptr(GError) local_error = NULL;
-        GVariant *cache_key;
+        RefreshTaskData *tdata;
         g_autofree gchar *cache_key_str = NULL;
         double cache_hit_ratio;
 
@@ -1268,9 +1477,11 @@ refresh_cb (GObject      *source_object,
         }
 
         /* Cache the result. */
-        cache_key = g_task_get_task_data (task);
-        cache_key_str = g_variant_print (cache_key, FALSE);
-        g_hash_table_replace (wifi->priv->location_cache, g_variant_ref (cache_key), g_object_ref (location));
+        tdata = g_task_get_task_data (task);
+        cache_key_str = g_variant_print (tdata->cache_key, FALSE);
+        add_cached_location (wifi->priv->location_cache,
+                             tdata->cache_key, &tdata->signals,
+                             location);
 
         if (wifi->priv->cache_hits || wifi->priv->cache_misses) {
                 double cache_attempts;
