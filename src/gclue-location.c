@@ -949,8 +949,8 @@ gclue_location_set_speed_from_prev_location (GClueLocation *location,
                goto out;
         }
 
-        speed = gclue_location_get_distance_from (location, prev_location) *
-                1000.0 / (timestamp - prev_timestamp);
+        speed = gclue_location_get_distance_from (location, prev_location) /
+                (timestamp - prev_timestamp);
 
 out:
         location->priv->speed = speed;
@@ -1067,11 +1067,11 @@ gclue_location_set_heading_from_prev_location (GClueLocation *location,
  * @loca: a #GClueLocation
  * @locb: a #GClueLocation
  *
- * Calculates the distance in km, along the curvature of the Earth,
+ * Calculates the distance in meters, along the curvature of the Earth,
  * between 2 locations. Note that altitude changes are not
  * taken into account.
  *
- * Returns: a distance in km.
+ * Returns: a distance in meters.
  **/
 double
 gclue_location_get_distance_from (GClueLocation *loca,
@@ -1094,5 +1094,5 @@ gclue_location_get_distance_from (GClueLocation *loca,
         a = sin (dlat / 2) * sin (dlat / 2) +
             sin (dlon / 2) * sin (dlon / 2) * cos (lat1) * cos (lat2);
         c = 2 * atan2 (sqrt (a), sqrt (1-a));
-        return EARTH_RADIUS_KM * c;
+        return 1000.0 * EARTH_RADIUS_KM * c;
 }

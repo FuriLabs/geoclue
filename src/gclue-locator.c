@@ -103,7 +103,7 @@ set_location (GClueLocator  *locator,
                     return;
             }
 
-            dist = gclue_location_get_distance_from (location, cur_location) * 1000;
+            dist = gclue_location_get_distance_from (location, cur_location);
             if (new_timestamp > cur_timestamp) {
                 guint64 age = new_timestamp - cur_timestamp;
 

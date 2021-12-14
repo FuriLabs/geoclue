@@ -126,7 +126,7 @@ distance_below_threshold (GClueServiceClient *client,
         GClueServiceClientPrivate *priv = client->priv;
         GClueLocation *cur_location;
         gdouble distance;
-        gdouble threshold_km;
+        gdouble threshold;
 
         if (priv->distance_threshold == 0)
                 return FALSE;
@@ -137,11 +137,11 @@ distance_below_threshold (GClueServiceClient *client,
         distance = gclue_location_get_distance_from (cur_location, location);
         g_object_unref (cur_location);
 
-        threshold_km = priv->distance_threshold / 1000.0;
-        if (distance < threshold_km) {
-                g_debug ("Distance from previous location is %f km and "
-                         "below threshold of %f km.",
-                         distance, threshold_km); 
+        threshold = priv->distance_threshold;
+        if (distance < threshold) {
+                g_debug ("Distance from previous location is %f m and "
+                         "below threshold of %f m.",
+                         distance, threshold);
                 return TRUE;
         }
 
