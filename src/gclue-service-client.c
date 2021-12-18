@@ -49,6 +49,7 @@ struct _GClueServiceClientPrivate
 
         GClueServiceLocation *location;
         GClueServiceLocation *prev_location;
+        GClueLocation *signaled_location;
         guint distance_threshold;
         guint time_threshold;
 
@@ -124,19 +125,17 @@ distance_below_threshold (GClueServiceClient *client,
                           GClueLocation      *location)
 {
         GClueServiceClientPrivate *priv = client->priv;
-        GClueLocation *cur_location;
         gdouble distance;
         gdouble threshold;
 
         if (priv->distance_threshold == 0)
                 return FALSE;
 
-        g_object_get (priv->location,
-                      "location", &cur_location,
-                      NULL);
-        distance = gclue_location_get_distance_from (cur_location, location);
-        g_object_unref (cur_location);
+        if (!priv->signaled_location)
+                return FALSE;
 
+        distance = gclue_location_get_distance_from (priv->signaled_location,
+                                                     location);
         threshold = priv->distance_threshold;
         if (distance < threshold) {
                 g_debug ("Distance from previous location is %f m and "
@@ -153,22 +152,18 @@ time_below_threshold (GClueServiceClient *client,
                       GClueLocation      *location)
 {
         GClueServiceClientPrivate *priv = client->priv;
-        GClueLocation *cur_location;
-        gint64 cur_ts, ts;
+        gint64 cur_ts, new_ts;
         guint64 diff_ts;
 
         if (priv->time_threshold == 0)
                 return FALSE;
 
-        g_object_get (priv->location,
-                      "location", &cur_location,
-                      NULL);
+        if (!priv->signaled_location)
+                return FALSE;
 
-        cur_ts = gclue_location_get_timestamp (cur_location);
-        ts = gclue_location_get_timestamp (location);
-        diff_ts = ABS (ts - cur_ts);
-
-        g_object_unref (cur_location);
+        cur_ts = gclue_location_get_timestamp (priv->signaled_location);
+        new_ts = gclue_location_get_timestamp (location);
+        diff_ts = ABS (new_ts - cur_ts);
 
         if (diff_ts < priv->time_threshold) {
                 g_debug ("Time difference between previous and new location"
@@ -244,8 +239,12 @@ on_locator_location_changed (GObject    *gobject,
 
         gclue_dbus_client_set_location (GCLUE_DBUS_CLIENT (client), path);
 
+        g_clear_object (&priv->signaled_location);
+        priv->signaled_location = g_object_ref (new_location);
+
         if (!emit_location_updated (client, prev_path, path, &error))
                 goto error_out;
+
         goto out;
 
 error_out:
@@ -653,6 +652,7 @@ gclue_service_client_finalize (GObject *object)
         g_clear_object (&priv->locator);
         g_clear_object (&priv->location);
         g_clear_object (&priv->prev_location);
+        g_clear_object (&priv->signaled_location);
         g_clear_object (&priv->client_info);
 
         /* Chain up to the parent class */
