@@ -60,8 +60,6 @@ struct _GClueLocatorPrivate
         GList *active_sources;
 
         GClueAccuracyLevel accuracy_level;
-
-        guint time_threshold;
 };
 
 G_DEFINE_TYPE_WITH_CODE (GClueLocator,
