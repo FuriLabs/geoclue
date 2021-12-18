@@ -205,19 +205,19 @@ on_locator_location_changed (GObject    *gobject,
         GClueServiceClient *client = GCLUE_SERVICE_CLIENT (user_data);
         GClueServiceClientPrivate *priv = client->priv;
         GClueLocationSource *locator = GCLUE_LOCATION_SOURCE (gobject);
-        GClueLocation *location_info;
+        GClueLocation *new_location;
         char *path = NULL;
         const char *prev_path;
         GError *error = NULL;
 
-        location_info = gclue_location_source_get_location (locator);
-        if (location_info == NULL)
+        new_location = gclue_location_source_get_location (locator);
+        if (new_location == NULL)
                 return; /* No location found yet */
 
-        if (priv->location != NULL && below_threshold (client, location_info)) {
+        if (priv->location != NULL && below_threshold (client, new_location)) {
                 g_debug ("Updating location, below threshold");
                 g_object_set (priv->location,
-                              "location", location_info,
+                              "location", new_location,
                               NULL);
                 return;
         }
@@ -232,7 +232,7 @@ on_locator_location_changed (GObject    *gobject,
         priv->location = gclue_service_location_new (priv->client_info,
                                                      path,
                                                      priv->connection,
-                                                     location_info,
+                                                     new_location,
                                                      &error);
         if (priv->location == NULL)
                 goto error_out;
