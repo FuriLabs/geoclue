@@ -24,6 +24,7 @@
 G_BEGIN_DECLS
 
 gboolean         gclue_nmea_type_is              (const char *msg, const char *nmeatype);
+GTimeSpan        gclue_nmea_timestamp_to_timespan (const gchar *timestamp);
 
 G_END_DECLS
 
