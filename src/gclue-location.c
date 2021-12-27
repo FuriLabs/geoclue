@@ -29,7 +29,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define TIME_DIFF_THRESHOLD 60000000 /* 60 seconds */
+#define TIME_DIFF_THRESHOLD (60 * G_USEC_PER_SEC) /* 60 seconds */
 #define EARTH_RADIUS_KM 6372.795
 #define KNOTS_IN_METERS_PER_SECOND 0.51444
 
@@ -479,14 +479,20 @@ parse_altitude_string (const char *altitude,
         return g_ascii_strtod (altitude, NULL);
 }
 
+/* Return a timestamp derived from the NMEA timestamp and system date as
+ * seconds since epoch.
+ * If system time cannot be retrieved, return 0.
+ * If timestamp parsing fails, return system time.
+ * If the parsed time is in the future when compared to the system time,
+ * return the parsed time yesterday.
+ */
 static gint64
 parse_nmea_timestamp (const char *nmea_ts)
 {
-        char parts[3][3];
-        int i, hours, minutes, seconds;
         g_autoptr(GDateTime) now = NULL;
+        g_autoptr(GDateTime) midnight = NULL;
         g_autoptr(GDateTime) ts = NULL;
-        guint64 ret;
+        GTimeSpan timespan;
 
         now = g_date_time_new_now_utc ();
         if (now == NULL) {
@@ -494,51 +500,32 @@ parse_nmea_timestamp (const char *nmea_ts)
                 return 0;
         }
 
-        ret = g_date_time_to_unix (now);
-
-        if (strlen (nmea_ts) < 6) {
-                if (strlen (nmea_ts) >= 1)
-                        /* Empty string just means no ts, so no warning */
-                        g_warning ("Failed to parse NMEA timestamp '%s'",
-                                   nmea_ts);
-
-                goto parse_error;
+        if (!nmea_ts || !*nmea_ts) {  /* Empty timestamp, no warning */
+                return g_date_time_to_unix (now);
         }
 
-        for (i = 0; i < 3; i++) {
-                memmove (parts[i], nmea_ts + (i * 2), 2);
-                parts[i][2] = '\0';
+        timespan = gclue_nmea_timestamp_to_timespan (nmea_ts);
+        if (timespan < 0) {
+                g_warning ("Failed to parse NMEA timestamp '%s'", nmea_ts);
+                return g_date_time_to_unix (now);
         }
-        hours = atoi (parts[0]);
-        minutes = atoi (parts[1]);
-        seconds = atoi (parts[2]);
 
-        ts = g_date_time_new_utc (g_date_time_get_year (now),
-                                  g_date_time_get_month (now),
-                                  g_date_time_get_day_of_month (now),
-                                  hours,
-                                  minutes,
-                                  seconds);
-        if (ts == NULL)
-                goto parse_error;
+        midnight = g_date_time_new_utc (g_date_time_get_year (now),
+                                        g_date_time_get_month (now),
+                                        g_date_time_get_day_of_month (now),
+                                        0,
+                                        0,
+                                        0);
+        ts = g_date_time_add (midnight, timespan);
 
         if (g_date_time_difference (ts, now) > TIME_DIFF_THRESHOLD) {
                 g_debug ("NMEA timestamp '%s' in future. Assuming yesterday's.",
                          nmea_ts);
-
                 g_clear_pointer (&ts, g_date_time_unref);
-                ts = g_date_time_new_utc (g_date_time_get_year (now),
-                                          g_date_time_get_month (now),
-                                          g_date_time_get_day_of_month (now) - 1,
-                                          hours,
-                                          minutes,
-                                          seconds);
+                ts = g_date_time_add (midnight, timespan - G_TIME_SPAN_DAY);
         }
 
-        ret = g_date_time_to_unix (ts);
-
-parse_error:
-        return ret;
+        return g_date_time_to_unix (ts);
 }
 
 /**
