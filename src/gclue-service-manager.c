@@ -73,6 +73,21 @@ enum
 
 static GParamSpec *gParamSpecs[LAST_PROP];
 
+typedef struct
+{
+        GClueDBusManager *manager;
+        GDBusMethodInvocation *invocation;
+        GClueClientInfo *client_info;
+        gboolean reuse_client;
+
+} OnClientInfoNewReadyData;
+
+static void
+on_client_info_new_ready_data_free (gpointer data)
+{
+        g_slice_free (OnClientInfoNewReadyData, data);
+}
+
 static void
 sync_in_use_property (GClueServiceManager *manager)
 {
@@ -163,15 +178,6 @@ on_peer_vanished (GClueClientInfo *info,
                        (char *) bus_name);
 }
 
-typedef struct
-{
-        GClueDBusManager *manager;
-        GDBusMethodInvocation *invocation;
-        GClueClientInfo *client_info;
-        gboolean reuse_client;
-
-} OnClientInfoNewReadyData;
-
 static gboolean
 complete_get_client (OnClientInfoNewReadyData *data)
 {
@@ -253,7 +259,7 @@ error_out:
 out:
         g_clear_error (&error);
         g_clear_object (&info);
-        g_slice_free (OnClientInfoNewReadyData, data);
+        on_client_info_new_ready_data_free (data);
         g_free (path);
 
         return FALSE;
