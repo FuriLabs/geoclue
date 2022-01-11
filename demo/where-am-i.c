@@ -146,7 +146,7 @@ on_simple_ready (GObject      *source_object,
 {
         GError *error = NULL;
 
-        simple = gclue_simple_new_finish (res, &error);
+        simple = gclue_simple_new_with_thresholds_finish (res, &error);
         if (error != NULL) {
             g_critical ("Failed to connect to GeoClue2 service: %s", error->message);
 

@@ -776,6 +776,24 @@ gclue_simple_new_finish (GAsyncResult *result,
                 return NULL;
 }
 
+/**
+ * gclue_simple_new_with_thresholds_finish:
+ * @result: The #GAsyncResult obtained from the #GAsyncReadyCallback passed to
+ *          #gclue_simple_new_with_thresholds().
+ * @error: Return location for error or %NULL.
+ *
+ * Finishes an operation started with #gclue_simple_new_with_thresholds().
+ *
+ * Returns: (transfer full) (type GClueSimple): The constructed proxy
+ * object or %NULL if @error is set.
+ */
+GClueSimple *
+gclue_simple_new_with_thresholds_finish (GAsyncResult *result,
+                                         GError      **error)
+{
+        return gclue_simple_new_finish (result, error);
+}
+
 static void
 on_simple_ready (GObject      *source_object,
                  GAsyncResult *res,
@@ -854,7 +872,7 @@ gclue_simple_new_sync (const char        *desktop_id,
  * @user_data: User data to pass to @callback.
  *
  * Asynchronously creates a #GClueSimple instance. Use
- * #gclue_simple_new_finish() to get the created #GClueSimple instance.
+ * #gclue_simple_new_with_thresholds_finish() to get the created #GClueSimple instance.
  *
  * See #gclue_simple_new_with_thresholds_sync() for the synchronous,
  * blocking version of this function.

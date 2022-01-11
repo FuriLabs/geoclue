@@ -79,6 +79,8 @@ void            gclue_simple_new_with_thresholds
                                            GCancellable       *cancellable,
                                            GAsyncReadyCallback callback,
                                            gpointer            user_data);
+GClueSimple *   gclue_simple_new_with_thresholds_finish (GAsyncResult   *result,
+                                                         GError        **error);
 GClueSimple *   gclue_simple_new_with_thresholds_sync
                                           (const char        *desktop_id,
                                            GClueAccuracyLevel accuracy_level,
