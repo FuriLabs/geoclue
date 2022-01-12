@@ -539,6 +539,23 @@ on_started (GDBusConnection *bus,
 }
 
 static void
+on_portal_started_finish (GObject      *source_object,
+                          GAsyncResult *res,
+                          gpointer      user_data)
+{       
+        GTask *task = G_TASK (user_data);
+        GClueSimple *simple = g_task_get_source_object (task);
+        GClueSimplePrivate *priv = simple->priv;
+        GError *error = NULL;
+
+        if (!xdp_location_call_start_finish (priv->portal, NULL, res, &error)) {
+                clear_portal (simple);
+                g_task_return_new_error (priv->task, G_IO_ERROR, G_IO_ERROR_FAILED, "Start failed");
+                g_clear_object (&priv->task);
+        }
+}
+
+static void
 on_session_created (GObject *source,
                     GAsyncResult *result,
                     gpointer user_data)
@@ -588,7 +605,9 @@ on_session_created (GObject *source,
                                  priv->session_id,
                                  "", /* FIXME parent window */
                                  g_variant_builder_end (&options),
-                                 NULL, NULL, NULL);
+                                 NULL,
+                                 on_portal_started_finish,
+                                 task);
 }
 
 static int
