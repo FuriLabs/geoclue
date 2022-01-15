@@ -356,9 +356,10 @@ on_agent_props_changed (GDBusProxy *agent_proxy,
                         g_debug ("Stopped '%s'.", id);
                 }
 
+                g_variant_unref (value);
+                g_variant_iter_free (iter);
                 break;
         }
-        g_variant_iter_free (iter);
 }
 
 struct _StartData
