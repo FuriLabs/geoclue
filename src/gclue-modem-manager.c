@@ -51,6 +51,7 @@ struct _GClueModemManagerPrivate {
         GCancellable *cancellable;
 
         MMModemLocationSource caps; /* Caps we set or are going to set */
+        GClueTowerTec tec;
 
         guint time_threshold;
 };
@@ -287,7 +288,8 @@ static gboolean
 is_location_3gpp_same (GClueModemManager *manager,
                        const gchar       *new_opc,
                        gulong             new_lac,
-                       gulong             new_cell_id)
+                       gulong             new_cell_id,
+                       GClueTowerTec      new_tec)
 {
         GClueModemManagerPrivate *priv = manager->priv;
         const gchar *opc;
@@ -307,11 +309,10 @@ is_location_3gpp_same (GClueModemManager *manager,
 #endif
         lac = mm_location_3gpp_get_location_area_code (priv->location_3gpp);
 
-        // Most likely this is an LTE connection and with the mozilla
-        // services they use the tracking area code in place of the
-        // location area code in this case.
+        // Use the tracking area code in place of the
+        // location area code for LTE.
         // https://ichnaea.readthedocs.io/en/latest/api/geolocate.html#cell-tower-fields
-        if (lac == 0x0 || lac == 0xFFFE) {
+        if (priv->tec == GCLUE_TOWER_TEC_4G) {
                 lac = mm_location_3gpp_get_tracking_area_code(priv->location_3gpp);
         }
 
@@ -319,7 +320,8 @@ is_location_3gpp_same (GClueModemManager *manager,
 
         return (g_strcmp0 (opc, new_opc) == 0 &&
                 lac == new_lac &&
-                cell_id == new_cell_id);
+                cell_id == new_cell_id &&
+                priv->tec == new_tec);
 }
 
 static void clear_3gpp_location (GClueModemManager *manager)
@@ -342,10 +344,11 @@ on_get_3gpp_ready (GObject      *source_object,
         GClueModemManager *manager;
         GClueModemManagerPrivate *priv;
         MMModemLocation *modem_location = MM_MODEM_LOCATION (source_object);
+        MMModemAccessTechnology modem_access_tec;
         g_autoptr(MMLocation3gpp) location_3gpp = NULL;
         const gchar *opc;
         gulong lac, cell_id;
-        GClueTowerTec tec = GCLUE_TOWER_TEC_3G;
+        GClueTowerTec tec;
 #if !MM_CHECK_VERSION(1, 18, 0)
         g_autoptr(GError) error = NULL;
         gchar opc_buf[GCLUE_3G_TOWER_OPERATOR_CODE_STR_LEN + 1];
@@ -386,24 +389,35 @@ on_get_3gpp_ready (GObject      *source_object,
 
         lac = mm_location_3gpp_get_location_area_code (location_3gpp);
 
-        // Most likely this is an LTE connection and with the mozilla
-        // services they use the tracking area code in place of the
-        // location area code in this case.
-        // https://ichnaea.readthedocs.io/en/latest/api/geolocate.html#cell-tower-fields
-        if (lac == 0x0 || lac == 0xFFFE) {
-                lac = mm_location_3gpp_get_tracking_area_code(location_3gpp);
-                tec = GCLUE_TOWER_TEC_4G;
-        }
-
         cell_id = mm_location_3gpp_get_cell_id (location_3gpp);
 
-        if (is_location_3gpp_same (manager, opc, lac, cell_id)) {
+        modem_access_tec = mm_modem_get_access_technologies(priv->modem);
+
+        if (modem_access_tec == MM_MODEM_ACCESS_TECHNOLOGY_GSM ||
+            modem_access_tec == MM_MODEM_ACCESS_TECHNOLOGY_GPRS ||
+            modem_access_tec == MM_MODEM_ACCESS_TECHNOLOGY_EDGE) {
+                tec = GCLUE_TOWER_TEC_2G;
+        } else if (modem_access_tec == MM_MODEM_ACCESS_TECHNOLOGY_UMTS ||
+                   modem_access_tec == MM_MODEM_ACCESS_TECHNOLOGY_HSDPA ||
+                   modem_access_tec == MM_MODEM_ACCESS_TECHNOLOGY_HSUPA ||
+                   modem_access_tec == MM_MODEM_ACCESS_TECHNOLOGY_HSPA ||
+                   modem_access_tec == MM_MODEM_ACCESS_TECHNOLOGY_HSPA_PLUS) {
+                tec = GCLUE_TOWER_TEC_3G;
+        } else if (modem_access_tec == MM_MODEM_ACCESS_TECHNOLOGY_LTE) {
+                lac = mm_location_3gpp_get_tracking_area_code(location_3gpp);
+                tec = GCLUE_TOWER_TEC_4G;
+        } else {
+                tec = GCLUE_TOWER_TEC_UNKNOWN;
+        }
+
+        if (is_location_3gpp_same (manager, opc, lac, cell_id, tec)) {
                 g_debug ("New 3GPP location is same as last one");
                 return;
         }
         g_clear_object (&priv->location_3gpp);
         priv->location_3gpp = g_steal_pointer (&location_3gpp);
         priv->location_3gpp_ignore_previous = FALSE;
+        priv->tec = tec;
 
         g_signal_emit (manager, signals[FIX_3G], 0, opc, lac, cell_id, tec);
 }
