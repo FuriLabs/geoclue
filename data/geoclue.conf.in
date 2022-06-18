@@ -64,6 +64,12 @@ enable=true
 # If set to true, geoclue will automatically submit network data to Mozilla
 # each time it gets a GPS lock.
 #
+# Currently, only Modem-GPS or Network NMEA sources are supported as providers
+# of a location to submit (one at a time).
+# If Modem-GPS source is enabled above it will be the exclusive provider
+# (regardless whether the system is actually equipped with such modem),
+# otherwise Network NMEA source will be considered.
+#
 submit-data=false
 
 # URL to submission API of Mozilla Location Service. If not set, defaults to

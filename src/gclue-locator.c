@@ -387,7 +387,9 @@ gclue_locator_constructed (GObject *object)
                 GClueModemGPS *gps = gclue_modem_gps_get_singleton ();
                 locator->priv->sources = g_list_append (locator->priv->sources,
                                                         gps);
-                submit_source = GCLUE_LOCATION_SOURCE (gps);
+                if (!submit_source) {
+                        submit_source = GCLUE_LOCATION_SOURCE (gps);
+                }
         }
 #endif
 #if GCLUE_USE_NMEA_SOURCE
@@ -395,6 +397,10 @@ gclue_locator_constructed (GObject *object)
                 GClueNMEASource *nmea = gclue_nmea_source_get_singleton ();
                 locator->priv->sources = g_list_append (locator->priv->sources,
                                                         nmea);
+                if (!submit_source) {
+                        submit_source = GCLUE_LOCATION_SOURCE (nmea);
+                }
+
         }
 #endif
 
