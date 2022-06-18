@@ -22,11 +22,13 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 #include <glib.h>
 #include "gclue-config.h"
+#include "gclue-location.h"
 #include "gclue-nmea-utils.h"
 #include "gclue-nmea-source.h"
-#include "gclue-location.h"
+#include "gclue-utils.h"
 #include "config.h"
 #include "gclue-enum-types.h"
 
@@ -448,6 +450,41 @@ browse_callback (AvahiServiceBrowser   *service_browser,
         }
 }
 
+#define NMEA_LINE_END "\r\n"
+#define NMEA_LINE_END_CTR (sizeof (NMEA_LINE_END) - 1)
+
+static void nmea_skip_delim (GBufferedInputStream *stream,
+                             GCancellable *cancellable)
+{
+        const char *buf;
+        gsize buf_size;
+        size_t delim_skip;
+        g_autoptr(GError) error = NULL;
+
+        buf = (const char *) g_buffered_input_stream_peek_buffer (stream,
+                                                                  &buf_size);
+
+        delim_skip = strnspn (buf, NMEA_LINE_END, buf_size);
+        for (size_t ctr = 0; ctr < delim_skip; ctr++) {
+                if (g_buffered_input_stream_read_byte (stream, cancellable, &error) < 0) {
+                        g_warning ("Failed to skip %zu / %zu NMEA delimiter: %s",
+                                   ctr, delim_skip, error->message);
+                        break;
+                }
+        }
+}
+
+static gboolean nmea_check_delim (GBufferedInputStream *stream)
+{
+        const char *buf;
+        gsize buf_size;
+
+        buf = (const char *) g_buffered_input_stream_peek_buffer (stream,
+                                                                  &buf_size);
+
+        return strnpbrk (buf, NMEA_LINE_END, buf_size) != NULL;
+}
+
 #define NMEA_STR_LEN 128
 static void
 on_read_nmea_sentence (GObject      *object,
@@ -456,21 +493,23 @@ on_read_nmea_sentence (GObject      *object,
 {
         GClueNMEASource *source = GCLUE_NMEA_SOURCE (user_data);
         GDataInputStream *data_input_stream = G_DATA_INPUT_STREAM (object);
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
         GClueLocation *prev_location;
         g_autoptr(GClueLocation) location = NULL;
         gsize data_size = 0 ;
-        char *message;
+        g_autofree char *message = NULL;
         gint i;
-        static const gchar *sentences[3] = { 0 };
-        static gchar gga[NMEA_STR_LEN] = { 0 };
-        static gchar rmc[NMEA_STR_LEN] = { 0 };
+        const gchar *sentences[3];
+        gchar gga[NMEA_STR_LEN];
+        gchar rmc[NMEA_STR_LEN];
 
-
-        message = g_data_input_stream_read_line_finish (data_input_stream,
+        message = g_data_input_stream_read_upto_finish (data_input_stream,
                                                         result,
                                                         &data_size,
                                                         &error);
+
+        gga[0] = '\0';
+        rmc[0] = '\0';
 
         do {
                 if (message == NULL) {
@@ -480,7 +519,6 @@ on_read_nmea_sentence (GObject      *object,
                                 else if (error->code != G_IO_ERROR_CANCELLED)
                                         g_warning ("Error when receiving message: %s",
                                                    error->message);
-                                g_error_free (error);
                         } else {
                                 g_debug ("Nothing to read");
                         }
@@ -492,8 +530,6 @@ on_read_nmea_sentence (GObject      *object,
                                  */
                                 remove_service (source, source->priv->active_service);
 
-                        gga[0] = '\0';
-                        rmc[0] = '\0';
                         return;
                 }
                 g_debug ("Network source sent: \"%s\"", message);
@@ -506,12 +542,15 @@ on_read_nmea_sentence (GObject      *object,
                         g_debug ("Ignoring NMEA sentence, as it's neither GGA or RMC: %s", message);
                 }
 
-                message = (char *) g_buffered_input_stream_peek_buffer
-                        (G_BUFFERED_INPUT_STREAM (data_input_stream),
-                         &data_size);
-                if (g_strstr_len (message, data_size, "\n")) {
-                    message = g_data_input_stream_read_line
-                            (data_input_stream, &data_size, NULL, &error);
+                nmea_skip_delim (G_BUFFERED_INPUT_STREAM (data_input_stream),
+                                 source->priv->cancellable);
+
+                if (nmea_check_delim (G_BUFFERED_INPUT_STREAM (data_input_stream))) {
+                    g_clear_pointer (&message, g_free);
+                    message = g_data_input_stream_read_upto
+                            (data_input_stream,
+                             NMEA_LINE_END, NMEA_LINE_END_CTR,
+                             &data_size, NULL, &error);
                 } else {
                     break;
                 }
@@ -524,25 +563,24 @@ on_read_nmea_sentence (GObject      *object,
                 sentences[i++] = rmc;
         sentences[i] = NULL;
 
-        prev_location = gclue_location_source_get_location
-                (GCLUE_LOCATION_SOURCE (source));
-        location = gclue_location_create_from_nmeas (sentences,
-                                                     prev_location,
-                                                     &error);
+        if (i > 0) {
+                prev_location = gclue_location_source_get_location
+                        (GCLUE_LOCATION_SOURCE (source));
+                location = gclue_location_create_from_nmeas (sentences,
+                                                             prev_location,
+                                                             &error);
 
-        if (error != NULL) {
-                g_warning ("Error: %s", error->message);
-                g_clear_error (&error);
-        } else {
-                gclue_location_source_set_location
-                        (GCLUE_LOCATION_SOURCE (source), location);
+                if (error != NULL) {
+                        g_warning ("Error: %s", error->message);
+                } else {
+                        gclue_location_source_set_location
+                                (GCLUE_LOCATION_SOURCE (source), location);
+                }
         }
 
-        gga[0] = '\0';
-        rmc[0] = '\0';
-        sentences[0] = NULL;
-
-        g_data_input_stream_read_line_async (data_input_stream,
+        g_data_input_stream_read_upto_async (data_input_stream,
+                                             NMEA_LINE_END,
+                                             NMEA_LINE_END_CTR,
                                              G_PRIORITY_DEFAULT,
                                              source->priv->cancellable,
                                              on_read_nmea_sentence,
@@ -577,7 +615,9 @@ on_connection_to_location_server (GObject      *object,
                 (G_IO_STREAM (source->priv->connection));
         data_input_stream = g_data_input_stream_new (input_stream);
 
-        g_data_input_stream_read_line_async (data_input_stream,
+        g_data_input_stream_read_upto_async (data_input_stream,
+                                             NMEA_LINE_END,
+                                             NMEA_LINE_END_CTR,
                                              G_PRIORITY_DEFAULT,
                                              source->priv->cancellable,
                                              on_read_nmea_sentence,
