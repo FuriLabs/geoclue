@@ -252,17 +252,19 @@ static gboolean
 parse_server_error (JsonObject *object, GError **error)
 {
         JsonObject *error_obj;
-        int code;
         const char *message;
 
         if (!json_object_has_member (object, "error"))
             return FALSE;
 
         error_obj = json_object_get_object_member (object, "error");
-        code = json_object_get_int_member (error_obj, "code");
-        message = json_object_get_string_member (error_obj, "message");
+        if (json_object_has_member (error_obj, "message")) {
+                message = json_object_get_string_member (error_obj, "message");
+        } else {
+                message = "Unknown error";
+        }
 
-        g_set_error_literal (error, G_IO_ERROR, code, message);
+        g_set_error_literal (error, G_IO_ERROR, G_IO_ERROR_FAILED, message);
 
         return TRUE;
 }
@@ -271,7 +273,7 @@ GClueLocation *
 gclue_mozilla_parse_response (const char *json,
                               GError    **error)
 {
-        JsonParser *parser;
+        g_autoptr(JsonParser) parser = NULL;
         JsonNode *node;
         JsonObject *object, *loc_object;
         GClueLocation *location;
@@ -295,8 +297,6 @@ gclue_mozilla_parse_response (const char *json,
         accuracy = json_object_get_double_member (object, "accuracy");
 
         location = gclue_location_new (latitude, longitude, accuracy);
-
-        g_object_unref (parser);
 
         return location;
 }
