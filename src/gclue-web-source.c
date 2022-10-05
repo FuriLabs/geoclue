@@ -187,7 +187,8 @@ query_callback (GObject      *source_object,
         location = GCLUE_WEB_SOURCE_GET_CLASS (web)->refresh_finish (web, result, &local_error);
 
         if (local_error != NULL &&
-            !g_error_matches (local_error, G_IO_ERROR, G_IO_ERROR_NOT_INITIALIZED)) {
+            !g_error_matches (local_error, G_IO_ERROR, G_IO_ERROR_NOT_INITIALIZED) &&
+            !g_error_matches (local_error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
                 g_warning ("Failed to query location: %s", local_error->message);
                 return;
         }

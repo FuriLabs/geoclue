@@ -135,6 +135,7 @@ static void location_cache_value_free (gpointer data)
 }
 
 struct _GClueWifiPrivate {
+        GCancellable *intf_cancellable, *bss_cancellable;
         GClueMozilla *mozilla;
         WPASupplicant *supplicant;
         WPAInterface *interface;
@@ -197,6 +198,8 @@ gclue_wifi_finalize (GObject *gwifi)
 
         G_OBJECT_CLASS (gclue_wifi_parent_class)->finalize (gwifi);
 
+        g_cancellable_cancel (wifi->priv->intf_cancellable);
+
         disconnect_bss_signals (wifi);
         disconnect_cache_prune_timeout (wifi);
 
@@ -206,6 +209,7 @@ gclue_wifi_finalize (GObject *gwifi)
         g_clear_pointer (&wifi->priv->ignored_bss_proxies, g_hash_table_unref);
         g_clear_pointer (&wifi->priv->location_cache, g_hash_table_unref);
         g_clear_object (&wifi->priv->mozilla);
+        g_clear_object (&wifi->priv->intf_cancellable);
 }
 
 static void
@@ -346,13 +350,19 @@ on_bss_proxy_ready (GObject      *source_object,
 {
         GClueWifi *wifi = GCLUE_WIFI (user_data);
         WPABSS *bss;
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
         char ssid[MAX_SSID_LEN + 1] = { 0 };
 
         bss = wpa_bss_proxy_new_for_bus_finish (res, &error);
         if (bss == NULL) {
-                g_debug ("%s", error->message);
-                g_error_free (error);
+                if (error) {
+                        if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+                                return;
+                        }
+
+                        g_warning ("BSS proxy setup failed: %s",
+                                   error->message);
+                }
 
                 return;
         }
@@ -364,7 +374,7 @@ on_bss_proxy_ready (GObject      *source_object,
         }
 
         get_ssid_from_bss (bss, ssid);
-        g_debug ("WiFi AP '%s' added.", ssid);
+        g_debug ("Got WiFi AP '%s'", ssid);
 
         if (wpa_bss_get_signal (bss) <= WIFI_SCAN_BSS_NOISE_LEVEL) {
                 const char *path;
@@ -395,13 +405,15 @@ on_bss_added (WPAInterface *object,
               GVariant     *properties,
               gpointer      user_data)
 {
+        GClueWifi *wifi = GCLUE_WIFI (user_data);
+
         wpa_bss_proxy_new_for_bus (G_BUS_TYPE_SYSTEM,
                                    G_DBUS_PROXY_FLAGS_NONE,
                                    "fi.w1.wpa_supplicant1",
                                    path,
-                                   NULL,
+                                   wifi->priv->bss_cancellable,
                                    on_bss_proxy_ready,
-                                   user_data);
+                                   wifi);
 }
 
 static gboolean
@@ -458,7 +470,7 @@ start_wifi_scan (GClueWifi *wifi)
 
         wpa_interface_call_scan (WPA_INTERFACE (priv->interface),
                                  args,
-                                 NULL,
+                                 priv->bss_cancellable,
                                  on_scan_call_done,
                                  wifi);
 }
@@ -591,19 +603,22 @@ on_scan_call_done (GObject      *source_object,
                    gpointer      user_data)
 {
         GClueWifi *wifi = GCLUE_WIFI (user_data);
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
         if (!wpa_interface_call_scan_finish
                 (WPA_INTERFACE (source_object),
                  res,
                  &error)) {
-                g_warning ("Scanning of WiFi networks failed: %s",
-                           error->message);
-                g_error_free (error);
+                if (error) {
+                        if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+                                return;
+                        }
+
+                        g_warning ("Scanning of WiFi networks failed: %s",
+                                   error->message);
+                }
 
                 cancel_wifi_scan (wifi);
-
-                return;
         }
 }
 
@@ -621,6 +636,9 @@ connect_bss_signals (GClueWifi *wifi)
 
                 return;
         }
+
+        g_assert (!priv->bss_cancellable);
+        priv->bss_cancellable = g_cancellable_new ();
 
         start_wifi_scan (wifi);
 
@@ -649,6 +667,12 @@ static void
 disconnect_bss_signals (GClueWifi *wifi)
 {
         GClueWifiPrivate *priv = wifi->priv;
+
+        if (priv->bss_cancellable) {
+                g_debug ("Cancelling WiFi requests");
+                g_cancellable_cancel (priv->bss_cancellable);
+                g_clear_object (&priv->bss_cancellable);
+        }
 
         cancel_wifi_scan (wifi);
 
@@ -867,12 +891,18 @@ on_interface_proxy_ready (GObject      *source_object,
 {
         GClueWifi *wifi = GCLUE_WIFI (user_data);
         WPAInterface *interface;
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
         interface = wpa_interface_proxy_new_for_bus_finish (res, &error);
         if (interface == NULL) {
-                g_debug ("%s", error->message);
-                g_error_free (error);
+                if (error) {
+                        if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+                                return;
+                        }
+
+                        g_warning ("Interface proxy add failed: %s",
+                                   error->message);
+                }
 
                 return;
         }
@@ -907,7 +937,7 @@ on_interface_added (WPASupplicant *supplicant,
                                          G_DBUS_PROXY_FLAGS_NONE,
                                          "fi.w1.wpa_supplicant1",
                                          path,
-                                         NULL,
+                                         wifi->priv->intf_cancellable,
                                          on_interface_proxy_ready,
                                          wifi);
 }
@@ -947,6 +977,7 @@ gclue_wifi_init (GClueWifi *wifi)
 {
         wifi->priv = gclue_wifi_get_instance_private (wifi);
 
+        wifi->priv->intf_cancellable = g_cancellable_new ();
         wifi->priv->mozilla = gclue_mozilla_get_singleton ();
         wifi->priv->bss_proxies = g_hash_table_new_full (g_str_hash,
                                                          g_str_equal,
@@ -968,7 +999,7 @@ gclue_wifi_constructed (GObject *object)
         GClueWifi *wifi = GCLUE_WIFI (object);
         GClueWifiPrivate *priv = wifi->priv;
         const gchar *const *interfaces;
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
         G_OBJECT_CLASS (gclue_wifi_parent_class)->constructed (object);
 
@@ -988,9 +1019,9 @@ gclue_wifi_constructed (GObject *object)
                          NULL,
                          &error);
         if (priv->supplicant == NULL) {
-                g_warning ("Failed to connect to wpa_supplicant service: %s",
-                           error->message);
-                g_error_free (error);
+                if (error)
+                        g_warning ("Failed to connect to wpa_supplicant service: %s",
+                                   error->message);
                 goto refresh_n_exit;
         }
 
