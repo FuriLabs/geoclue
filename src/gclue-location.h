@@ -77,11 +77,25 @@ GType gclue_location_get_type (void);
 #define GCLUE_LOCATION_ACCURACY_UNKNOWN -1
 
 /**
+ * GCLUE_LOCATION_ACCURACY_EXACT:
+ *
+ * Constant representing exact-level accuracy.
+ */
+#define GCLUE_LOCATION_ACCURACY_EXACT 50 /* 50 m */
+
+/**
  * GCLUE_LOCATION_ACCURACY_STREET:
  *
  * Constant representing street-level accuracy.
  */
 #define GCLUE_LOCATION_ACCURACY_STREET 1000 /* 1 km */
+
+/**
+ * GCLUE_LOCATION_ACCURACY_NEIGHBORHOOD:
+ *
+ * Constant representing neighborhood-level accuracy.
+ */
+#define GCLUE_LOCATION_ACCURACY_NEIGHBORHOOD 3000 /* 3 km */
 
 /**
  * GCLUE_LOCATION_ACCURACY_CITY:
@@ -94,6 +108,8 @@ GType gclue_location_get_type (void);
  * GCLUE_LOCATION_ACCURACY_REGION:
  *
  * Constant representing region-level accuracy.
+ *
+ * Currently unused.
  */
 #define GCLUE_LOCATION_ACCURACY_REGION 50000 /* 50 km */
 
@@ -108,6 +124,8 @@ GType gclue_location_get_type (void);
  * GCLUE_LOCATION_ACCURACY_CONTINENT:
  *
  * Constant representing continent-level accuracy.
+ *
+ * Currently unused.
  */
 #define GCLUE_LOCATION_ACCURACY_CONTINENT 3000000 /* 3000 km */
 
