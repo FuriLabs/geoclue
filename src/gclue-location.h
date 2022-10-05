@@ -146,6 +146,8 @@ GClueLocation *gclue_location_create_from_nmeas
 
 GClueLocation *gclue_location_duplicate
                                   (GClueLocation *location);
+GClueLocation *gclue_location_duplicate_fresh
+                                  (GClueLocation *location);
 
 void gclue_location_set_description
                                   (GClueLocation *loc,

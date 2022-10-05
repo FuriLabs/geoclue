@@ -770,7 +770,7 @@ gclue_location_create_from_nmeas (const char     *nmeas[],
  * gclue_location_duplicate:
  * @location: the #GClueLocation instance to duplicate.
  *
- * Creates a new copy of @location object.
+ * Creates a new copy of @location object (with the same timestamp).
  *
  * Returns: a new #GClueLocation object. Use g_object_unref() when done.
  **/
@@ -786,6 +786,31 @@ gclue_location_duplicate (GClueLocation *location)
                  "accuracy", location->priv->accuracy,
                  "altitude", location->priv->altitude,
                  "timestamp", location->priv->timestamp,
+                 "speed", location->priv->speed,
+                 "heading", location->priv->heading,
+                 "description", location->priv->description,
+                 NULL);
+}
+
+/**
+ * gclue_location_duplicate_fresh:
+ * @location: the #GClueLocation instance to duplicate.
+ *
+ * Creates a new copy of @location object with a refreshed timestamp.
+ *
+ * Returns: a new #GClueLocation object. Use g_object_unref() when done.
+ **/
+GClueLocation *
+gclue_location_duplicate_fresh (GClueLocation *location)
+{
+        g_return_val_if_fail (GCLUE_IS_LOCATION (location), NULL);
+
+        return g_object_new
+                (GCLUE_TYPE_LOCATION,
+                 "latitude", location->priv->latitude,
+                 "longitude", location->priv->longitude,
+                 "accuracy", location->priv->accuracy,
+                 "altitude", location->priv->altitude,
                  "speed", location->priv->speed,
                  "heading", location->priv->heading,
                  "description", location->priv->description,

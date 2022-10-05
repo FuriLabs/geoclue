@@ -1384,20 +1384,6 @@ static void refresh_task_data_free (gpointer data)
         g_slice_free (RefreshTaskData, rdata);
 }
 
-static GClueLocation *
-duplicate_location_new_timestamp (GClueLocation *location)
-{
-        return g_object_new (GCLUE_TYPE_LOCATION,
-                             "latitude", gclue_location_get_latitude (location),
-                             "longitude", gclue_location_get_longitude (location),
-                             "accuracy", gclue_location_get_accuracy (location),
-                             "altitude", gclue_location_get_altitude (location),
-                             "timestamp", 0,
-                             "speed", gclue_location_get_speed (location),
-                             "heading", gclue_location_get_heading (location),
-                             NULL);
-}
-
 static void
 gclue_wifi_refresh_async (GClueWebSource      *source,
                           GCancellable        *cancellable,
@@ -1423,7 +1409,7 @@ gclue_wifi_refresh_async (GClueWebSource      *source,
                         wifi->priv->cache_hits++;
 
                         /* Duplicate the location so its timestamp is updated. */
-                        new_location = duplicate_location_new_timestamp (cached_location);
+                        new_location = gclue_location_duplicate_fresh (cached_location);
                         gclue_location_source_set_location (GCLUE_LOCATION_SOURCE (source), new_location);
 
                         g_task_return_pointer (task, g_steal_pointer (&new_location), g_object_unref);
