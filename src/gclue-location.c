@@ -788,6 +788,7 @@ gclue_location_duplicate (GClueLocation *location)
                  "timestamp", location->priv->timestamp,
                  "speed", location->priv->speed,
                  "heading", location->priv->heading,
+                 "description", location->priv->description,
                  NULL);
 }
 
