@@ -247,7 +247,7 @@ refresh_accuracy_level (GClueNMEASource *source)
                 return;
         }
 
-        g_debug ("Scheduling accuracy level refresh");
+        g_debug ("Scheduling NMEA accuracy level refresh");
         priv->accuracy_refresh_source = g_idle_add (on_refresh_accuracy_level,
                                                     source);
 }
@@ -260,7 +260,7 @@ on_service_unbreak_time (gpointer source)
         priv->unbreak_timer = 0;
 
         if (!priv->try_services && priv->broken_services) {
-                g_debug ("Unbreaking existing services");
+                g_debug ("Unbreaking existing NMEA services");
 
                 priv->try_services = priv->broken_services;
                 priv->broken_services = NULL;
@@ -278,7 +278,7 @@ check_unbreak_timer (GClueNMEASource *source)
 
         if (priv->try_services || !priv->broken_services) {
                 if (priv->unbreak_timer) {
-                        g_debug ("Removing unnecessary unbreaking timer");
+                        g_debug ("Removing unnecessary NMEA unbreaking timer");
 
                         g_source_remove (priv->unbreak_timer);
                         priv->unbreak_timer = 0;
@@ -291,7 +291,7 @@ check_unbreak_timer (GClueNMEASource *source)
                 return;
         }
 
-        g_debug ("Scheduling unbreaking timer");
+        g_debug ("Scheduling NMEA unbreaking timer");
         priv->unbreak_timer = g_timeout_add_seconds (SERVICE_UNBREAK_TIME,
                                                      on_service_unbreak_time,
                                                      source);
@@ -356,7 +356,7 @@ add_new_service (GClueNMEASource *source,
         GEnumValue *enum_value;
 
         if (check_service_exists (source, name)) {
-                g_debug ("Service %s already exists", name);
+                g_debug ("NMEA service %s already exists", name);
                 return;
         }
 
@@ -718,13 +718,13 @@ on_read_nmea_sentence (GObject      *object,
                                 if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
                                         return;
                                 } else if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CLOSED)) {
-                                        g_debug ("Socket closed.");
+                                        g_debug ("NMEA socket closed.");
                                 } else {
                                         g_warning ("Error when receiving message: %s",
                                                    error->message);
                                 }
                         } else {
-                                g_debug ("Nothing to read");
+                                g_debug ("NMEA nothing to read");
                         }
 
                         service_broken (source);

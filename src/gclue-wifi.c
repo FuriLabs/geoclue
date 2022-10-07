@@ -503,7 +503,6 @@ on_scan_timeout (gpointer user_data)
         GClueWifi *wifi = GCLUE_WIFI (user_data);
         GClueWifiPrivate *priv = wifi->priv;
 
-        g_debug ("WiFi scan timeout.");
         priv->scan_timeout = 0;
 
         if (priv->interface == NULL)
@@ -532,7 +531,7 @@ on_scan_wait_done (gpointer wifi)
 
         if (priv->bss_list_changed) {
                 priv->bss_list_changed = FALSE;
-                g_debug ("Refreshing location…");
+                g_debug ("WiFi BSS list changed, refreshing location…");
                 gclue_mozilla_set_bss_dirty (priv->mozilla);
                 gclue_web_source_refresh (GCLUE_WEB_SOURCE (wifi));
         }
@@ -564,7 +563,6 @@ on_scan_done (WPAInterface *object,
 
                 return;
         }
-        g_debug ("WiFi scan completed");
 
         if (priv->interface == NULL)
                 return;
@@ -594,7 +592,7 @@ on_scan_done (WPAInterface *object,
         priv->scan_timeout = g_timeout_add_seconds (timeout,
                                                     on_scan_timeout,
                                                     wifi);
-        g_debug ("Next scan scheduled in %u seconds", timeout);
+        g_debug ("WiFi scan done, next scheduled in %u seconds", timeout);
 }
 
 static void

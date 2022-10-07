@@ -448,7 +448,7 @@ gclue_location_source_set_location (GClueLocationSource *source,
                               "latitude", latitude,
                               "accuracy", accuracy,
                               NULL);
-                g_debug ("location scrambled");
+                g_debug ("%s location scrambled", G_OBJECT_TYPE_NAME (source));
         }
 
         speed = gclue_location_get_speed (location);

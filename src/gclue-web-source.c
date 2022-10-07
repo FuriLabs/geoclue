@@ -98,7 +98,6 @@ gclue_web_source_real_refresh_async (GClueWebSource      *source,
                                          "Network unavailable");
                 return;
         }
-        g_debug ("Network available");
 
         if (source->priv->query != NULL) {
                 g_task_return_new_error (task, G_IO_ERROR, G_IO_ERROR_PENDING,
@@ -144,7 +143,8 @@ refresh_callback (SoupSession *session,
 
         if (query->status_code != SOUP_STATUS_OK) {
                 g_task_return_new_error (task, G_IO_ERROR, G_IO_ERROR_FAILED,
-                                         "Failed to query location: %s", query->reason_phrase);
+                                         "Query location SOUP error: %s",
+                                         query->reason_phrase);
                 return;
         }
 
@@ -187,10 +187,15 @@ query_callback (GObject      *source_object,
         location = GCLUE_WEB_SOURCE_GET_CLASS (web)->refresh_finish (web, result, &local_error);
 
         if (local_error != NULL &&
-            !g_error_matches (local_error, G_IO_ERROR, G_IO_ERROR_NOT_INITIALIZED) &&
             !g_error_matches (local_error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-                g_warning ("Failed to query location: %s", local_error->message);
-                return;
+                if (!g_error_matches (local_error, G_IO_ERROR, G_IO_ERROR_NOT_INITIALIZED) &&
+                    !g_error_matches (local_error, G_IO_ERROR, G_IO_ERROR_PENDING)) {
+                        g_warning ("Failed to query location: %s",
+                                   local_error->message);
+                } else {
+                        g_debug ("Failed to query location: %s",
+                                 local_error->message);
+                }
         }
 }
 
@@ -265,7 +270,7 @@ gclue_web_source_finalize (GObject *gsource)
         }
 
         if (priv->query != NULL) {
-                g_debug ("Cancelling query");
+                g_debug ("Cancelling web source query");
                 soup_session_cancel_message (priv->soup_session,
                                              priv->query,
                                              SOUP_STATUS_CANCELLED);
