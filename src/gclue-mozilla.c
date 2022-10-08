@@ -158,8 +158,10 @@ SoupMessage *
 gclue_mozilla_create_query (GClueMozilla  *mozilla,
                             gboolean skip_tower,
                             gboolean skip_bss,
+                            const char **query_data_description,
                             GError      **error)
 {
+        gboolean has_tower = FALSE, has_bss = FALSE;
         SoupMessage *ret = NULL;
         JsonBuilder *builder;
         g_autoptr(GList) bss_list = NULL;
@@ -221,6 +223,8 @@ gclue_mozilla_create_query (GClueMozilla  *mozilla,
                 json_builder_end_object (builder);
 
                 json_builder_end_array (builder);
+
+                has_tower = TRUE;
         }
 
         if (n_non_ignored_bsss >= 2) {
@@ -244,6 +248,8 @@ gclue_mozilla_create_query (GClueMozilla  *mozilla,
                         strength_dbm = wpa_bss_get_signal (bss);
                         json_builder_add_int_value (builder, strength_dbm);
                         json_builder_end_object (builder);
+
+                        has_bss = TRUE;
                 }
                 json_builder_end_array (builder);
         }
@@ -266,6 +272,18 @@ gclue_mozilla_create_query (GClueMozilla  *mozilla,
                                   data,
                                   data_len);
         g_debug ("Sending following request to '%s':\n%s", uri, data);
+
+        if (query_data_description) {
+                if (has_tower && has_bss) {
+                        *query_data_description = "3GPP + WiFi";
+                } else if (has_tower) {
+                        *query_data_description = "3GPP";
+                } else if (has_bss) {
+                        *query_data_description = "WiFi";
+                } else {
+                        *query_data_description = "GeoIP";
+                }
+        }
 
         return ret;
 }
@@ -293,11 +311,13 @@ parse_server_error (JsonObject *object, GError **error)
 
 GClueLocation *
 gclue_mozilla_parse_response (const char *json,
+                              const char *location_description,
                               GError    **error)
 {
         g_autoptr(JsonParser) parser = NULL;
         JsonNode *node;
         JsonObject *object, *loc_object;
+        g_autofree char *desc_new = NULL;
         GClueLocation *location;
         gdouble latitude, longitude, accuracy;
 
@@ -312,13 +332,25 @@ gclue_mozilla_parse_response (const char *json,
         if (parse_server_error (object, error))
                 return NULL;
 
+        if (json_object_has_member (object, "fallback")) {
+                const char *fallback;
+
+                fallback = json_object_get_string_member (object, "fallback");
+                if (fallback && strlen (fallback)) {
+                        desc_new = g_strdup_printf ("%s fallback (from %s data)",
+                                                    fallback, location_description);
+                        location_description = desc_new;
+                }
+        }
+
         loc_object = json_object_get_object_member (object, "location");
         latitude = json_object_get_double_member (loc_object, "lat");
         longitude = json_object_get_double_member (loc_object, "lng");
 
         accuracy = json_object_get_double_member (object, "accuracy");
 
-        location = gclue_location_new (latitude, longitude, accuracy);
+        location = gclue_location_new (latitude, longitude, accuracy,
+                                       location_description);
 
         return location;
 }

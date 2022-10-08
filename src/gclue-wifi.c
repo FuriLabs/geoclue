@@ -162,6 +162,7 @@ struct _GClueWifiPrivate {
 
 static SoupMessage *
 gclue_wifi_create_query (GClueWebSource *source,
+                         const char **query_data_description,
                          GError        **error);
 static SoupMessage *
 gclue_wifi_create_submit_query (GClueWebSource  *source,
@@ -1099,6 +1100,12 @@ gclue_wifi_get_singleton (GClueAccuracyLevel level)
         return wifi[i];
 }
 
+static gboolean
+wifi_should_skip_tower (GClueWifi *wifi)
+{
+        return gclue_3g_should_skip_tower (get_accuracy_level (wifi));
+}
+
 /* Can return NULL, signifying an empty BSS list. */
 GList *
 gclue_wifi_get_bss_list (GClueWifi *wifi)
@@ -1108,12 +1115,11 @@ gclue_wifi_get_bss_list (GClueWifi *wifi)
 
 static SoupMessage *
 gclue_wifi_create_query (GClueWebSource *source,
+                         const char **query_data_description,
                          GError        **error)
 {
         GClueWifi *wifi = GCLUE_WIFI (source);
-        GClueAccuracyLevel level;
         gboolean skip_tower;
-        SoupMessage *msg;
 
         if (wifi->priv->interface == NULL) {
                 goto create_query;
@@ -1129,15 +1135,13 @@ gclue_wifi_create_query (GClueWebSource *source,
         }
 
 create_query:
-        level = get_accuracy_level (wifi);
-        skip_tower = gclue_3g_should_skip_tower (level);
+        skip_tower = wifi_should_skip_tower (wifi);
         if (skip_tower) {
-                g_debug ("Will skip 3GPP tower in query as our accuracy level is %d",
-                         (int)level);
+                g_debug ("Will skip 3GPP tower in query due to our accuracy level");
         }
 
-        msg = gclue_mozilla_create_query (wifi->priv->mozilla, skip_tower, FALSE, error);
-        return msg;
+        return gclue_mozilla_create_query (wifi->priv->mozilla, skip_tower, FALSE,
+                                           query_data_description, error);
 }
 
 static SoupMessage *
@@ -1214,14 +1218,12 @@ static void location_cache_key_fill_tower (GClueWifi *wifi, GClue3GTower *tower)
 {
         GClueWifiPrivate *priv = wifi->priv;
         GClue3GTower *moztower;
-        GClueAccuracyLevel level;
 
         memset (tower, 0, sizeof (*tower));
         tower->tec = GCLUE_TOWER_TEC_NO_FIX;
 
         moztower = gclue_mozilla_get_tower (priv->mozilla);
-        level = get_accuracy_level (wifi);
-        if (!moztower || gclue_3g_should_skip_tower (level)) {
+        if (!moztower || wifi_should_skip_tower (wifi)) {
                 return;
         }
 

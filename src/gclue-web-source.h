@@ -71,6 +71,7 @@ struct _GClueWebSourceClass {
                                                   GError              **error);
 
         SoupMessage *     (*create_query)        (GClueWebSource *source,
+                                                  const char **query_data_description,
                                                   GError        **error);
         SoupMessage *     (*create_submit_query) (GClueWebSource  *source,
                                                   GClueLocation   *location,

@@ -145,7 +145,8 @@ GType gclue_location_get_type (void);
 
 GClueLocation *gclue_location_new (gdouble latitude,
                                    gdouble longitude,
-                                   gdouble accuracy);
+                                   gdouble accuracy,
+                                   const char *description);
 
 GClueLocation *gclue_location_new_full
                                   (gdouble     latitude,

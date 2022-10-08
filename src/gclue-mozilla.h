@@ -80,9 +80,11 @@ SoupMessage *
 gclue_mozilla_create_query (GClueMozilla  *mozilla,
                             gboolean skip_tower,
                             gboolean skip_bss,
+                            const char **query_data_description,
                             GError      **error);
 GClueLocation *
 gclue_mozilla_parse_response (const char *json,
+                              const char *location_description,
                               GError    **error);
 SoupMessage *
 gclue_mozilla_create_submit_query (GClueMozilla  *mozilla,

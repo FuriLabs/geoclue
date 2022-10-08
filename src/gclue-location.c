@@ -546,6 +546,7 @@ parse_error:
  * @latitude: a valid latitude
  * @longitude: a valid longitude
  * @accuracy: accuracy of location in meters
+ * @description: a description for the location
  *
  * Creates a new #GClueLocation object.
  *
@@ -554,12 +555,14 @@ parse_error:
 GClueLocation *
 gclue_location_new (gdouble latitude,
                     gdouble longitude,
-                    gdouble accuracy)
+                    gdouble accuracy,
+                    const char *description)
 {
         return g_object_new (GCLUE_TYPE_LOCATION,
                              "latitude", latitude,
                              "longitude", longitude,
                              "accuracy", accuracy,
+                             "description", description,
                              NULL);
 }
 
@@ -642,6 +645,7 @@ gclue_location_create_from_gga (const char *gga, GError **error)
                                  "longitude", longitude,
                                  "accuracy", accuracy,
                                  "timestamp", timestamp,
+                                 "description", "GPS GGA",
                                  NULL);
         if (altitude != GCLUE_LOCATION_ALTITUDE_UNKNOWN)
                 g_object_set (location, "altitude", altitude, NULL);
@@ -689,6 +693,7 @@ gclue_location_create_from_rmc (const char     *rmc,
                                  "timestamp", timestamp,
                                  "speed", speed,
                                  "heading", heading,
+                                 "description", "GPS RMC",
                                  NULL);
 
         if (prev_location != NULL) {

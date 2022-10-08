@@ -68,6 +68,7 @@ static GClueLocationSourceStopResult
 gclue_3g_stop (GClueLocationSource *source);
 static SoupMessage *
 gclue_3g_create_query (GClueWebSource *web,
+                       const char **query_data_description,
                        GError        **error);
 static SoupMessage *
 gclue_3g_create_submit_query (GClueWebSource  *web,
@@ -225,12 +226,22 @@ gclue_3g_get_singleton (GClueAccuracyLevel level)
         return source[i];
 }
 
+static gboolean
+g3g_should_skip_bsss (GClue3G *g3g)
+{
+        GClueAccuracyLevel level;
+
+        g_object_get (G_OBJECT (g3g), "accuracy-level", &level, NULL);
+        return gclue_wifi_should_skip_bsss (level);
+}
+
 static SoupMessage *
 gclue_3g_create_query (GClueWebSource *web,
+                       const char **query_data_description,
                        GError        **error)
 {
-        GClue3GPrivate *priv = GCLUE_3G (web)->priv;
-        GClueAccuracyLevel level;
+        GClue3G *g3g = GCLUE_3G (web);
+        GClue3GPrivate *priv = g3g->priv;
         gboolean skip_bss;
 
         if (!gclue_mozilla_has_tower (priv->mozilla)) {
@@ -241,14 +252,13 @@ gclue_3g_create_query (GClueWebSource *web,
                 return NULL; /* Not initialized yet */
         }
 
-        g_object_get (G_OBJECT(web), "accuracy-level", &level, NULL);
-        skip_bss = gclue_wifi_should_skip_bsss (level);
+        skip_bss = g3g_should_skip_bsss (g3g);
         if (skip_bss) {
-                g_debug ("Will skip BSSs in query as our accuracy level is %d",
-                         (int)level);
+                g_debug ("Will skip BSSs in query due to our accuracy level");
         }
 
-        return gclue_mozilla_create_query (priv->mozilla, FALSE, skip_bss, error);
+        return gclue_mozilla_create_query (priv->mozilla, FALSE, skip_bss,
+                                           query_data_description, error);
 }
 
 static SoupMessage *

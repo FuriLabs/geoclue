@@ -199,7 +199,8 @@ on_fix_cdma (GClueModem *modem,
 
         location = gclue_location_new (latitude,
                                        longitude,
-                                       1000);     /* Assume 1 km accuracy */
+                                       1000, /* Assume 1 km accuracy */
+                                       "CDMA");
 
         gclue_location_source_set_location (GCLUE_LOCATION_SOURCE (user_data),
                                             location);

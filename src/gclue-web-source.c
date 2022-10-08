@@ -48,6 +48,7 @@ struct _GClueWebSourcePrivate {
         SoupSession *soup_session;
 
         SoupMessage *query;
+        const char *query_data_description;
 
         gulong network_changed_id;
         gulong connectivity_changed_id;
@@ -106,8 +107,8 @@ gclue_web_source_real_refresh_async (GClueWebSource      *source,
                 return;
         }
 
-        source->priv->query = GCLUE_WEB_SOURCE_GET_CLASS (source)->create_query (source, &local_error);
-
+        source->priv->query = GCLUE_WEB_SOURCE_GET_CLASS (source)->create_query
+                (source, &source->priv->query_data_description, &local_error);
         if (source->priv->query == NULL) {
                 g_task_return_error (task, g_steal_pointer (&local_error));
                 return;
@@ -153,7 +154,9 @@ refresh_callback (SoupSession *session,
         uri = soup_message_get_uri (query);
         str = soup_uri_to_string (uri, FALSE);
         g_debug ("Got following response from '%s':\n%s", str, contents);
-        location = gclue_mozilla_parse_response (contents, &local_error);
+        location = gclue_mozilla_parse_response (contents,
+                                                 web->priv->query_data_description,
+                                                 &local_error);
         if (local_error != NULL) {
                 g_task_return_error (task, g_steal_pointer (&local_error));
                 return;
