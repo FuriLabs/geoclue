@@ -167,10 +167,6 @@ static SoupMessage *
 gclue_wifi_create_submit_query (GClueWebSource  *source,
                                 GClueLocation   *location,
                                 GError         **error);
-static GClueLocation *
-gclue_wifi_parse_response (GClueWebSource *source,
-                           const char     *json,
-                           GError        **error);
 static GClueAccuracyLevel
 gclue_wifi_get_available_accuracy_level (GClueWebSource *source,
                                          gboolean        net_available);
@@ -228,7 +224,6 @@ gclue_wifi_class_init (GClueWifiClass *klass)
         web_class->refresh_finish = gclue_wifi_refresh_finish;
         web_class->create_submit_query = gclue_wifi_create_submit_query;
         web_class->create_query = gclue_wifi_create_query;
-        web_class->parse_response = gclue_wifi_parse_response;
         web_class->get_available_accuracy_level =
                 gclue_wifi_get_available_accuracy_level;
         gwifi_class->finalize = gclue_wifi_finalize;
@@ -1143,14 +1138,6 @@ create_query:
 
         msg = gclue_mozilla_create_query (wifi->priv->mozilla, skip_tower, FALSE, error);
         return msg;
-}
-
-static GClueLocation *
-gclue_wifi_parse_response (GClueWebSource *source,
-                           const char     *json,
-                           GError        **error)
-{
-        return gclue_mozilla_parse_response (json, error);
 }
 
 static SoupMessage *

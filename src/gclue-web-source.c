@@ -27,6 +27,7 @@
 #include "gclue-web-source.h"
 #include "gclue-error.h"
 #include "gclue-location.h"
+#include "gclue-mozilla.h"
 
 /**
  * SECTION:gclue-web-source
@@ -152,7 +153,7 @@ refresh_callback (SoupSession *session,
         uri = soup_message_get_uri (query);
         str = soup_uri_to_string (uri, FALSE);
         g_debug ("Got following response from '%s':\n%s", str, contents);
-        location = GCLUE_WEB_SOURCE_GET_CLASS (web)->parse_response (web, contents, &local_error);
+        location = gclue_mozilla_parse_response (contents, &local_error);
         if (local_error != NULL) {
                 g_task_return_error (task, g_steal_pointer (&local_error));
                 return;

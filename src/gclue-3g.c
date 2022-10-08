@@ -76,10 +76,6 @@ gclue_3g_create_submit_query (GClueWebSource  *web,
 static GClueAccuracyLevel
 gclue_3g_get_available_accuracy_level (GClueWebSource *web,
                                        gboolean available);
-static GClueLocation *
-gclue_3g_parse_response (GClueWebSource *web,
-                         const char     *xml,
-                         GError        **error);
 
 static void
 on_3g_enabled (GObject      *source_object,
@@ -117,14 +113,6 @@ on_is_3g_available_notify (GObject    *gobject,
                                        priv->cancellable,
                                        on_3g_enabled,
                                        source);
-}
-
-static GClueLocation *
-gclue_3g_parse_response (GClueWebSource *web,
-                         const char     *content,
-                         GError        **error)
-{
-        return gclue_mozilla_parse_response (content, error);
 }
 
 static void cancel_location_3gpp_timeout (GClue3G *g3g)
@@ -172,7 +160,6 @@ gclue_3g_class_init (GClue3GClass *klass)
         source_class->stop = gclue_3g_stop;
         web_class->create_query = gclue_3g_create_query;
         web_class->create_submit_query = gclue_3g_create_submit_query;
-        web_class->parse_response = gclue_3g_parse_response;
         web_class->get_available_accuracy_level =
                 gclue_3g_get_available_accuracy_level;
 }
