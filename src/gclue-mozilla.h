@@ -93,6 +93,9 @@ gclue_mozilla_create_submit_query (GClueMozilla  *mozilla,
 gboolean
 gclue_mozilla_should_ignore_bss (WPABSS *bss);
 
+const char *gclue_mozilla_get_locate_url (GClueMozilla *mozilla);
+const char *gclue_mozilla_get_submit_url (GClueMozilla *mozilla);
+
 G_END_DECLS
 
 #endif /* GCLUE_MOZILLA_H */

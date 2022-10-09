@@ -120,12 +120,10 @@ get_bssid_from_bss (WPABSS *bss, char *bssid)
         return TRUE;
 }
 
-static const char *
-get_url (void)
+const char *
+gclue_mozilla_get_locate_url (GClueMozilla *mozilla)
 {
-        GClueConfig *config;
-
-        config = gclue_config_get_singleton ();
+        GClueConfig *config = gclue_config_get_singleton ();
 
         return gclue_config_get_wifi_url (config);
 }
@@ -285,7 +283,7 @@ gclue_mozilla_create_query (GClueMozilla  *mozilla,
         g_object_unref (builder);
         g_object_unref (generator);
 
-        uri = get_url ();
+        uri = gclue_mozilla_get_locate_url (mozilla);
         ret = soup_message_new ("POST", uri);
         soup_message_set_request (ret,
                                   "application/json",
@@ -376,18 +374,15 @@ gclue_mozilla_parse_response (const char *json,
         return location;
 }
 
-static const char *
-get_submit_config (const char **nick)
+const char *
+gclue_mozilla_get_submit_url (GClueMozilla *mozilla)
 {
-        GClueConfig *config;
+        GClueConfig *config = gclue_config_get_singleton ();
 
-        config = gclue_config_get_singleton ();
-        if (!gclue_config_get_wifi_submit_data (config))
+        if (gclue_config_get_wifi_submit_data (config))
+                return gclue_config_get_wifi_submit_url (config);
+        else
                 return NULL;
-
-        *nick = gclue_config_get_wifi_submit_nick (config);
-
-        return gclue_config_get_wifi_submit_url (config);
 }
 
 SoupMessage *
@@ -407,6 +402,7 @@ gclue_mozilla_create_submit_query (GClueMozilla  *mozilla,
         gdouble lat, lon, accuracy, altitude;
         GDateTime *datetime;
         gint64 mcc, mnc;
+        GClueConfig *config;
 
         if (mozilla->priv->bss_submitted &&
             (!mozilla->priv->tower_valid ||
@@ -419,9 +415,12 @@ gclue_mozilla_create_submit_query (GClueMozilla  *mozilla,
                 goto out;
         }
 
-        url = get_submit_config (&nick);
+
+        url = gclue_mozilla_get_submit_url (mozilla);
         if (url == NULL)
                 goto out;
+        config = gclue_config_get_singleton ();
+        nick = gclue_config_get_wifi_submit_nick (config);
 
         builder = json_builder_new ();
         json_builder_begin_object (builder);
