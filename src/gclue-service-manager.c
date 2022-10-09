@@ -228,15 +228,15 @@ complete_get_client (OnClientInfoNewReadyData *data)
         }
         g_debug ("Number of connected clients: %u", priv->num_clients);
 
-        g_signal_connect (client,
-                          "notify::active",
-                          G_CALLBACK (on_client_notify_active),
-                          data->manager);
+        g_signal_connect_object (client,
+                                 "notify::active",
+                                 G_CALLBACK (on_client_notify_active),
+                                 data->manager, 0);
 
-        g_signal_connect (info,
-                          "peer-vanished",
-                          G_CALLBACK (on_peer_vanished),
-                          data->manager);
+        g_signal_connect_object (info,
+                                 "peer-vanished",
+                                 G_CALLBACK (on_peer_vanished),
+                                 data->manager, 0);
 
 client_created:
         if (data->reuse_client)
@@ -434,6 +434,7 @@ static void
 add_agent_data_free (AddAgentData *data)
 {
         g_clear_pointer (&data->desktop_id, g_free);
+        g_clear_object (&data->manager);
         g_slice_free (AddAgentData, data);
 }
 
@@ -470,10 +471,10 @@ on_agent_proxy_ready (GObject      *source_object,
         g_debug ("New agent for user ID '%u'", user_id);
         g_hash_table_replace (priv->agents, GINT_TO_POINTER (user_id), agent);
 
-        g_signal_connect (data->info,
-                          "peer-vanished",
-                          G_CALLBACK (on_agent_vanished),
-                          data->manager);
+        g_signal_connect_object (data->info,
+                                 "peer-vanished",
+                                 G_CALLBACK (on_agent_vanished),
+                                 data->manager, 0);
 
         gclue_dbus_manager_complete_add_agent (data->manager, data->invocation);
 
@@ -564,7 +565,7 @@ gclue_service_manager_handle_add_agent (GClueDBusManager      *manager,
         peer = g_dbus_method_invocation_get_sender (invocation);
 
         data = g_slice_new0 (AddAgentData);
-        data->manager = manager;
+        data->manager = g_object_ref (manager);
         data->invocation = invocation;
         data->desktop_id = g_strdup (id);
         gclue_client_info_new_async (peer,
@@ -659,10 +660,10 @@ gclue_service_manager_constructed (GObject *object)
         G_OBJECT_CLASS (gclue_service_manager_parent_class)->constructed (object);
 
         priv->locator = gclue_locator_new (GCLUE_ACCURACY_LEVEL_EXACT);
-        g_signal_connect (G_OBJECT (priv->locator),
-                          "notify::available-accuracy-level",
-                          G_CALLBACK (on_avail_accuracy_level_changed),
-                          object);
+        g_signal_connect_object (G_OBJECT (priv->locator),
+                                 "notify::available-accuracy-level",
+                                 G_CALLBACK (on_avail_accuracy_level_changed),
+                                 object, 0);
         on_avail_accuracy_level_changed (G_OBJECT (priv->locator),
                                          NULL,
                                          object);

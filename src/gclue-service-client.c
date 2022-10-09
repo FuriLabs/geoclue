@@ -262,10 +262,10 @@ start_client (GClueServiceClient *client, GClueAccuracyLevel accuracy_level)
         gclue_dbus_client_set_active (GCLUE_DBUS_CLIENT (client), TRUE);
         priv->locator = gclue_locator_new (accuracy_level);
         gclue_locator_set_time_threshold (priv->locator, priv->time_threshold);
-        g_signal_connect (priv->locator,
-                          "notify::location",
-                          G_CALLBACK (on_locator_location_changed),
-                          client);
+        g_signal_connect_object (priv->locator,
+                                 "notify::location",
+                                 G_CALLBACK (on_locator_location_changed),
+                                 client, 0);
 
         gclue_location_source_start (GCLUE_LOCATION_SOURCE (priv->locator));
 }

@@ -816,7 +816,8 @@ on_manager_new_ready (GObject      *modem_object,
                       GAsyncResult *res,
                       gpointer      user_data)
 {
-        GClueModemManagerPrivate *priv = GCLUE_MODEM_MANAGER (user_data)->priv;
+        GClueModemManager *manager = GCLUE_MODEM_MANAGER (user_data);
+        GClueModemManagerPrivate *priv = manager->priv;
         GList *objects, *node;
         GError *error = NULL;
 
@@ -842,15 +843,15 @@ on_manager_new_ready (GObject      *modem_object,
         }
         g_list_free_full (objects, g_object_unref);
 
-        g_signal_connect (G_OBJECT (priv->manager),
-                          "object-added",
-                          G_CALLBACK (on_mm_object_added),
-                          user_data);
+        g_signal_connect_object (G_OBJECT (priv->manager),
+                                 "object-added",
+                                 G_CALLBACK (on_mm_object_added),
+                                 manager, 0);
 
-        g_signal_connect (G_OBJECT (priv->manager),
-                          "object-removed",
-                          G_CALLBACK (on_mm_object_removed),
-                          user_data);
+        g_signal_connect_object (G_OBJECT (priv->manager),
+                                 "object-removed",
+                                 G_CALLBACK (on_mm_object_removed),
+                                 manager, 0);
 }
 
 static void

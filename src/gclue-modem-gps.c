@@ -168,10 +168,10 @@ gclue_modem_gps_init (GClueModemGPS *source)
                                           source);
         threshold = gclue_location_source_get_time_threshold
                         (GCLUE_LOCATION_SOURCE (source));
-        g_signal_connect (threshold,
-                          "notify::value",
-                          G_CALLBACK (on_time_threshold_changed),
-                          source);
+        g_signal_connect_object (threshold,
+                                 "notify::value",
+                                 G_CALLBACK (on_time_threshold_changed),
+                                 source, 0);
 }
 
 static void

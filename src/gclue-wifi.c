@@ -1019,14 +1019,14 @@ gclue_wifi_constructed (GObject *object)
                 goto refresh_n_exit;
         }
 
-        g_signal_connect (priv->supplicant,
-                          "interface-added",
-                          G_CALLBACK (on_interface_added),
-                          wifi);
-        g_signal_connect (priv->supplicant,
-                          "interface-removed",
-                          G_CALLBACK (on_interface_removed),
-                          wifi);
+        g_signal_connect_object (priv->supplicant,
+                                 "interface-added",
+                                 G_CALLBACK (on_interface_added),
+                                 wifi, 0);
+        g_signal_connect_object (priv->supplicant,
+                                 "interface-removed",
+                                 G_CALLBACK (on_interface_removed),
+                                 wifi, 0);
 
         interfaces = wpa_supplicant_get_interfaces (priv->supplicant);
         if (interfaces != NULL && interfaces[0] != NULL)
