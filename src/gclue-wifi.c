@@ -344,24 +344,23 @@ on_bss_proxy_ready (GObject      *source_object,
                     GAsyncResult *res,
                     gpointer      user_data)
 {
-        GClueWifi *wifi = GCLUE_WIFI (user_data);
+        GClueWifi *wifi;
         WPABSS *bss;
         g_autoptr(GError) error = NULL;
         char ssid[MAX_SSID_LEN + 1] = { 0 };
 
         bss = wpa_bss_proxy_new_for_bus_finish (res, &error);
         if (bss == NULL) {
-                if (error) {
-                        if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-                                return;
-                        }
-
+                if (error && !g_error_matches (error, G_IO_ERROR,
+                                               G_IO_ERROR_CANCELLED)) {
                         g_warning ("BSS proxy setup failed: %s",
                                    error->message);
                 }
 
                 return;
         }
+
+        wifi = GCLUE_WIFI (user_data);
 
         if (gclue_mozilla_should_ignore_bss (bss)) {
                 g_object_unref (bss);
@@ -596,18 +595,19 @@ on_scan_call_done (GObject      *source_object,
                    GAsyncResult *res,
                    gpointer      user_data)
 {
-        GClueWifi *wifi = GCLUE_WIFI (user_data);
         g_autoptr(GError) error = NULL;
 
-        if (!wpa_interface_call_scan_finish
-                (WPA_INTERFACE (source_object),
-                 res,
-                 &error)) {
-                if (error) {
-                        if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-                                return;
-                        }
+        if (!wpa_interface_call_scan_finish (WPA_INTERFACE (source_object),
+                                             res, &error)) {
+                GClueWifi *wifi;
 
+                if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+                        return;
+                }
+
+                wifi = GCLUE_WIFI (user_data);
+
+                if (error) {
                         g_warning ("Scanning of WiFi networks failed: %s",
                                    error->message);
                 }
@@ -883,7 +883,7 @@ on_interface_proxy_ready (GObject      *source_object,
                           GAsyncResult *res,
                           gpointer      user_data)
 {
-        GClueWifi *wifi = GCLUE_WIFI (user_data);
+        GClueWifi *wifi;
         WPAInterface *interface;
         g_autoptr(GError) error = NULL;
 
@@ -901,6 +901,7 @@ on_interface_proxy_ready (GObject      *source_object,
                 return;
         }
 
+        wifi = GCLUE_WIFI (user_data);
         if (wifi->priv->interface != NULL) {
                 g_object_unref (interface);
                 return;

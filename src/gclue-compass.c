@@ -141,15 +141,16 @@ on_compass_claimed (GObject      *source_object,
 {
         GClueCompass *compass;
         Compass *proxy = COMPASS (source_object);
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
         if (!compass_call_claim_compass_finish (proxy, res, &error)) {
-                if (error->code != G_IO_ERROR_CANCELLED)
+                if (error && !g_error_matches (error, G_IO_ERROR,
+                                               G_IO_ERROR_CANCELLED)) {
                         g_debug ("Failed to claim IIO proxy compass: %s",
                                  error->message);
-                g_error_free (error);
-                g_object_unref (proxy);
+                }
 
+                g_object_unref (proxy);
                 return;
         }
         g_debug ("IIO compass claimed");
@@ -173,14 +174,15 @@ on_compass_proxy_ready (GObject      *source_object,
 {
         GClueCompass *compass;
         Compass *proxy;
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
         proxy = compass_proxy_new_for_bus_finish (res, &error);
         if (proxy == NULL) {
-                if (error->code != G_IO_ERROR_CANCELLED)
+                if (error && !g_error_matches (error, G_IO_ERROR,
+                                               G_IO_ERROR_CANCELLED)) {
                         g_debug ("Failed to connect to IIO compass proxy: %s",
                                  error->message);
-                g_error_free (error);
+                }
 
                 return;
         }

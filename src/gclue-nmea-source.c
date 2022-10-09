@@ -668,8 +668,11 @@ static void nmea_skip_delim (GBufferedInputStream *stream,
         delim_skip = strnspn (buf, NMEA_LINE_END, buf_size);
         for (size_t ctr = 0; ctr < delim_skip; ctr++) {
                 if (g_buffered_input_stream_read_byte (stream, cancellable, &error) < 0) {
-                        g_warning ("Failed to skip %zu / %zu NMEA delimiter: %s",
-                                   ctr, delim_skip, error->message);
+                        if (error && !g_error_matches (error, G_IO_ERROR,
+                                                       G_IO_ERROR_CANCELLED)) {
+                                g_warning ("Failed to skip %zu / %zu NMEA delimiter: %s",
+                                           ctr, delim_skip, error->message);
+                        }
                         break;
                 }
         }
@@ -692,7 +695,7 @@ on_read_nmea_sentence (GObject      *object,
                        GAsyncResult *result,
                        gpointer      user_data)
 {
-        GClueNMEASource *source = GCLUE_NMEA_SOURCE (user_data);
+        GClueNMEASource *source = NULL;
         GDataInputStream *data_input_stream = G_DATA_INPUT_STREAM (object);
         g_autoptr(GError) error = NULL;
         GClueLocation *prev_location;
@@ -713,11 +716,15 @@ on_read_nmea_sentence (GObject      *object,
         rmc[0] = '\0';
 
         do {
+                if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+                        return;
+
+                if (!source)
+                        source = GCLUE_NMEA_SOURCE (user_data);
+
                 if (message == NULL) {
                         if (error != NULL) {
-                                if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-                                        return;
-                                } else if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CLOSED)) {
+                                if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CLOSED)) {
                                         g_debug ("NMEA socket closed.");
                                 } else {
                                         g_warning ("Error when receiving message: %s",
@@ -791,8 +798,8 @@ on_connection_to_location_server (GObject      *object,
                                   GAsyncResult *result,
                                   gpointer      user_data)
 {
-        GClueNMEASource *source = GCLUE_NMEA_SOURCE (user_data);
         GSocketClient *client = G_SOCKET_CLIENT (object);
+        GClueNMEASource *source;
         g_autoptr(GSocketConnection) connection = NULL;
         g_autoptr(GError) error = NULL;
 
@@ -801,16 +808,19 @@ on_connection_to_location_server (GObject      *object,
                  result,
                  &error);
 
-        if (error != NULL) {
-                if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-                        return;
-                }
+        if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+                return;
+        }
 
+        source = GCLUE_NMEA_SOURCE (user_data);
+
+        if (error != NULL) {
                 g_warning ("Failed to connect to NMEA service: %s", error->message);
                 service_broken (source);
                 return;
         }
 
+        g_assert (connection);
         g_debug ("NMEA service connected.");
 
         g_assert (!source->priv->connection);

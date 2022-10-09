@@ -83,14 +83,15 @@ on_3g_enabled (GObject      *source_object,
                GAsyncResult *result,
                gpointer      user_data)
 {
-        GClue3G *source = GCLUE_3G (user_data);
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
-        if (!gclue_modem_enable_3g_finish (source->priv->modem,
+        if (!gclue_modem_enable_3g_finish (GCLUE_MODEM (source_object),
                                            result,
                                            &error)) {
-                g_warning ("Failed to enable 3GPP: %s", error->message);
-                g_error_free (error);
+                if (error && !g_error_matches (error, G_IO_ERROR,
+                                               G_IO_ERROR_CANCELLED)) {
+                        g_warning ("Failed to enable 3GPP: %s", error->message);
+                }
         }
 }
 

@@ -79,14 +79,15 @@ on_cdma_enabled (GObject      *source_object,
                  GAsyncResult *result,
                  gpointer      user_data)
 {
-        GClueCDMA *source = GCLUE_CDMA (user_data);
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
-        if (!gclue_modem_enable_cdma_finish (source->priv->modem,
+        if (!gclue_modem_enable_cdma_finish (GCLUE_MODEM (source_object),
                                              result,
                                              &error)) {
-                g_warning ("Failed to enable CDMA: %s", error->message);
-                g_error_free (error);
+                if (error && !g_error_matches (error, G_IO_ERROR,
+                                                G_IO_ERROR_CANCELLED)) {
+                        g_warning ("Failed to enable CDMA: %s", error->message);
+                }
         }
 }
 

@@ -80,14 +80,15 @@ on_gps_enabled (GObject      *source_object,
                 GAsyncResult *result,
                 gpointer      user_data)
 {
-        GClueModemGPS *source = GCLUE_MODEM_GPS (user_data);
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
-        if (!gclue_modem_enable_gps_finish (source->priv->modem,
+        if (!gclue_modem_enable_gps_finish (GCLUE_MODEM (source_object),
                                             result,
                                             &error)) {
-                g_warning ("Failed to enable GPS: %s", error->message);
-                g_error_free (error);
+                if (error && !g_error_matches (error, G_IO_ERROR,
+                                               G_IO_ERROR_CANCELLED)) {
+                        g_warning ("Failed to enable GPS: %s", error->message);
+                }
         }
 }
 
