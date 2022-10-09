@@ -970,10 +970,17 @@ on_interface_removed (WPASupplicant *supplicant,
 static void
 gclue_wifi_init (GClueWifi *wifi)
 {
+        GClueWebSource *web_source = GCLUE_WEB_SOURCE (wifi);
+
         wifi->priv = gclue_wifi_get_instance_private (wifi);
 
         wifi->priv->intf_cancellable = g_cancellable_new ();
         wifi->priv->mozilla = gclue_mozilla_get_singleton ();
+        gclue_web_source_set_locate_url (web_source,
+                                         gclue_mozilla_get_locate_url (wifi->priv->mozilla));
+        gclue_web_source_set_submit_url (web_source,
+                                         gclue_mozilla_get_submit_url (wifi->priv->mozilla));
+
         wifi->priv->bss_proxies = g_hash_table_new_full (g_str_hash,
                                                          g_str_equal,
                                                          g_free,

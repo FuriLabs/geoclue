@@ -37,12 +37,12 @@
  * Baseclass for all sources that solely use a web resource for geolocation.
  **/
 
-static gboolean
-get_internet_available (void);
 static void
 refresh_accuracy_level (GClueWebSource *web);
 
 struct _GClueWebSourcePrivate {
+        GCancellable *cancellable;
+
         GClueAccuracyLevel accuracy_level;
 
         SoupSession *soup_session;
@@ -55,7 +55,10 @@ struct _GClueWebSourcePrivate {
 
         guint64 last_submitted;
 
-        gboolean internet_available;
+        const char *locate_url;
+        const char *submit_url;
+        gboolean locate_url_reachable;
+        gboolean submit_url_reachable;
 };
 
 enum
@@ -95,9 +98,9 @@ gclue_web_source_real_refresh_async (GClueWebSource      *source,
                 return;
         }
 
-        if (!get_internet_available ()) {
+        if (!source->priv->locate_url_reachable) {
                 g_task_return_new_error (task, G_IO_ERROR, G_IO_ERROR_NETWORK_UNREACHABLE,
-                                         "Network unavailable");
+                                         "Cannot reach locate URL");
                 return;
         }
 
@@ -203,18 +206,6 @@ query_callback (GObject      *source_object,
         }
 }
 
-static gboolean
-get_internet_available (void)
-{
-        GNetworkMonitor *monitor = g_network_monitor_get_default ();
-        gboolean available;
-
-        available = (g_network_monitor_get_connectivity (monitor) ==
-                     G_NETWORK_CONNECTIVITY_FULL);
-
-        return available;
-}
-
 static void
 refresh_accuracy_level (GClueWebSource *web)
 {
@@ -223,7 +214,7 @@ refresh_accuracy_level (GClueWebSource *web)
         existing = gclue_location_source_get_available_accuracy_level
                         (GCLUE_LOCATION_SOURCE (web));
         new = GCLUE_WEB_SOURCE_GET_CLASS (web)->get_available_accuracy_level
-                        (web, web->priv->internet_available);
+                        (web, web->priv->locate_url_reachable);
         if (new != existing) {
                 g_debug ("Available accuracy level from %s: %u",
                          G_OBJECT_TYPE_NAME (web), new);
@@ -234,18 +225,108 @@ refresh_accuracy_level (GClueWebSource *web)
 }
 
 static void
-on_network_changed (GNetworkMonitor *monitor G_GNUC_UNUSED,
+locate_url_checked_cb (GObject      *source_object,
+                       GAsyncResult *result,
+                       gpointer      user_data)
+{
+        GNetworkMonitor *mon = G_NETWORK_MONITOR (source_object);
+        GClueWebSource *web;
+        gboolean reachable, last_reachable;
+        g_autoptr(GError) error = NULL;
+
+        reachable = g_network_monitor_can_reach_finish (mon, result, &error);
+        if (error && g_error_matches (error, G_IO_ERROR,
+                                      G_IO_ERROR_CANCELLED)) {
+                return; /* WebSource instance is finalized */
+        }
+
+        web = GCLUE_WEB_SOURCE (user_data);
+        last_reachable = web->priv->locate_url_reachable;
+        web->priv->locate_url_reachable = reachable;
+        if (last_reachable == reachable)
+                return; /* We already reacted to network change */
+
+        g_debug ("Network changed: %s",
+                 reachable ? "Enabling locate URL queries" :
+                             "Disabling locate URL queries");
+        if (reachable) {
+                GCLUE_WEB_SOURCE_GET_CLASS (web)->refresh_async
+                        (web, NULL, query_callback, NULL);
+        }
+}
+
+static void
+submit_url_checked_cb (GObject      *source_object,
+                       GAsyncResult *result,
+                       gpointer      user_data)
+{
+        GNetworkMonitor *mon = G_NETWORK_MONITOR (source_object);
+        GClueWebSource *web;
+        gboolean reachable, last_reachable;
+        g_autoptr(GError) error = NULL;
+
+        reachable = g_network_monitor_can_reach_finish (mon, result, &error);
+        if (error && g_error_matches (error, G_IO_ERROR,
+                                      G_IO_ERROR_CANCELLED)) {
+                return; /* WebSource instance is finalized */
+        }
+
+        web = GCLUE_WEB_SOURCE (user_data);
+        last_reachable = web->priv->submit_url_reachable;
+        web->priv->submit_url_reachable = reachable;
+        if (last_reachable == reachable) {
+                return;
+        }
+        g_debug ("Network changed: %s",
+                 reachable ? "Enabling submit URL queries" :
+                             "Disabling submit URL queries");
+}
+
+static void
+on_network_changed (GNetworkMonitor *unused_monitor G_GNUC_UNUSED,
                     gboolean         available G_GNUC_UNUSED,
                     gpointer         user_data)
 {
+        GNetworkMonitor *monitor = g_network_monitor_get_default ();
         GClueWebSource *web = GCLUE_WEB_SOURCE (user_data);
-        gboolean last_available = web->priv->internet_available;
+        g_autoptr(GSocketConnectable) submit_addr = NULL;
+        g_autoptr(GSocketConnectable) locate_addr = NULL;
 
-        web->priv->internet_available = get_internet_available ();
-        if (last_available == web->priv->internet_available)
-                return; /* We already reacted to network change */
+        if (web->priv->submit_url) {
+                submit_addr = g_network_address_parse_uri (web->priv->submit_url,
+                                                           80, NULL);
+                if (submit_addr) {
+                        g_network_monitor_can_reach_async (monitor,
+                                                           submit_addr,
+                                                           web->priv->cancellable,
+                                                           submit_url_checked_cb,
+                                                           web);
+                } else {
+                        g_warning ("Could not parse submit URL '%s'",
+                                   web->priv->submit_url);
+                        web->priv->submit_url_reachable = FALSE;
+                }
+        } else {
+                web->priv->submit_url_reachable = FALSE;
+        }
 
-        GCLUE_WEB_SOURCE_GET_CLASS (web)->refresh_async (web, NULL, query_callback, NULL);
+        if (web->priv->locate_url) {
+                locate_addr = g_network_address_parse_uri (web->priv->locate_url,
+                                                           80, NULL);
+                if (locate_addr) {
+                        g_network_monitor_can_reach_async (monitor,
+                                                           locate_addr,
+                                                           web->priv->cancellable,
+                                                           locate_url_checked_cb,
+                                                           web);
+                } else {
+                        g_warning ("Could not parse locate URL '%s'",
+                                   web->priv->locate_url);
+                        web->priv->locate_url_reachable = FALSE;
+                }
+        } else {
+                web->priv->locate_url_reachable = FALSE;
+        }
 }
 
 static void
@@ -260,6 +341,8 @@ static void
 gclue_web_source_finalize (GObject *gsource)
 {
         GClueWebSourcePrivate *priv = GCLUE_WEB_SOURCE (gsource)->priv;
+
+        g_cancellable_cancel (priv->cancellable);
 
         if (priv->network_changed_id) {
                 g_signal_handler_disconnect (g_network_monitor_get_default (),
@@ -282,6 +365,7 @@ gclue_web_source_finalize (GObject *gsource)
         }
 
         g_clear_object (&priv->soup_session);
+        g_clear_object (&priv->cancellable);
 
         G_OBJECT_CLASS (gclue_web_source_parent_class)->finalize (gsource);
 }
@@ -380,6 +464,7 @@ static void
 gclue_web_source_init (GClueWebSource *web)
 {
         web->priv = gclue_web_source_get_instance_private (web);
+        web->priv->cancellable = g_cancellable_new ();
 }
 
 /**
@@ -444,7 +529,7 @@ on_submit_source_location_notify (GObject    *source_object,
 
         web->priv->last_submitted = gclue_location_get_timestamp (location);
 
-        if (!get_internet_available ())
+        if (!web->priv->submit_url_reachable)
                 return;
 
         query = GCLUE_WEB_SOURCE_GET_CLASS (web)->create_submit_query
@@ -491,4 +576,18 @@ gclue_web_source_set_submit_source (GClueWebSource      *web,
                                  0);
 
         on_submit_source_location_notify (G_OBJECT (submit_source), NULL, web);
+}
+
+void
+gclue_web_source_set_locate_url (GClueWebSource *source,
+                                 const char     *url)
+{
+        source->priv->locate_url = url;
+}
+
+void
+gclue_web_source_set_submit_url (GClueWebSource *source,
+                                 const char     *url)
+{
+        source->priv->submit_url = url;
 }

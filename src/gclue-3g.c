@@ -170,6 +170,7 @@ static void
 gclue_3g_init (GClue3G *source)
 {
         GClue3GPrivate *priv;
+        GClueWebSource *web_source = GCLUE_WEB_SOURCE (source);
 
         source->priv = gclue_3g_get_instance_private (source);
         priv = source->priv;
@@ -177,6 +178,10 @@ gclue_3g_init (GClue3G *source)
         priv->cancellable = g_cancellable_new ();
 
         priv->mozilla = gclue_mozilla_get_singleton ();
+        gclue_web_source_set_locate_url (web_source,
+                                         gclue_mozilla_get_locate_url (priv->mozilla));
+        gclue_web_source_set_submit_url (web_source,
+                                         gclue_mozilla_get_submit_url (priv->mozilla));
 
         priv->modem = gclue_modem_manager_get_singleton ();
         priv->threeg_notify_id =
