@@ -236,7 +236,7 @@ load_wifi_config (GClueConfig *config)
                                                 "url",
                                                 &error);
         if (error != NULL) {
-                g_debug ("Failed to get config \"wifi/url\": %s",
+                g_debug ("Using the default locate URL: %s",
                          error->message);
                 g_clear_error (&error);
                 priv->wifi_url = g_strdup (DEFAULT_WIFI_URL);
@@ -259,7 +259,7 @@ load_wifi_config (GClueConfig *config)
                                                        "submission-url",
                                                        &error);
         if (error != NULL) {
-                g_debug ("Failed to get config \"wifi/submission-url\": %s",
+                g_debug ("Using the default submit URL: %s",
                          error->message);
                 g_clear_error (&error);
                 priv->wifi_submit_url = g_strdup (DEFAULT_WIFI_SUBMIT_URL);
@@ -270,7 +270,7 @@ load_wifi_config (GClueConfig *config)
                                                         "submission-nick",
                                                         &error);
         if (error != NULL) {
-                g_debug ("Failed to get config \"wifi/submission-nick\": %s",
+                g_debug ("Using the default submission nick: %s",
                          error->message);
                 g_error_free (error);
                 priv->wifi_submit_nick = g_strdup (DEFAULT_WIFI_SUBMIT_NICK);
