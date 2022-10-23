@@ -31,6 +31,7 @@ typedef enum {
   GCLUE_TOWER_TEC_4G = 3,
   GCLUE_TOWER_TEC_NO_FIX = 99,
 } GClueTowerTec;
+# define GCLUE_TOWER_TEC_MAX_VALID GCLUE_TOWER_TEC_4G
 
 typedef struct _GClue3GTower GClue3GTower;
 

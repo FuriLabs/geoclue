@@ -154,6 +154,28 @@ error:
         return FALSE;
 }
 
+static gboolean
+towertec_to_radiotype (GClueTowerTec tec,
+                       const char **radiotype_p)
+{
+        switch (tec) {
+        case GCLUE_TOWER_TEC_2G:
+            *radiotype_p = "gsm";
+            break;
+        case GCLUE_TOWER_TEC_3G:
+            *radiotype_p = "wcdma";
+            break;
+        case GCLUE_TOWER_TEC_4G:
+            *radiotype_p = "lte";
+            break;
+        default:
+            *radiotype_p = NULL;
+            return FALSE;
+        }
+
+        return TRUE;
+}
+
 SoupMessage *
 gclue_mozilla_create_query (GClueMozilla  *mozilla,
                             gboolean skip_tower,
@@ -169,7 +191,7 @@ gclue_mozilla_create_query (GClueMozilla  *mozilla,
         JsonNode *root_node;
         char *data;
         gsize data_len;
-        const char *uri;
+        const char *uri, *radiotype;
         guint n_non_ignored_bsss;
         GList *iter;
         gint64 mcc, mnc;
@@ -198,17 +220,10 @@ gclue_mozilla_create_query (GClueMozilla  *mozilla,
         }
 
         if (mozilla->priv->tower_valid && !skip_tower &&
+            towertec_to_radiotype (mozilla->priv->tower.tec, &radiotype) &&
             operator_code_to_mcc_mnc (mozilla->priv->tower.opc, &mcc, &mnc)) {
-                if (mozilla->priv->tower.tec == GCLUE_TOWER_TEC_4G) {
-                        json_builder_set_member_name (builder, "radioType");
-                        json_builder_add_string_value (builder, "lte");
-                } else if (mozilla->priv->tower.tec == GCLUE_TOWER_TEC_3G) {
-                        json_builder_set_member_name (builder, "radioType");
-                        json_builder_add_string_value (builder, "wcdma");
-                } else if (mozilla->priv->tower.tec == GCLUE_TOWER_TEC_2G) {
-                        json_builder_set_member_name (builder, "radioType");
-                        json_builder_add_string_value (builder, "gsm");
-                }
+                json_builder_set_member_name (builder, "radioType");
+                json_builder_add_string_value (builder, radiotype);
 
                 json_builder_set_member_name (builder, "cellTowers");
                 json_builder_begin_array (builder);
@@ -223,17 +238,8 @@ gclue_mozilla_create_query (GClueMozilla  *mozilla,
                 json_builder_add_int_value (builder, mnc);
                 json_builder_set_member_name (builder, "locationAreaCode");
                 json_builder_add_int_value (builder, mozilla->priv->tower.lac);
-                if (mozilla->priv->tower.tec == GCLUE_TOWER_TEC_4G) {
-                        json_builder_set_member_name (builder, "radioType");
-                        json_builder_add_string_value (builder, "lte");
-                } else if (mozilla->priv->tower.tec == GCLUE_TOWER_TEC_3G) {
-                        json_builder_set_member_name (builder, "radioType");
-                        json_builder_add_string_value (builder, "wcdma");
-                } else if (mozilla->priv->tower.tec == GCLUE_TOWER_TEC_2G) {
-                        json_builder_set_member_name (builder, "radioType");
-                        json_builder_add_string_value (builder, "gsm");
-                }
-
+                json_builder_set_member_name (builder, "radioType");
+                json_builder_add_string_value (builder, radiotype);
 
                 json_builder_end_object (builder);
 
@@ -673,7 +679,9 @@ gclue_mozilla_set_tower (GClueMozilla *mozilla,
 {
         g_return_if_fail (GCLUE_IS_MOZILLA (mozilla));
 
-        if (!tower) {
+        if (!tower ||
+            !(tower->tec > GCLUE_TOWER_TEC_UNKNOWN
+              && tower->tec <= GCLUE_TOWER_TEC_MAX_VALID)) {
                 mozilla->priv->tower_valid = FALSE;
                 return;
         }
