@@ -76,7 +76,7 @@ Submit data to Mozilla Location Service
 If set to true, geoclue will automatically submit network data to Mozilla
 each time it gets a GPS lock.
 .IP
-.B submission-url=\fIhttps://location.services.mozilla.com/v1/submit?key=geoclue
+.B submission-url=\fIhttps://location.services.mozilla.com/v2/geosubmit?key=YOUR_KEY
 .br
 URL to submission API of Mozilla Location Service
 .IP

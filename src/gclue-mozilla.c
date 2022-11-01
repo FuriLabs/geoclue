@@ -394,13 +394,13 @@ gclue_mozilla_create_submit_query (GClueMozilla  *mozilla,
         JsonBuilder *builder;
         JsonGenerator *generator;
         JsonNode *root_node;
-        char *data, *timestr;
+        char *data;
         g_autoptr(GList) bss_list = NULL;
-        const char *url, *nick;
+        const char *url, *nick, *radiotype;
         gsize data_len;
         GList *iter;
         gdouble lat, lon, accuracy, altitude;
-        GDateTime *datetime;
+        guint64 time_ms;
         gint64 mcc, mnc;
         GClueConfig *config;
 
@@ -430,12 +430,19 @@ gclue_mozilla_create_submit_query (GClueMozilla  *mozilla,
 
         json_builder_begin_object (builder);
 
+        json_builder_set_member_name (builder, "timestamp");
+        time_ms = 1000 * gclue_location_get_timestamp (location);
+        json_builder_add_int_value (builder, time_ms);
+
+        json_builder_set_member_name (builder, "position");
+        json_builder_begin_object (builder);
+
         lat = gclue_location_get_latitude (location);
-        json_builder_set_member_name (builder, "lat");
+        json_builder_set_member_name (builder, "latitude");
         json_builder_add_double_value (builder, lat);
 
         lon = gclue_location_get_longitude (location);
-        json_builder_set_member_name (builder, "lon");
+        json_builder_set_member_name (builder, "longitude");
         json_builder_add_double_value (builder, lon);
 
         accuracy = gclue_location_get_accuracy (location);
@@ -450,25 +457,13 @@ gclue_mozilla_create_submit_query (GClueMozilla  *mozilla,
                 json_builder_add_double_value (builder, altitude);
         }
 
-        datetime = g_date_time_new_from_unix_local
-                (gclue_location_get_timestamp (location));
-        /* We need to be compatible with GLib 2.56 so we cannot use this:
-         * timestr = g_date_time_format_iso8601 (datetime);
-         * Construct the format manually instead: */
-        timestr = g_date_time_format (datetime, "%Y-%m-%dT%H:%M:%S%:::z");
-        json_builder_set_member_name (builder, "time");
-        json_builder_add_string_value (builder, timestr);
-        g_free (timestr);
-        g_date_time_unref (datetime);
-
-        json_builder_set_member_name (builder, "radioType");
-        json_builder_add_string_value (builder, "gsm");
+        json_builder_end_object (builder); /* position */
 
         if (mozilla->priv->wifi) {
                 bss_list = gclue_wifi_get_bss_list (mozilla->priv->wifi);
         }
         if (bss_list != NULL) {
-                json_builder_set_member_name (builder, "wifi");
+                json_builder_set_member_name (builder, "wifiAccessPoints");
                 json_builder_begin_array (builder);
 
                 for (iter = bss_list; iter != NULL; iter = iter->next) {
@@ -481,11 +476,11 @@ gclue_mozilla_create_submit_query (GClueMozilla  *mozilla,
                                 continue;
 
                         json_builder_begin_object (builder);
-                        json_builder_set_member_name (builder, "key");
+                        json_builder_set_member_name (builder, "macAddress");
                         get_bssid_from_bss (bss, mac);
                         json_builder_add_string_value (builder, mac);
 
-                        json_builder_set_member_name (builder, "signal");
+                        json_builder_set_member_name (builder, "signalStrength");
                         strength_dbm = wpa_bss_get_signal (bss);
                         json_builder_add_int_value (builder, strength_dbm);
 
@@ -495,39 +490,31 @@ gclue_mozilla_create_submit_query (GClueMozilla  *mozilla,
                         json_builder_end_object (builder);
                 }
 
-                json_builder_end_array (builder); /* wifi */
+                json_builder_end_array (builder); /* wifiAccessPoints */
         }
 
         if (mozilla->priv->tower_valid &&
+            towertec_to_radiotype (mozilla->priv->tower.tec, &radiotype) &&
             operator_code_to_mcc_mnc (mozilla->priv->tower.opc, &mcc, &mnc)) {
-                json_builder_set_member_name (builder, "cell");
+                json_builder_set_member_name (builder, "cellTowers");
                 json_builder_begin_array (builder);
 
                 json_builder_begin_object (builder);
 
-                if (mozilla->priv->tower.tec == GCLUE_TOWER_TEC_4G) {
-                        json_builder_set_member_name (builder, "radio");
-                        json_builder_add_string_value (builder, "lte");
-                } else if (mozilla->priv->tower.tec == GCLUE_TOWER_TEC_3G) {
-                        json_builder_set_member_name (builder, "radio");
-                        json_builder_add_string_value (builder, "umts");
-                } else if (mozilla->priv->tower.tec == GCLUE_TOWER_TEC_2G) {
-                        json_builder_set_member_name (builder, "radio");
-                        json_builder_add_string_value (builder, "gsm");
-                }
-
-                json_builder_set_member_name (builder, "cid");
+                json_builder_set_member_name (builder, "radioType");
+                json_builder_add_string_value (builder, radiotype);
+                json_builder_set_member_name (builder, "cellId");
                 json_builder_add_int_value (builder, mozilla->priv->tower.cell_id);
-                json_builder_set_member_name (builder, "mcc");
+                json_builder_set_member_name (builder, "mobileCountryCode");
                 json_builder_add_int_value (builder, mcc);
-                json_builder_set_member_name (builder, "mnc");
+                json_builder_set_member_name (builder, "mobileNetworkCode");
                 json_builder_add_int_value (builder, mnc);
-                json_builder_set_member_name (builder, "lac");
+                json_builder_set_member_name (builder, "locationAreaCode");
                 json_builder_add_int_value (builder, mozilla->priv->tower.lac);
 
                 json_builder_end_object (builder);
 
-                json_builder_end_array (builder); /* cell */
+                json_builder_end_array (builder); /* cellTowers */
         }
 
         json_builder_end_object (builder);
