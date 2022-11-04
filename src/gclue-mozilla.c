@@ -477,11 +477,13 @@ gclue_mozilla_create_submit_query (GClueMozilla  *mozilla,
                         char mac[BSSID_STR_LEN + 1] = { 0 };
                         gint16 strength_dbm;
                         guint16 frequency;
+                        guint age_ms;
 
                         if (gclue_mozilla_should_ignore_bss (bss))
                                 continue;
 
                         json_builder_begin_object (builder);
+
                         json_builder_set_member_name (builder, "macAddress");
                         get_bssid_from_bss (bss, mac);
                         json_builder_add_string_value (builder, mac);
@@ -493,6 +495,11 @@ gclue_mozilla_create_submit_query (GClueMozilla  *mozilla,
                         json_builder_set_member_name (builder, "frequency");
                         frequency = wpa_bss_get_frequency (bss);
                         json_builder_add_int_value (builder, frequency);
+
+                        json_builder_set_member_name (builder, "age");
+                        age_ms = 1000 * wpa_bss_get_age (bss);
+                        json_builder_add_int_value (builder, age_ms);
+
                         json_builder_end_object (builder);
                 }
 
