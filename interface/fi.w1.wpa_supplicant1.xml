@@ -35,5 +35,6 @@
     <property access="read" name="BSSID" type="ay"/>
     <property access="read" name="Signal" type="n"/>
     <property access="read" name="Frequency" type="q"/>
+    <property access="read" name="Age" type="u"/>
   </interface>
 </node>
