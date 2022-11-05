@@ -399,7 +399,7 @@ gclue_mozilla_create_submit_query (GClueMozilla  *mozilla,
         const char *url, *nick, *radiotype;
         gsize data_len;
         GList *iter;
-        gdouble lat, lon, accuracy, altitude;
+        gdouble lat, lon, accuracy, altitude, speed;
         guint64 time_ms;
         gint64 mcc, mnc;
         GClueConfig *config;
@@ -455,6 +455,12 @@ gclue_mozilla_create_submit_query (GClueMozilla  *mozilla,
         if (altitude != GCLUE_LOCATION_ALTITUDE_UNKNOWN) {
                 json_builder_set_member_name (builder, "altitude");
                 json_builder_add_double_value (builder, altitude);
+        }
+
+        speed = gclue_location_get_speed (location);
+        if (speed != GCLUE_LOCATION_SPEED_UNKNOWN) {
+                json_builder_set_member_name (builder, "speed");
+                json_builder_add_double_value (builder, speed);
         }
 
         json_builder_end_object (builder); /* position */
