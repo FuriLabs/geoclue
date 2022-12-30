@@ -5,7 +5,7 @@ before_script:
     - apt-get install --yes libnotify-dev xsltproc gtk-doc-tools python3-pip
     - apt-get install --yes ninja-build gettext modemmanager-dev
     - DEBIAN_FRONTEND=noninteractive apt-get install --yes libsoup-3.0
-    - pip3 install meson==0.53.2
+    - pip3 install meson==0.60.0
 
 # Ubuntu 14.04 is not supported, see README for details
 #
