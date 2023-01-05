@@ -286,6 +286,17 @@ submit_url_checked_cb (GObject      *source_object,
 }
 
 static void
+cancellable_cancel_recreate (GClueWebSource *source)
+{
+        GClueWebSourcePrivate *priv = source->priv;
+
+        g_cancellable_cancel (priv->cancellable);
+
+        g_clear_object (&priv->cancellable);
+        priv->cancellable = g_cancellable_new ();
+}
+
+static void
 on_network_changed (GNetworkMonitor *unused_monitor G_GNUC_UNUSED,
                     gboolean         available G_GNUC_UNUSED,
                     gpointer         user_data)
@@ -294,6 +305,8 @@ on_network_changed (GNetworkMonitor *unused_monitor G_GNUC_UNUSED,
         GClueWebSource *web = GCLUE_WEB_SOURCE (user_data);
         g_autoptr(GSocketConnectable) submit_addr = NULL;
         g_autoptr(GSocketConnectable) locate_addr = NULL;
+
+        cancellable_cancel_recreate (web);
 
         if (web->priv->submit_url) {
                 submit_addr = g_network_address_parse_uri (web->priv->submit_url,
