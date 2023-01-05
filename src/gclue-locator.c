@@ -2,6 +2,7 @@
 /* gclue-locator.c
  *
  * Copyright 2013 Red Hat, Inc.
+ * Copyright © 2022,2023 Oracle and/or its affiliates.
  *
  * Geoclue is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free
@@ -18,6 +19,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
  * Authors: Zeeshan Ali (Khattak) <zeeshanak@gnome.org>
+ *          Maciej S. Szmigiero <maciej.szmigiero@oracle.com>
  */
 
 #include "config.h"
@@ -26,6 +28,7 @@
 
 #include "gclue-locator.h"
 
+#include "gclue-static-source.h"
 #include "gclue-wifi.h"
 #include "gclue-config.h"
 
@@ -357,7 +360,7 @@ gclue_locator_constructed (GObject *object)
         GClueLocator *locator = GCLUE_LOCATOR (object);
         GClueLocationSource *submit_source = NULL;
         GClueConfig *gconfig = gclue_config_get_singleton ();
-        GClueWifi *wifi;
+        GClueWifi *wifi = NULL;
         GList *node;
         GClueMinUINT *threshold;
 
@@ -377,12 +380,20 @@ gclue_locator_constructed (GObject *object)
                                                         cdma);
         }
 #endif
-        if (gclue_config_get_enable_wifi_source (gconfig))
+        if (gclue_config_get_enable_wifi_source (gconfig)) {
                 wifi = gclue_wifi_get_singleton (locator->priv->accuracy_level);
-        else
-                /* City-level accuracy will give us GeoIP-only source */
-                wifi = gclue_wifi_get_singleton (GCLUE_ACCURACY_LEVEL_CITY);
-        locator->priv->sources = g_list_append (locator->priv->sources, wifi);
+        } else {
+                if (gclue_config_get_enable_static_source (gconfig)) {
+                        g_debug ("Disabling GeoIP-only source since static source is enabled");
+                } else {
+                        /* City-level accuracy will give us GeoIP-only source */
+                        wifi = gclue_wifi_get_singleton (GCLUE_ACCURACY_LEVEL_CITY);
+                }
+        }
+        if (wifi) {
+                locator->priv->sources = g_list_append (locator->priv->sources,
+                                                        wifi);
+        }
 #if GCLUE_USE_MODEM_GPS_SOURCE
         if (gclue_config_get_enable_modem_gps_source (gconfig)) {
                 GClueModemGPS *gps = gclue_modem_gps_get_singleton ();
@@ -404,6 +415,15 @@ gclue_locator_constructed (GObject *object)
 
         }
 #endif
+
+        if (gclue_config_get_enable_static_source (gconfig)) {
+                GClueStaticSource *static_source;
+
+                static_source = gclue_static_source_get_singleton
+                        (locator->priv->accuracy_level);
+                locator->priv->sources = g_list_append (locator->priv->sources,
+                                                        static_source);
+        }
 
         for (node = locator->priv->sources; node != NULL; node = node->next) {
                 g_signal_connect (G_OBJECT (node->data),

@@ -98,6 +98,20 @@ Compass configuration options
 .B \fBenable=true
 .br
 Enable Compass
+.br
+.IP \fB[static-source]
+.br
+Static source configuration options.
+.br
+This source reads location from "geolocation" file in @sysconfdir@. While this file is constantly monitored for changes during geoclue operation, and the reported static location is updated accordingly, this source isn't meant for inputting a dynamically changing location to geoclue (please use the Network NMEA source for that).
+.IP
+.B \fBenable=true
+.br
+Enable the static source.
+.br
+If you make use of this source, you probably should disable other location
+sources in geoclue.conf so they won't override the configured static location.
+.br
 .SH APPLICATION CONFIGURATION OPTIONS
 Having an entry here for an application with 
 .B allowed=true
@@ -178,6 +192,44 @@ allowed=true
 system=false
 .br
 users=
+.br
+.SH STATIC LOCATION FILE
+.SS Basic format:
+The static location file in @sysconfdir@ (used by the static source) is a text file consisting of the following:
+.nr step 1 1
+.IP \n[step]
+Latitude (floating point number; positive values mean north, negative south)
+.IP \n+[step]
+Longitude (floating point number; positive values mean east, negative west)
+.IP \n+[step]
+Altitude (floating point number; in meters)
+.IP \n+[step]
+Accuracy radius (floating point number; in meters)
+.RE
+.PP
+These values need to be separated by newline characters.
+.SS Additional format information:
+.IP \[bu]
+The '\[sh]' character starts a comment, which continues until the end of the current line.
+.IP \[bu]
+Leading and trailing white-space on each line is ignored.
+.IP \[bu]
+Empty lines (or containing just white-space or a comment) are ignored.
+.SS Example:
+.EX
+# Example static location file for a machine inside Statue of Liberty torch
+
+40.6893129   # latitude
+-74.0445531  # longitude
+96           # altitude
+1.83         # accuracy radius (the diameter of the torch is 12 feet)
+.EE
+.SS Notes:
+For extra security, the static location file can be made readable just by the geoclue user:
+.EX
+# chown @dbus_srv_user@ @sysconfdir@/geolocation
+# chmod 600 @sysconfdir@/geolocation
+.EE
 .br
 .SH AUTHOR
 .na

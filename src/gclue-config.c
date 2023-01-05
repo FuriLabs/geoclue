@@ -44,6 +44,7 @@ struct _GClueConfigPrivate
         gboolean enable_modem_gps_source;
         gboolean enable_wifi_source;
         gboolean enable_compass;
+        gboolean enable_static_source;
         char *wifi_submit_url;
         char *wifi_submit_nick;
         char *nmea_socket;
@@ -123,7 +124,7 @@ load_app_configs (GClueConfig *config)
 {
         const char *known_groups[] = { "agent", "wifi", "3g", "cdma",
                                        "modem-gps", "network-nmea", "compass",
-                                       NULL };
+                                       "static-source", NULL };
         GClueConfigPrivate *priv = config->priv;
         gsize num_groups = 0, i;
         g_auto(GStrv) groups = NULL;
@@ -317,6 +318,13 @@ load_compass_config (GClueConfig *config)
 }
 
 static void
+load_static_source_config (GClueConfig *config)
+{
+        config->priv->enable_static_source =
+                load_enable_source_config (config, "static-source");
+}
+
+static void
 gclue_config_init (GClueConfig *config)
 {
         g_autoptr(GError) error = NULL;
@@ -342,6 +350,7 @@ gclue_config_init (GClueConfig *config)
         load_modem_gps_config (config);
         load_network_nmea_config (config);
         load_compass_config (config);
+        load_static_source_config (config);
 }
 
 GClueConfig *
@@ -529,4 +538,10 @@ gboolean
 gclue_config_get_enable_compass (GClueConfig *config)
 {
         return config->priv->enable_compass;
+}
+
+gboolean
+gclue_config_get_enable_static_source (GClueConfig *config)
+{
+        return config->priv->enable_static_source;
 }
