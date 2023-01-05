@@ -203,7 +203,7 @@ on_locator_location_changed (GObject    *gobject,
         GClueLocation *new_location;
         char *path = NULL;
         const char *prev_path;
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
         new_location = gclue_location_source_get_location (locator);
         if (new_location == NULL)
@@ -249,7 +249,6 @@ on_locator_location_changed (GObject    *gobject,
 
 error_out:
         g_warning ("Failed to update location info: %s", error->message);
-        g_error_free (error);
 out:
         g_free (path);
 }

@@ -243,7 +243,7 @@ gclue_cdma_stop (GClueLocationSource *source)
 {
         GClueCDMAPrivate *priv = GCLUE_CDMA (source)->priv;
         GClueLocationSourceClass *base_class;
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
         GClueLocationSourceStopResult base_result;
 
         g_return_val_if_fail (GCLUE_IS_LOCATION_SOURCE (source), FALSE);
@@ -263,7 +263,6 @@ gclue_cdma_stop (GClueLocationSource *source)
                                                &error)) {
                         g_warning ("Failed to disable CDMA: %s",
                                    error->message);
-                        g_error_free (error);
                 }
 
         return base_result;

@@ -180,7 +180,7 @@ complete_get_client (OnClientInfoNewReadyData *data)
         GClueServiceClient *client;
         GClueClientInfo *info = data->client_info;
         GClueAgent *agent_proxy = NULL;
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
         char *path;
         guint32 user_id;
 
@@ -255,7 +255,6 @@ error_out:
                                                        G_DBUS_ERROR_FAILED,
                                                        error->message);
 out:
-        g_clear_error (&error);
         g_clear_object (&info);
         on_client_info_new_ready_data_free (data);
         g_free (path);
@@ -296,7 +295,7 @@ on_client_info_new_ready (GObject      *source_object,
         GClueServiceManagerPrivate *priv = GCLUE_SERVICE_MANAGER (data->manager)->priv;
         GClueClientInfo *info = NULL;
         GClueAgent *agent_proxy;
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
         guint32 user_id;
 
         info = gclue_client_info_new_finish (res, &error);
@@ -305,7 +304,6 @@ on_client_info_new_ready (GObject      *source_object,
                                                                G_DBUS_ERROR,
                                                                G_DBUS_ERROR_FAILED,
                                                                error->message);
-                g_error_free (error);
                 on_client_info_new_ready_data_free (data);
 
                 return;
@@ -460,7 +458,7 @@ on_agent_proxy_ready (GObject      *source_object,
         GClueServiceManagerPrivate *priv = GCLUE_SERVICE_MANAGER (data->manager)->priv;
         guint32 user_id;
         GClueAgent *agent;
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
         GList *l;
 
         agent = gclue_agent_proxy_new_for_bus_finish (res, &error);
@@ -499,7 +497,6 @@ error_out:
                                                        G_DBUS_ERROR_FAILED,
                                                        error->message);
 out:
-        g_clear_error (&error);
         add_agent_data_free (data);
 }
 
@@ -511,7 +508,7 @@ on_agent_info_new_ready (GObject      *source_object,
                          gpointer      user_data)
 {
         AddAgentData *data = (AddAgentData *) user_data;
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
         GClueConfig *config;
         const char *xdg_id;
 
@@ -521,7 +518,6 @@ on_agent_info_new_ready (GObject      *source_object,
                                                                G_DBUS_ERROR,
                                                                G_DBUS_ERROR_FAILED,
                                                                error->message);
-                g_error_free (error);
                 add_agent_data_free (data);
 
                 return;

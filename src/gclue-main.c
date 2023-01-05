@@ -123,12 +123,11 @@ on_bus_acquired (GDBusConnection *connection,
                  const gchar     *name,
                  gpointer         user_data)
 {
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
         manager = gclue_service_manager_new (connection, &error);
         if (manager == NULL) {
                 g_critical ("Failed to register server: %s", error->message);
-                g_error_free (error);
 
                 exit (-2);
         }
@@ -159,7 +158,7 @@ int
 main (int argc, char **argv)
 {
         guint owner_id;
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
         GOptionContext *context;
         GClueConfig *config;
 

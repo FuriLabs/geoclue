@@ -192,16 +192,15 @@ on_manager_proxy_ready (GObject      *source_object,
                         gpointer      user_data)
 {
         GClueServiceAgent *agent;
-        GError *error = NULL;
-        agent = GCLUE_SERVICE_AGENT (user_data);
+        g_autoptr(GError) error = NULL;
 
+        agent = GCLUE_SERVICE_AGENT (user_data);
         agent->priv->manager_proxy = g_dbus_proxy_new_for_bus_finish (res,
                                                                       &error);
         if (agent->priv->manager_proxy == NULL) {
                 g_critical ("Failed to create proxy to %s: %s",
                             MANAGER_PATH,
                             error->message);
-                g_error_free (error);
                 return;
         }
 

@@ -406,7 +406,7 @@ gclue_3g_stop (GClueLocationSource *source)
         GClue3G *g3g = GCLUE_3G (source);
         GClue3GPrivate *priv = g3g->priv;
         GClueLocationSourceClass *base_class;
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
         GClueLocationSourceStopResult base_result;
 
         g_return_val_if_fail (GCLUE_IS_LOCATION_SOURCE (source), FALSE);
@@ -436,7 +436,6 @@ gclue_3g_stop (GClueLocationSource *source)
                                              &error)) {
                         g_warning ("Failed to disable 3GPP: %s",
                                    error->message);
-                        g_error_free (error);
                 }
 
         gclue_mozilla_set_tower (priv->mozilla, NULL);

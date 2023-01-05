@@ -105,7 +105,7 @@ static void
 load_agent_config (GClueConfig *config)
 {
         GClueConfigPrivate *priv = config->priv;
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
         priv->agents = g_key_file_get_string_list (priv->key_file,
                                                    "agent",
@@ -115,7 +115,6 @@ load_agent_config (GClueConfig *config)
         if (error != NULL) {
                 g_critical ("Failed to read 'agent/whitelist' key: %s",
                             error->message);
-                g_error_free (error);
         }
 }
 
@@ -139,7 +138,7 @@ load_app_configs (GClueConfig *config)
                 gsize num_users = 0, j;
                 gboolean allowed, system;
                 gboolean ignore = FALSE;
-                GError *error = NULL;
+                g_autoptr(GError) error = NULL;
 
                 for (j = 0; known_groups[j] != NULL; j++)
                         if (strcmp (groups[i], known_groups[j]) == 0) {
@@ -187,7 +186,6 @@ error_out:
                 g_warning ("Failed to load configuration for app '%s': %s",
                            groups[i],
                            error->message);
-                g_error_free (error);
         }
 
         g_strfreev (groups);
@@ -198,7 +196,7 @@ load_enable_source_config (GClueConfig *config,
                            const char  *source_name)
 {
         GClueConfigPrivate *priv = config->priv;
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
         gboolean enable;
 
         enable = g_key_file_get_boolean (priv->key_file,
@@ -210,7 +208,6 @@ load_enable_source_config (GClueConfig *config,
                          " %s",
                          source_name,
                          error->message);
-                g_error_free (error);
 
                 /* Source should be enabled by default */
                 return TRUE;
@@ -227,7 +224,7 @@ static void
 load_wifi_config (GClueConfig *config)
 {
         GClueConfigPrivate *priv = config->priv;
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
         priv->enable_wifi_source = load_enable_source_config (config, "wifi");
 
@@ -249,7 +246,6 @@ load_wifi_config (GClueConfig *config)
         if (error != NULL) {
                 g_debug ("Failed to get config \"wifi/submit-data\": %s",
                          error->message);
-                g_error_free (error);
 
                 return;
         }
@@ -272,7 +268,6 @@ load_wifi_config (GClueConfig *config)
         if (error != NULL) {
                 g_debug ("Using the default submission nick: %s",
                          error->message);
-                g_error_free (error);
                 priv->wifi_submit_nick = g_strdup (DEFAULT_WIFI_SUBMIT_NICK);
         }
 }
@@ -301,7 +296,8 @@ load_modem_gps_config (GClueConfig *config)
 static void
 load_network_nmea_config (GClueConfig *config)
 {
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
+
         config->priv->enable_nmea_source =
                 load_enable_source_config (config, "network-nmea");
         if (!config->priv->enable_nmea_source)
@@ -312,7 +308,6 @@ load_network_nmea_config (GClueConfig *config)
                                                            &error);
         if (error != NULL) {
                 g_debug ("`nmea-socket` configuration not set.");
-                g_clear_error (&error);
         }
 }
 
@@ -326,7 +321,7 @@ load_compass_config (GClueConfig *config)
 static void
 gclue_config_init (GClueConfig *config)
 {
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
         config->priv = gclue_config_get_instance_private(config);
         config->priv->key_file = g_key_file_new ();
@@ -337,7 +332,6 @@ gclue_config_init (GClueConfig *config)
         if (error != NULL) {
                 g_critical ("Failed to load configuration file '%s': %s",
                             CONFIG_FILE_PATH, error->message);
-                g_error_free (error);
 
                 return;
         }

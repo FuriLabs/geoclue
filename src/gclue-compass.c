@@ -79,14 +79,13 @@ gclue_compass_finalize (GObject *object)
         g_clear_object (&priv->cancellable);
 
         if (priv->proxy != NULL) {
-                GError *error = NULL;
+                g_autoptr(GError) error = NULL;
 
                 if (!compass_call_release_compass_sync (priv->proxy,
                                                         NULL,
                                                         &error)) {
                         g_warning ("Failed to release compass: %s",
                                    error->message);
-                        g_error_free (error);
                 }
                 g_debug ("IIO compass released");
                 g_object_unref (priv->proxy);
