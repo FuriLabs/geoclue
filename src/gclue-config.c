@@ -126,7 +126,7 @@ load_app_configs (GClueConfig *config)
                                        NULL };
         GClueConfigPrivate *priv = config->priv;
         gsize num_groups = 0, i;
-        char **groups;
+        g_auto(GStrv) groups = NULL;
 
         groups = g_key_file_get_groups (priv->key_file, &num_groups);
         if (num_groups == 0)
@@ -187,8 +187,6 @@ error_out:
                            groups[i],
                            error->message);
         }
-
-        g_strfreev (groups);
 }
 
 static gboolean
