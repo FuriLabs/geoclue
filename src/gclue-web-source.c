@@ -526,6 +526,9 @@ on_submit_source_location_notify (GObject    *source_object,
         g_autoptr(SoupMessage) query = NULL;
         g_autoptr(GError) error = NULL;
 
+        if (!web->priv->submit_url_reachable)
+                return;
+
         location = gclue_location_source_get_location (source);
         if (location == NULL ||
             gclue_location_get_accuracy (location) >
@@ -535,9 +538,6 @@ on_submit_source_location_notify (GObject    *source_object,
                 return;
 
         web->priv->last_submitted = gclue_location_get_timestamp (location);
-
-        if (!web->priv->submit_url_reachable)
-                return;
 
         query = GCLUE_WEB_SOURCE_GET_CLASS (web)->create_submit_query
                                         (web,
