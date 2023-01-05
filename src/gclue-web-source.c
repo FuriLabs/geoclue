@@ -227,6 +227,15 @@ refresh_accuracy_level (GClueWebSource *web)
         }
 }
 
+static gboolean
+get_internet_available (void)
+{
+        GNetworkMonitor *monitor = g_network_monitor_get_default ();
+
+        return g_network_monitor_get_connectivity (monitor) ==
+                G_NETWORK_CONNECTIVITY_FULL;
+}
+
 static void
 locate_url_checked_cb (GObject      *source_object,
                        GAsyncResult *result,
@@ -241,6 +250,11 @@ locate_url_checked_cb (GObject      *source_object,
         if (error && g_error_matches (error, G_IO_ERROR,
                                       G_IO_ERROR_CANCELLED)) {
                 return; /* WebSource instance is finalized */
+        }
+
+        if (!reachable && get_internet_available ()) {
+                g_debug ("Locate URL not reachable, but Internet is available, overriding");
+                reachable = TRUE;
         }
 
         web = GCLUE_WEB_SOURCE (user_data);
@@ -272,6 +286,11 @@ submit_url_checked_cb (GObject      *source_object,
         if (error && g_error_matches (error, G_IO_ERROR,
                                       G_IO_ERROR_CANCELLED)) {
                 return; /* WebSource instance is finalized */
+        }
+
+        if (!reachable && get_internet_available ()) {
+                g_debug ("Submit URL not reachable, but Internet is available, overriding");
+                reachable = TRUE;
         }
 
         web = GCLUE_WEB_SOURCE (user_data);
