@@ -144,7 +144,7 @@ load_app_configs (GClueConfig *config)
                         if (strcmp (groups[i], known_groups[j]) == 0) {
                                 ignore = TRUE;
 
-                                continue;
+                                break;
                         }
 
                 if (ignore)
