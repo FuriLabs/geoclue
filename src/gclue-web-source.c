@@ -411,7 +411,7 @@ gclue_web_source_constructed (GObject *object)
         G_OBJECT_CLASS (gclue_web_source_parent_class)->constructed (object);
 
         priv->soup_session = soup_session_new ();
-        soup_session_remove_feature_by_type (priv->soup_session, G_TYPE_PROXY_RESOLVER);
+        soup_session_set_proxy_resolver (priv->soup_session, NULL);
 
         monitor = g_network_monitor_get_default ();
         priv->network_changed_id =
