@@ -4,17 +4,27 @@ geoclue.conf
 \-
 geoclue configuration parameters
 .SH SYNOPSIS
-.B @sysconfdir@/geoclue/geoclue.conf
+Main configuration file: @sysconfdir@/geoclue/geoclue.conf
+.br
+Overwriting parameters files: @sysconfdir@/geoclue/conf.d
 .SH DESCRIPTION
 .ad
 .fi
-The geoclue geoclue.conf configuration file specifies parameters that
-control the operation of geoclue.
+The main GeoClue configuration file 'geoclue.conf' specifies parameters
+that control the operation of geoclue. Parameters can be overwritten by
+placing configuration files in conf.d directory and applied in alphabetic
+order. Thus, a configuration file '90-config.conf' will overwrite parameters
+specified in another configuration file '50-config.conf' in the conf.d
+directory.
 .PP
 All configurations settings below are mandatory and the defaults are
 what you see before you edit them in geoclue.conf. If you want to keep the default
 values around, copy and comment out the appropriate line(s) before
 changing them.
+.PP
+Missing 'enable' key for a particular source in the main configuration file
+causes that source to be enabled by default. Adding 'enable' key setting
+to any further config file can overwrite this default.
 .SH AGENT CONFIGURATION OPTIONS
 .B \fI[agent]
 is used to begin the agent configuration.
