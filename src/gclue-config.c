@@ -469,6 +469,55 @@ sort_files (gconstpointer a, gconstpointer b)
 }
 
 static void
+gclue_config_print (GClueConfig *config)
+{
+        GList *node;
+        AppConfig *app_config = NULL;
+        gsize i;
+
+        g_debug ("GeoClue configuration:");
+        if (config->priv->num_agents > 0) {
+                g_debug ("Agents:");
+                for (i = 0; i < config->priv->num_agents; i++)
+                        g_debug ("\t%s", config->priv->agents[i]);
+        } else
+                g_debug ("Agents: none");
+        g_debug ("Network NMEA source: %s",
+                 config->priv->enable_nmea_source? "enabled": "disabled");
+        g_debug ("Network NMEA socket: %s",
+                 config->priv->nmea_socket == NULL? "none": config->priv->nmea_socket);
+        g_debug ("3G source: %s",
+                 config->priv->enable_3g_source? "enabled": "disabled");
+        g_debug ("CDMA source: %s",
+                 config->priv->enable_cdma_source? "enabled": "disabled");
+        g_debug ("Modem GPS source: %s",
+                 config->priv->enable_modem_gps_source? "enabled": "disabled");
+        g_debug ("WiFi source: %s",
+                 config->priv->enable_wifi_source? "enabled": "disabled");
+        g_debug ("WiFi submit data: %s",
+                 config->priv->wifi_submit? "enabled": "disabled");
+        g_debug ("WiFi submission nickname: %s",
+                 config->priv->wifi_submit_nick == NULL? "none": config->priv->wifi_submit_nick);
+        g_debug ("Static source: %s",
+                 config->priv->enable_static_source? "enabled": "disabled");
+        g_debug ("Compass: %s",
+                 config->priv->enable_compass? "enabled": "disabled");
+        g_debug ("Application configs:");
+        for (node = config->priv->app_configs; node != NULL; node = node->next) {
+                app_config = (AppConfig *) node->data;
+                g_debug ("\tID: %s", app_config->id);
+                g_debug ("\t\tAllowed: %s", app_config->allowed? "yes": "no");
+                g_debug ("\t\tSystem: %s", app_config->system? "yes": "no");
+                if (app_config->num_users > 0) {
+                        g_debug ("\t\tUsers:");
+                        for (i = 0; i < app_config->num_users; i++)
+                                g_debug ("\t\t\t%d", app_config->users[i]);
+                } else
+                        g_debug ("\t\tUsers: all");
+        }
+}
+
+static void
 gclue_config_init (GClueConfig *config)
 {
         g_autoptr(GDir) dir = NULL;
@@ -514,6 +563,8 @@ gclue_config_init (GClueConfig *config)
                                          NULL);
                 load_config_file (config, path, FALSE);
         }
+
+        gclue_config_print (config);
 }
 
 GClueConfig *
