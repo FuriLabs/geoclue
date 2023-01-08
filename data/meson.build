@@ -52,7 +52,7 @@ if get_option('enable-backend')
     if systemd_unit_dir == ''
         dep = dependency('systemd', required: false)
         if dep.found()
-            systemd_unit_dir = dep.get_pkgconfig_variable('systemdsystemunitdir')
+            systemd_unit_dir = dep.get_variable(pkgconfig: 'systemdsystemunitdir')
         endif
     endif
 
