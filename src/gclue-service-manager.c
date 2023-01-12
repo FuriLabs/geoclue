@@ -181,7 +181,7 @@ complete_get_client (OnClientInfoNewReadyData *data)
         GClueClientInfo *info = data->client_info;
         GClueAgent *agent_proxy = NULL;
         g_autoptr(GError) error = NULL;
-        char *path;
+        g_autofree char *path = NULL;
         guint32 user_id;
 
         /* Disconnect on_peer_vanished_before_completion, if it's there */
@@ -257,7 +257,6 @@ error_out:
 out:
         g_clear_object (&info);
         on_client_info_new_ready_data_free (data);
-        g_free (path);
 
         return FALSE;
 }

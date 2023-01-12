@@ -111,7 +111,7 @@ print_location (GClueSimple *simple)
         if (timestamp) {
                 GDateTime *date_time;
                 guint64 sec, usec;
-                gchar *str;
+                g_autofree gchar *str = NULL;
 
                 g_variant_get (timestamp, "(tt)", &sec, &usec);
 
@@ -123,7 +123,6 @@ print_location (GClueSimple *simple)
                 g_date_time_unref (date_time);
 
                 g_print ("Timestamp:   %s\n", str);
-                g_free (str);
         }
 }
 

@@ -425,7 +425,7 @@ parse_coordinate_string (const char *coordinate,
                          const char *direction)
 {
         gdouble minutes, degrees, out;
-        gchar *degrees_str;
+        g_autofree gchar *degrees_str = NULL;
         gchar *dot_str;
         gint dot_offset;
 
@@ -450,7 +450,6 @@ parse_coordinate_string (const char *coordinate,
 
         degrees_str = g_strndup (coordinate, dot_offset - 2);
         degrees = g_ascii_strtod (degrees_str, NULL);
-        g_free (degrees_str);
 
         minutes = g_ascii_strtod (dot_str - 2, NULL);
 

@@ -86,13 +86,13 @@ static char *
 next_location_path (GClueServiceClient *client)
 {
         GClueServiceClientPrivate *priv = client->priv;
-        char *path, *index_str;
+        g_autofree char *index_str = NULL;
+        g_autofree char *path = NULL;
 
         index_str = g_strdup_printf ("%u", (priv->locations_updated)++),
         path = g_strjoin ("/", priv->path, "Location", index_str, NULL);
-        g_free (index_str);
 
-        return path;
+        return g_steal_pointer (&path);
 }
 
 /* We don't use the gdbus-codegen provided gclue_client_emit_location_updated()
@@ -201,7 +201,7 @@ on_locator_location_changed (GObject    *gobject,
         GClueServiceClientPrivate *priv = client->priv;
         GClueLocationSource *locator = GCLUE_LOCATION_SOURCE (gobject);
         GClueLocation *new_location;
-        char *path = NULL;
+        g_autofree char *path = NULL;
         const char *prev_path;
         g_autoptr(GError) error = NULL;
 
@@ -245,12 +245,10 @@ on_locator_location_changed (GObject    *gobject,
         if (!emit_location_updated (client, prev_path, path, &error))
                 goto error_out;
 
-        goto out;
+        return;
 
 error_out:
         g_warning ("Failed to update location info: %s", error->message);
-out:
-        g_free (path);
 }
 
 static void
@@ -374,7 +372,7 @@ start_data_free (StartData *data)
 {
         g_object_unref (data->client);
         g_object_unref (data->invocation);
-        g_free(data->desktop_id);
+        g_free (data->desktop_id);
         g_slice_free (StartData, data);
 }
 
