@@ -484,14 +484,17 @@ parse_nmea_timestamp (const char *nmea_ts)
 {
         char parts[3][3];
         int i, hours, minutes, seconds;
-        GDateTime *now, *ts = NULL;
+        g_autoptr(GDateTime) now = NULL;
+        g_autoptr(GDateTime) ts = NULL;
         guint64 ret;
 
         now = g_date_time_new_now_utc ();
-        ret = g_date_time_to_unix (now);
+        if (now == NULL) {
+                g_warning ("Failed to get the current UTC time");
+                return 0;
+        }
 
-	if( now == NULL)
-                goto parse_error;
+        ret = g_date_time_to_unix (now);
 
         if (strlen (nmea_ts) < 6) {
                 if (strlen (nmea_ts) >= 1)
@@ -522,8 +525,8 @@ parse_nmea_timestamp (const char *nmea_ts)
         if (g_date_time_difference (ts, now) > TIME_DIFF_THRESHOLD) {
                 g_debug ("NMEA timestamp '%s' in future. Assuming yesterday's.",
                          nmea_ts);
-                g_date_time_unref (ts);
 
+                g_clear_pointer (&ts, g_date_time_unref);
                 ts = g_date_time_new_utc (g_date_time_get_year (now),
                                           g_date_time_get_month (now),
                                           g_date_time_get_day_of_month (now) - 1,
@@ -533,10 +536,8 @@ parse_nmea_timestamp (const char *nmea_ts)
         }
 
         ret = g_date_time_to_unix (ts);
-        g_date_time_unref (ts);
-parse_error:
-        g_date_time_unref (now);
 
+parse_error:
         return ret;
 }
 

@@ -109,7 +109,7 @@ print_location (GClueSimple *simple)
 
         timestamp = gclue_location_get_timestamp (location);
         if (timestamp) {
-                GDateTime *date_time;
+                g_autoptr(GDateTime) date_time = NULL;
                 guint64 sec, usec;
                 g_autofree gchar *str = NULL;
 
@@ -120,7 +120,6 @@ print_location (GClueSimple *simple)
                 str = g_date_time_format
                       (date_time,
                        "%c (%s seconds since the Epoch)");
-                g_date_time_unref (date_time);
 
                 g_print ("Timestamp:   %s\n", str);
         }
