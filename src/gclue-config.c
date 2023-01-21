@@ -468,11 +468,34 @@ sort_files (gconstpointer a, gconstpointer b)
         return g_strcmp0 (str_a, str_b);
 }
 
+static char *
+redact_api_key (char *url)
+{
+        char *match;
+
+        if (!url)
+                return NULL;
+
+        match = g_strrstr (url, "key=");
+        if (match && match > url && (*(match - 1) == '?' || *(match - 1) == '&')
+            && *(match + 4) != '\0') {
+                GString *s;
+
+                s = g_string_new (url);
+                g_string_replace (s, match + 4, "<redacted>", 1);
+                return g_string_free (s, FALSE);
+        } else {
+                return g_strdup (url);
+        }
+}
+
 static void
 gclue_config_print (GClueConfig *config)
 {
         GList *node;
         AppConfig *app_config = NULL;
+        g_autofree char *redacted_locate_url = NULL;
+        g_autofree char *redacted_submit_url = NULL;
         gsize i;
 
         g_debug ("GeoClue configuration:");
@@ -494,6 +517,12 @@ gclue_config_print (GClueConfig *config)
                  config->priv->enable_modem_gps_source? "enabled": "disabled");
         g_debug ("WiFi source: %s",
                  config->priv->enable_wifi_source? "enabled": "disabled");
+        redacted_locate_url = redact_api_key (config->priv->wifi_url);
+        g_debug ("WiFi locate URL: %s",
+                 redacted_locate_url == NULL ? "none" : redacted_locate_url);
+        redacted_submit_url = redact_api_key (config->priv->wifi_submit_url);
+        g_debug ("WiFi submit URL: %s",
+                 redacted_submit_url == NULL ? "none" : redacted_submit_url);
         g_debug ("WiFi submit data: %s",
                  config->priv->wifi_submit? "enabled": "disabled");
         g_debug ("WiFi submission nickname: %s",
