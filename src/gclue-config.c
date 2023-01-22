@@ -571,7 +571,7 @@ gclue_config_init (GClueConfig *config)
         if (error != NULL) {
                 g_warning ("Failed to open %s: %s",
                            CONFIG_D_DIRECTORY, error->message);
-                return;
+                goto out;
         }
 
         files = g_array_new (FALSE, FALSE, sizeof(char *));
@@ -592,7 +592,7 @@ gclue_config_init (GClueConfig *config)
                                          NULL);
                 load_config_file (config, path, FALSE);
         }
-
+out:
         gclue_config_print (config);
 }
 
