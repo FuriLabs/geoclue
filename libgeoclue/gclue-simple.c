@@ -974,7 +974,7 @@ gclue_simple_new_with_thresholds_sync (const char        *desktop_id,
  * Gets the client proxy, or %NULL if @simple is not using a client proxy (i-e
  * when inside the Flatpak sandbox).
  *
- * Returns: (transfer none) (type GClueClientProxy): The client object.
+ * Returns: (nullable) (transfer none) (type GClueClientProxy): The client object.
  */
 GClueClient *
 gclue_simple_get_client (GClueSimple *simple)
@@ -990,7 +990,7 @@ gclue_simple_get_client (GClueSimple *simple)
  *
  * Gets the current location.
  *
- * Returns: (transfer none) (type GClueLocation): The last known location
+ * Returns: (nullable) (transfer none) (type GClueLocation): The last known location
  * as #GClueLocation.
  */
 GClueLocation *
