@@ -89,6 +89,14 @@ set_location (GClueLocator  *locator,
 {
         GClueLocation *cur_location;
 
+        if (gclue_location_get_accuracy (location) ==
+            GCLUE_LOCATION_ACCURACY_UNKNOWN) {
+                /* If we do not know the accuracy, discard the update */
+                g_debug ("Discarding %s location with unknown accuracy",
+                         src_name);
+                return;
+        }
+
         cur_location = gclue_location_source_get_location
                         (GCLUE_LOCATION_SOURCE (locator));
 
