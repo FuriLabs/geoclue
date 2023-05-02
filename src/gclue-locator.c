@@ -54,7 +54,7 @@
 
 static GClueLocationSourceStartResult
 gclue_locator_start (GClueLocationSource *source);
-static GClueLocationSourceStopResult 
+static GClueLocationSourceStopResult
 gclue_locator_stop (GClueLocationSource *source);
 
 struct _GClueLocatorPrivate
