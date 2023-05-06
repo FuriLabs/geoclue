@@ -1,3 +1,13 @@
+geoclue-2.0 (2.6.0-3) UNRELEASED; urgency=medium
+
+  * Do not install the polkit rules files on non-linux architectures.
+    This should fix the FTBFS on these architectures
+  * debian/geoclue-2.0.lintian-overrides: Fix the lintian overrides
+  * debian/control: Bump Standards-Version to 4.6.2 (no further changes)
+  * debian/control: Drop obsolete Breaks/Replaces
+
+ -- Laurent Bigonville <bigon@debian.org>  Sat, 06 May 2023 11:33:23 +0200
+
 geoclue-2.0 (2.6.0-2) unstable; urgency=medium
 
   [ Laurent Bigonville ]
