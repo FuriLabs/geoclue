@@ -610,6 +610,11 @@ gclue_location_create_from_gga (const char *gga, GError **error)
                 return NULL;
         }
 
+        if (g_ascii_strtoll (parts[6], NULL, 10) == 0) {
+                /* No fix, ignore. */
+                return NULL;
+        }
+
         /* For syntax of GGA sentences:
          * http://www.gpsinformation.org/dale/nmea.htm#GGA
          */
