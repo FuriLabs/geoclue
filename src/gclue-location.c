@@ -32,6 +32,8 @@
 #define TIME_DIFF_THRESHOLD (60 * G_USEC_PER_SEC) /* 60 seconds */
 #define EARTH_RADIUS_KM 6372.795
 #define KNOTS_IN_METERS_PER_SECOND 0.51444
+#define RMC_TIME_DIFF_THRESHOLD 5 /* 5 seconds */
+#define RMC_DEFAULT_ACCURACY 5    /* 5 meters */
 
 struct _GClueLocationPrivate {
         char   *description;
@@ -647,10 +649,16 @@ gclue_location_create_from_rmc (const char     *rmc,
 {
         GClueLocation *location;
         g_auto(GStrv) parts = NULL;
+        gdouble accuracy;
+        gdouble altitude;
 
         parts = g_strsplit (rmc, ",", -1);
         if (g_strv_length (parts) < 13)
                 goto error;
+
+        /* RMC sentence is invalid */
+        if (g_strcmp0 (parts[3], "A") != 0)
+                return NULL;
 
         guint64 timestamp = parse_nmea_timestamp (parts[1]);
         gdouble lat = parse_coordinate_string (parts[3], parts[4]);
@@ -673,6 +681,23 @@ gclue_location_create_from_rmc (const char     *rmc,
                 heading = GCLUE_LOCATION_HEADING_UNKNOWN;
         }
 
+        accuracy = RMC_DEFAULT_ACCURACY;
+        altitude = GCLUE_LOCATION_ALTITUDE_UNKNOWN;
+        if (prev_location != NULL) {
+                guint64 prev_loc_timestamp;
+
+                prev_loc_timestamp = gclue_location_get_timestamp (prev_location);
+
+                /* Sentence is older then previous location, reject */
+                if (timestamp < prev_loc_timestamp)
+                        return NULL;
+
+                if (timestamp - prev_loc_timestamp < RMC_TIME_DIFF_THRESHOLD) {
+                        accuracy = gclue_location_get_accuracy (prev_location);
+                        altitude = gclue_location_get_altitude (prev_location);
+                }
+        }
+
         location = g_object_new (GCLUE_TYPE_LOCATION,
                                  "latitude", lat,
                                  "longitude", lon,
@@ -680,18 +705,9 @@ gclue_location_create_from_rmc (const char     *rmc,
                                  "speed", speed,
                                  "heading", heading,
                                  "description", "GPS RMC",
+                                 "accuracy", accuracy,
+                                 "altitude", altitude,
                                  NULL);
-
-        if (prev_location != NULL) {
-                g_object_set (location,
-                              "accuracy",
-                              gclue_location_get_accuracy (prev_location),
-                              NULL);
-                g_object_set (location,
-                              "altitude",
-                              gclue_location_get_altitude (prev_location),
-                              NULL);
-        }
 
         return location;
 
