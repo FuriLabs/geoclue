@@ -1070,7 +1070,9 @@ gclue_nmea_source_get_singleton (void)
         static GClueNMEASource *source = NULL;
 
         if (source == NULL) {
-                source = g_object_new (GCLUE_TYPE_NMEA_SOURCE, NULL);
+                source = g_object_new (GCLUE_TYPE_NMEA_SOURCE,
+                                       "priority-source", TRUE,
+                                       NULL);
                 g_object_add_weak_pointer (G_OBJECT (source),
                                            (gpointer) &source);
         } else {
