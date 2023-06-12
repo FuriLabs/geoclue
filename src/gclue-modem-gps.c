@@ -198,7 +198,9 @@ gclue_modem_gps_get_singleton (void)
         static GClueModemGPS *source = NULL;
 
         if (source == NULL) {
-                source = g_object_new (GCLUE_TYPE_MODEM_GPS, NULL);
+                source = g_object_new (GCLUE_TYPE_MODEM_GPS,
+                                       "priority-source", TRUE,
+                                       NULL);
                 g_object_weak_ref (G_OBJECT (source),
                                    on_modem_gps_destroyed,
                                    &source);
