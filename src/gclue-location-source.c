@@ -52,6 +52,7 @@ struct _GClueLocationSourcePrivate
 
         gboolean compute_movement;
         gboolean scramble_location;
+        gboolean priority_source;
 
 #if GCLUE_USE_COMPASS
         GClueCompass *compass;
@@ -74,6 +75,7 @@ enum
         PROP_AVAILABLE_ACCURACY_LEVEL,
         PROP_COMPUTE_MOVEMENT,
         PROP_SCRAMBLE_LOCATION,
+        PROP_PRIORITY_SOURCE,
         LAST_PROP
 };
 
@@ -156,6 +158,10 @@ gclue_location_source_get_property (GObject    *object,
                 g_value_set_boolean (value, source->priv->scramble_location);
                 break;
 
+        case PROP_PRIORITY_SOURCE:
+                g_value_set_boolean (value, source->priv->priority_source);
+                break;
+
         default:
                 G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
         }
@@ -188,6 +194,10 @@ gclue_location_source_set_property (GObject      *object,
 
         case PROP_SCRAMBLE_LOCATION:
                 source->priv->scramble_location = g_value_get_boolean (value);
+                break;
+
+        case PROP_PRIORITY_SOURCE:
+                source->priv->priority_source = g_value_get_boolean (value);
                 break;
 
         default:
@@ -281,6 +291,18 @@ gclue_location_source_class_init (GClueLocationSourceClass *klass)
         g_object_class_install_property (object_class,
                                          PROP_SCRAMBLE_LOCATION,
                                          gParamSpecs[PROP_SCRAMBLE_LOCATION]);
+
+        gParamSpecs[PROP_PRIORITY_SOURCE] =
+                g_param_spec_boolean ("priority-source",
+                                      "PrioritySource",
+                                      "Whether source is priority or not",
+                                      FALSE,
+                                      G_PARAM_READWRITE |
+                                      G_PARAM_CONSTRUCT_ONLY);
+        g_object_class_install_property (object_class,
+                                         PROP_PRIORITY_SOURCE,
+                                         gParamSpecs[PROP_PRIORITY_SOURCE]);
+
 }
 
 static void
@@ -289,6 +311,7 @@ gclue_location_source_init (GClueLocationSource *source)
         source->priv = gclue_location_source_get_instance_private (source);
         source->priv->compute_movement = TRUE;
         source->priv->time_threshold = gclue_min_uint_new ();
+        source->priv->priority_source = FALSE;
 }
 
 static GClueLocationSourceStartResult
@@ -496,6 +519,21 @@ gclue_location_source_get_active (GClueLocationSource *source)
         g_return_val_if_fail (GCLUE_IS_LOCATION_SOURCE (source), FALSE);
 
         return (source->priv->active_counter > 0);
+}
+
+/**
+ * gclue_location_source_get_priority_source:
+ * @source: a #GClueLocationSource
+ *
+ * Returns: Returns: TRUE if source (e.g. GPS) has priority over other
+ * sources, FALSE otherwise.
+ **/
+gboolean
+gclue_location_source_get_priority_source (GClueLocationSource *source)
+{
+        g_return_val_if_fail (GCLUE_IS_LOCATION_SOURCE (source), FALSE);
+
+        return source->priv->priority_source;
 }
 
 /**
