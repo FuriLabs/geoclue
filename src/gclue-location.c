@@ -644,8 +644,7 @@ gclue_location_create_from_gga (const char *gga, GError **error)
 
 static GClueLocation *
 gclue_location_create_from_rmc (const char     *rmc,
-                                GClueLocation  *prev_location,
-                                GError        **error)
+                                GClueLocation  *prev_location)
 {
         GClueLocation *location;
         g_auto(GStrv) parts = NULL;
@@ -653,8 +652,10 @@ gclue_location_create_from_rmc (const char     *rmc,
         gdouble altitude;
 
         parts = g_strsplit (rmc, ",", -1);
-        if (g_strv_length (parts) < 13)
-                goto error;
+        if (g_strv_length (parts) < 13) {
+                g_warning ("Invalid NMEA RMC sentence.");
+                return NULL;
+        }
 
         /* RMC sentence is invalid */
         if (g_strcmp0 (parts[3], "A") != 0)
@@ -665,7 +666,7 @@ gclue_location_create_from_rmc (const char     *rmc,
         gdouble lon = parse_coordinate_string (parts[5], parts[6]);
 
         if (lat == INVALID_COORDINATE || lon == INVALID_COORDINATE)
-                goto error;
+                return NULL;
 
         gdouble speed = GCLUE_LOCATION_SPEED_UNKNOWN;
         if (parts[7][0] != '\0')
@@ -710,13 +711,6 @@ gclue_location_create_from_rmc (const char     *rmc,
                                  NULL);
 
         return location;
-
-error:
-        g_set_error_literal (error,
-                             G_IO_ERROR,
-                             G_IO_ERROR_INVALID_ARGUMENT,
-                             "Invalid NMEA RMC sentence");
-        return NULL;
 }
 
 /**
@@ -746,7 +740,7 @@ gclue_location_create_from_nmeas (const char     *nmeas[],
                         gga_loc = gclue_location_create_from_gga (*iter, NULL);
                 if (!rmc_loc && gclue_nmea_type_is (*iter, "RMC"))
                         rmc_loc = gclue_location_create_from_rmc
-                                (*iter, prev_location, NULL);
+                                (*iter, prev_location);
                 if (gga_loc && rmc_loc)
                     break;
         }
