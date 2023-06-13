@@ -593,7 +593,7 @@ gclue_location_new_full (gdouble     latitude,
 }
 
 static GClueLocation *
-gclue_location_create_from_gga (const char *gga, GError **error)
+gclue_location_create_from_gga (const char *gga)
 {
         GClueLocation *location;
         gdouble latitude, longitude, accuracy, altitude;
@@ -603,10 +603,7 @@ gclue_location_create_from_gga (const char *gga, GError **error)
 
         parts = g_strsplit (gga, ",", -1);
         if (g_strv_length (parts) < 14) {
-                g_set_error_literal (error,
-                                     G_IO_ERROR,
-                                     G_IO_ERROR_INVALID_ARGUMENT,
-                                     "Invalid NMEA GGA sentence");
+                g_warning ("Invalid NMEA GGA sentence.");
                 return NULL;
         }
 
@@ -621,13 +618,8 @@ gclue_location_create_from_gga (const char *gga, GError **error)
         timestamp = parse_nmea_timestamp (parts[1]);
         latitude = parse_coordinate_string (parts[2], parts[3]);
         longitude = parse_coordinate_string (parts[4], parts[5]);
-        if (latitude == INVALID_COORDINATE || longitude == INVALID_COORDINATE) {
-                g_set_error_literal (error,
-                                     G_IO_ERROR,
-                                     G_IO_ERROR_INVALID_ARGUMENT,
-                                     "Invalid NMEA GGA sentence");
+        if (latitude == INVALID_COORDINATE || longitude == INVALID_COORDINATE)
                 return NULL;
-        }
 
         altitude = parse_altitude_string (parts[9], parts[10]);
 
@@ -742,7 +734,7 @@ gclue_location_create_from_nmeas (const char     *nmeas[],
 
         for (iter = nmeas; *iter != NULL; iter++) {
                 if (!gga_loc && gclue_nmea_type_is (*iter, "GGA"))
-                        gga_loc = gclue_location_create_from_gga (*iter, NULL);
+                        gga_loc = gclue_location_create_from_gga (*iter);
                 if (!rmc_loc && gclue_nmea_type_is (*iter, "RMC"))
                         rmc_loc = gclue_location_create_from_rmc
                                 (*iter, prev_location);
