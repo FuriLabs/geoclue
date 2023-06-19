@@ -46,5 +46,9 @@ override_dh_auto_test:
 override_dh_missing:
 	dh_missing --list-missing
 
+override_dh_install-arch:
+	dh_install -a
+	dh_apparmor --profile-name=usr.libexec.geoclue -pgeoclue-2.0
+
 override_dh_installchangelogs:
 	dh_installchangelogs NEWS
