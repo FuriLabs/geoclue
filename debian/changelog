@@ -1,3 +1,10 @@
+geoclue-2.0 (2.6.0-4) UNRELEASED; urgency=medium
+
+  [ Michael Biebl ]
+  * Remove deprecated polkit pkla file
+
+ -- Laurent Bigonville <bigon@debian.org>  Sat, 24 Jun 2023 09:07:04 +0200
+
 geoclue-2.0 (2.6.0-3) unstable; urgency=medium
 
   * Do not install the polkit rules files on non-linux architectures.
