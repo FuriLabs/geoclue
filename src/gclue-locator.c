@@ -2,6 +2,7 @@
 /* gclue-locator.c
  *
  * Copyright 2013 Red Hat, Inc.
+ * Copyright © 2022,2023 Oracle and/or its affiliates.
  *
  * Geoclue is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free
@@ -18,6 +19,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
  * Authors: Zeeshan Ali (Khattak) <zeeshanak@gnome.org>
+ *          Maciej S. Szmigiero <maciej.szmigiero@oracle.com>
  */
 
 #include "config.h"
@@ -26,6 +28,7 @@
 
 #include "gclue-locator.h"
 
+#include "gclue-static-source.h"
 #include "gclue-wifi.h"
 #include "gclue-config.h"
 
@@ -81,14 +84,13 @@ static GParamSpec *gParamSpecs[LAST_PROP];
 
 static void
 set_location (GClueLocator  *locator,
-              GClueLocation *location)
+              GClueLocation *location,
+              const char *src_name)
 {
         GClueLocation *cur_location;
 
         cur_location = gclue_location_source_get_location
                         (GCLUE_LOCATION_SOURCE (locator));
-
-        g_debug ("New location available");
 
         if (cur_location != NULL) {
             guint64 cur_timestamp, new_timestamp;
@@ -97,7 +99,8 @@ set_location (GClueLocator  *locator,
             cur_timestamp = gclue_location_get_timestamp (cur_location);
             new_timestamp = gclue_location_get_timestamp (location);
             if (new_timestamp < cur_timestamp) {
-                    g_debug ("New location older than current, ignoring.");
+                    g_debug ("New %s location older than current, ignoring.",
+                             src_name);
                     return;
             }
 
@@ -126,11 +129,12 @@ set_location (GClueLocator  *locator,
                      * a reasonable speed, OR it is more or as accurate as
                      * the previous one.
                      */
-                    g_debug ("Ignoring less accurate new location");
+                    g_debug ("Ignoring less accurate new %s location", src_name);
                     return;
             }
         }
 
+        g_debug ("New location available from %s", src_name);
         gclue_location_source_set_location (GCLUE_LOCATION_SOURCE (locator),
                                             location);
 }
@@ -183,7 +187,7 @@ on_location_changed (GObject    *gobject,
         GClueLocation *location;
 
         location = gclue_location_source_get_location (source);
-        set_location (locator, location);
+        set_location (locator, location, G_OBJECT_TYPE_NAME (source));
 }
 
 static gboolean
@@ -206,7 +210,7 @@ start_source (GClueLocator        *locator,
 
         location = gclue_location_source_get_location (src);
         if (gclue_location_source_get_active (src) && location != NULL)
-                set_location (locator, location);
+                set_location (locator, location, G_OBJECT_TYPE_NAME (src));
 
         gclue_location_source_start (src);
 }
@@ -356,7 +360,7 @@ gclue_locator_constructed (GObject *object)
         GClueLocator *locator = GCLUE_LOCATOR (object);
         GClueLocationSource *submit_source = NULL;
         GClueConfig *gconfig = gclue_config_get_singleton ();
-        GClueWifi *wifi;
+        GClueWifi *wifi = NULL;
         GList *node;
         GClueMinUINT *threshold;
 
@@ -364,7 +368,7 @@ gclue_locator_constructed (GObject *object)
 
 #if GCLUE_USE_3G_SOURCE
         if (gclue_config_get_enable_3g_source (gconfig)) {
-                GClue3G *source = gclue_3g_get_singleton ();
+                GClue3G *source = gclue_3g_get_singleton (locator->priv->accuracy_level);
                 locator->priv->sources = g_list_append (locator->priv->sources,
                                                         source);
         }
@@ -376,18 +380,28 @@ gclue_locator_constructed (GObject *object)
                                                         cdma);
         }
 #endif
-        if (gclue_config_get_enable_wifi_source (gconfig))
+        if (gclue_config_get_enable_wifi_source (gconfig)) {
                 wifi = gclue_wifi_get_singleton (locator->priv->accuracy_level);
-        else
-                /* City-level accuracy will give us GeoIP-only source */
-                wifi = gclue_wifi_get_singleton (GCLUE_ACCURACY_LEVEL_CITY);
-        locator->priv->sources = g_list_append (locator->priv->sources, wifi);
+        } else {
+                if (gclue_config_get_enable_static_source (gconfig)) {
+                        g_debug ("Disabling GeoIP-only source since static source is enabled");
+                } else {
+                        /* City-level accuracy will give us GeoIP-only source */
+                        wifi = gclue_wifi_get_singleton (GCLUE_ACCURACY_LEVEL_CITY);
+                }
+        }
+        if (wifi) {
+                locator->priv->sources = g_list_append (locator->priv->sources,
+                                                        wifi);
+        }
 #if GCLUE_USE_MODEM_GPS_SOURCE
         if (gclue_config_get_enable_modem_gps_source (gconfig)) {
                 GClueModemGPS *gps = gclue_modem_gps_get_singleton ();
                 locator->priv->sources = g_list_append (locator->priv->sources,
                                                         gps);
-                submit_source = GCLUE_LOCATION_SOURCE (gps);
+                if (!submit_source) {
+                        submit_source = GCLUE_LOCATION_SOURCE (gps);
+                }
         }
 #endif
 #if GCLUE_USE_NMEA_SOURCE
@@ -395,8 +409,21 @@ gclue_locator_constructed (GObject *object)
                 GClueNMEASource *nmea = gclue_nmea_source_get_singleton ();
                 locator->priv->sources = g_list_append (locator->priv->sources,
                                                         nmea);
+                if (!submit_source) {
+                        submit_source = GCLUE_LOCATION_SOURCE (nmea);
+                }
+
         }
 #endif
+
+        if (gclue_config_get_enable_static_source (gconfig)) {
+                GClueStaticSource *static_source;
+
+                static_source = gclue_static_source_get_singleton
+                        (locator->priv->accuracy_level);
+                locator->priv->sources = g_list_append (locator->priv->sources,
+                                                        static_source);
+        }
 
         for (node = locator->priv->sources; node != NULL; node = node->next) {
                 g_signal_connect (G_OBJECT (node->data),

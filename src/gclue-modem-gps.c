@@ -80,14 +80,15 @@ on_gps_enabled (GObject      *source_object,
                 GAsyncResult *result,
                 gpointer      user_data)
 {
-        GClueModemGPS *source = GCLUE_MODEM_GPS (user_data);
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
-        if (!gclue_modem_enable_gps_finish (source->priv->modem,
+        if (!gclue_modem_enable_gps_finish (GCLUE_MODEM (source_object),
                                             result,
                                             &error)) {
-                g_warning ("Failed to enable GPS: %s", error->message);
-                g_error_free (error);
+                if (error && !g_error_matches (error, G_IO_ERROR,
+                                               G_IO_ERROR_CANCELLED)) {
+                        g_warning ("Failed to enable GPS: %s", error->message);
+                }
         }
 }
 
@@ -168,10 +169,10 @@ gclue_modem_gps_init (GClueModemGPS *source)
                                           source);
         threshold = gclue_location_source_get_time_threshold
                         (GCLUE_LOCATION_SOURCE (source));
-        g_signal_connect (threshold,
-                          "notify::value",
-                          G_CALLBACK (on_time_threshold_changed),
-                          source);
+        g_signal_connect_object (threshold,
+                                 "notify::value",
+                                 G_CALLBACK (on_time_threshold_changed),
+                                 source, 0);
 }
 
 static void
@@ -215,7 +216,7 @@ on_fix_gps (GClueModem *modem,
         GClueLocationSource *source = GCLUE_LOCATION_SOURCE (user_data);
         GClueLocation *prev_location;
         g_autoptr(GClueLocation) location = NULL;
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
         prev_location = gclue_location_source_get_location (source);
         location = gclue_location_create_from_nmeas (nmeas,
@@ -224,7 +225,6 @@ on_fix_gps (GClueModem *modem,
 
         if (error != NULL) {
             g_warning ("Error: %s", error->message);
-            g_clear_error (&error);
 
             return;
         }
@@ -268,7 +268,7 @@ gclue_modem_gps_stop (GClueLocationSource *source)
 {
         GClueModemGPSPrivate *priv = GCLUE_MODEM_GPS (source)->priv;
         GClueLocationSourceClass *base_class;
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
         GClueLocationSourceStopResult base_result;
 
         g_return_val_if_fail (GCLUE_IS_LOCATION_SOURCE (source), FALSE);
@@ -288,7 +288,6 @@ gclue_modem_gps_stop (GClueLocationSource *source)
                                               &error)) {
                         g_warning ("Failed to disable GPS: %s",
                                    error->message);
-                        g_error_free (error);
                 }
 
         return base_result;

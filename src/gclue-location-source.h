@@ -71,6 +71,8 @@ struct _GClueLocationSourceClass
         GClueLocationSourceStopResult (*stop)  (GClueLocationSource *source);
 };
 
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (GClueLocationSource, g_object_unref)
+
 GType gclue_location_source_get_type (void) G_GNUC_CONST;
 
 void              gclue_location_source_start (GClueLocationSource *source);

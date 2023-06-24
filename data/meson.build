@@ -1,5 +1,6 @@
 if get_option('enable-backend')
     conf = configuration_data()
+    conf.set('sysconfdir', sysconfdir)
 
     if get_option('demo-agent')
         conf.set('demo_agent', 'geoclue-demo-agent;')
@@ -17,6 +18,9 @@ if get_option('enable-backend')
     conf.set('libexecdir', libexecdir)
     conf.set('dbus_srv_user', get_option('dbus-srv-user'))
     conf.set('sysconfdir', sysconfdir)
+
+    confd_dir = join_paths(conf_dir, 'conf.d')
+    install_emptydir(confd_dir)
 
     service_dir = join_paths(datadir, 'dbus-1', 'system-services')
     configure_file(output: 'org.freedesktop.GeoClue2.service',
@@ -48,7 +52,7 @@ if get_option('enable-backend')
     if systemd_unit_dir == ''
         dep = dependency('systemd', required: false)
         if dep.found()
-            systemd_unit_dir = dep.get_pkgconfig_variable('systemdsystemunitdir')
+            systemd_unit_dir = dep.get_variable(pkgconfig: 'systemdsystemunitdir')
         endif
     endif
 

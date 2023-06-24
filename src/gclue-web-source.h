@@ -71,13 +71,11 @@ struct _GClueWebSourceClass {
                                                   GError              **error);
 
         SoupMessage *     (*create_query)        (GClueWebSource *source,
+                                                  const char **query_data_description,
                                                   GError        **error);
         SoupMessage *     (*create_submit_query) (GClueWebSource  *source,
                                                   GClueLocation   *location,
                                                   GError         **error);
-        GClueLocation * (*parse_response)        (GClueWebSource *source,
-                                                  const char     *response,
-                                                  GError        **error);
         GClueAccuracyLevel (*get_available_accuracy_level)
                                                  (GClueWebSource *source,
                                                   gboolean        network_available);
@@ -86,6 +84,10 @@ struct _GClueWebSourceClass {
 void gclue_web_source_refresh           (GClueWebSource      *source);
 void gclue_web_source_set_submit_source (GClueWebSource      *source,
                                          GClueLocationSource *submit_source);
+void gclue_web_source_set_locate_url    (GClueWebSource      *source,
+                                         const char          *url);
+void gclue_web_source_set_submit_url    (GClueWebSource      *source,
+                                         const char          *url);
 
 G_END_DECLS
 
