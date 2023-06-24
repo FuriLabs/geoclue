@@ -1,9 +1,12 @@
-geoclue-2.0 (2.6.0-4) UNRELEASED; urgency=medium
+geoclue-2.0 (2.7.0-1) UNRELEASED; urgency=medium
 
   [ Michael Biebl ]
   * Remove deprecated polkit pkla file
 
- -- Laurent Bigonville <bigon@debian.org>  Sat, 24 Jun 2023 09:07:04 +0200
+  [ Laurent Bigonville ]
+  * New upstream release
+
+ -- Laurent Bigonville <bigon@debian.org>  Sat, 24 Jun 2023 09:07:42 +0200
 
 geoclue-2.0 (2.6.0-3) unstable; urgency=medium
 
