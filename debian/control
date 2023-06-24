@@ -15,7 +15,7 @@ Build-Depends: debhelper-compat (= 12),
                libmm-glib-dev (>= 1.6) [linux-any],
                libnotify-dev,
                libsoup-3.0-dev,
-               meson (>= 0.47.2),
+               meson (>= 0.60.0),
                pkg-config,
                valac
 Build-Depends-Indep: gtk-doc-tools <!nodoc>, libglib2.0-doc <!nodoc>
