@@ -79,14 +79,15 @@ on_cdma_enabled (GObject      *source_object,
                  GAsyncResult *result,
                  gpointer      user_data)
 {
-        GClueCDMA *source = GCLUE_CDMA (user_data);
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
-        if (!gclue_modem_enable_cdma_finish (source->priv->modem,
+        if (!gclue_modem_enable_cdma_finish (GCLUE_MODEM (source_object),
                                              result,
                                              &error)) {
-                g_warning ("Failed to enable CDMA: %s", error->message);
-                g_error_free (error);
+                if (error && !g_error_matches (error, G_IO_ERROR,
+                                                G_IO_ERROR_CANCELLED)) {
+                        g_warning ("Failed to enable CDMA: %s", error->message);
+                }
         }
 }
 
@@ -199,7 +200,8 @@ on_fix_cdma (GClueModem *modem,
 
         location = gclue_location_new (latitude,
                                        longitude,
-                                       1000);     /* Assume 1 km accuracy */
+                                       1000, /* Assume 1 km accuracy */
+                                       "CDMA");
 
         gclue_location_source_set_location (GCLUE_LOCATION_SOURCE (user_data),
                                             location);
@@ -241,7 +243,7 @@ gclue_cdma_stop (GClueLocationSource *source)
 {
         GClueCDMAPrivate *priv = GCLUE_CDMA (source)->priv;
         GClueLocationSourceClass *base_class;
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
         GClueLocationSourceStopResult base_result;
 
         g_return_val_if_fail (GCLUE_IS_LOCATION_SOURCE (source), FALSE);
@@ -261,7 +263,6 @@ gclue_cdma_stop (GClueLocationSource *source)
                                                &error)) {
                         g_warning ("Failed to disable CDMA: %s",
                                    error->message);
-                        g_error_free (error);
                 }
 
         return base_result;

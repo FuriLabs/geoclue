@@ -45,11 +45,13 @@ struct _GClueModemManagerPrivate {
         MMModem *modem;
         MMModemLocation *modem_location;
         MMLocation3gpp *location_3gpp;
+        gboolean location_3gpp_ignore_previous;
         MMLocationGpsNmea *location_nmea;
 
         GCancellable *cancellable;
 
         MMModemLocationSource caps; /* Caps we set or are going to set */
+        GClueTowerTec tec;
 
         guint time_threshold;
 };
@@ -286,7 +288,8 @@ static gboolean
 is_location_3gpp_same (GClueModemManager *manager,
                        const gchar       *new_opc,
                        gulong             new_lac,
-                       gulong             new_cell_id)
+                       gulong             new_cell_id,
+                       GClueTowerTec      new_tec)
 {
         GClueModemManagerPrivate *priv = manager->priv;
         const gchar *opc;
@@ -295,7 +298,7 @@ is_location_3gpp_same (GClueModemManager *manager,
         gchar opc_buf[GCLUE_3G_TOWER_OPERATOR_CODE_STR_LEN + 1];
 #endif
 
-        if (priv->location_3gpp == NULL)
+        if (priv->location_3gpp == NULL || priv->location_3gpp_ignore_previous)
                 return FALSE;
 
 #if MM_CHECK_VERSION(1, 18, 0)
@@ -306,11 +309,10 @@ is_location_3gpp_same (GClueModemManager *manager,
 #endif
         lac = mm_location_3gpp_get_location_area_code (priv->location_3gpp);
 
-        // Most likely this is an LTE connection and with the mozilla
-        // services they use the tracking area code in place of the
-        // location area code in this case.
+        // Use the tracking area code in place of the
+        // location area code for LTE.
         // https://ichnaea.readthedocs.io/en/latest/api/geolocate.html#cell-tower-fields
-        if (lac == 0x0 || lac == 0xFFFE) {
+        if (priv->tec == GCLUE_TOWER_TEC_4G) {
                 lac = mm_location_3gpp_get_tracking_area_code(priv->location_3gpp);
         }
 
@@ -318,7 +320,20 @@ is_location_3gpp_same (GClueModemManager *manager,
 
         return (g_strcmp0 (opc, new_opc) == 0 &&
                 lac == new_lac &&
-                cell_id == new_cell_id);
+                cell_id == new_cell_id &&
+                priv->tec == new_tec);
+}
+
+static void clear_3gpp_location (GClueModemManager *manager)
+{
+        GClueModemManagerPrivate *priv = manager->priv;
+
+        if (!priv->location_3gpp && !priv->location_3gpp_ignore_previous) {
+                return;
+        }
+
+        g_clear_object (&priv->location_3gpp);
+        g_signal_emit (manager, signals[FIX_3G], 0, NULL, 0, 0, GCLUE_TOWER_TEC_NO_FIX);
 }
 
 static void
@@ -326,30 +341,40 @@ on_get_3gpp_ready (GObject      *source_object,
                    GAsyncResult *res,
                    gpointer      user_data)
 {
-        GClueModemManager *manager = GCLUE_MODEM_MANAGER (user_data);
-        GClueModemManagerPrivate *priv = manager->priv;
+        GClueModemManager *manager;
+        GClueModemManagerPrivate *priv;
         MMModemLocation *modem_location = MM_MODEM_LOCATION (source_object);
+        MMModemAccessTechnology modem_access_tec;
         g_autoptr(MMLocation3gpp) location_3gpp = NULL;
-        GError *error = NULL;
         const gchar *opc;
         gulong lac, cell_id;
-        GClueTowerTec tec = GCLUE_TOWER_TEC_3G;
+        GClueTowerTec tec;
 #if !MM_CHECK_VERSION(1, 18, 0)
+        g_autoptr(GError) error = NULL;
         gchar opc_buf[GCLUE_3G_TOWER_OPERATOR_CODE_STR_LEN + 1];
-#endif
 
         location_3gpp = mm_modem_location_get_3gpp_finish (modem_location,
                                                            res,
                                                            &error);
         if (error != NULL) {
-                g_warning ("Failed to get location from 3GPP: %s",
-                           error->message);
-                g_error_free (error);
+                if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+                        g_warning ("Failed to get location from 3GPP: %s",
+                                   error->message);
+                }
+
                 return;
         }
+#else
+        location_3gpp = mm_modem_location_get_signaled_3gpp (modem_location);
+#endif
+
+        manager = GCLUE_MODEM_MANAGER (user_data);
+        priv = manager->priv;
 
         if (location_3gpp == NULL) {
                 g_debug ("No 3GPP");
+                clear_3gpp_location (manager);
+                priv->location_3gpp_ignore_previous = FALSE;
                 return;
         }
 
@@ -364,25 +389,51 @@ on_get_3gpp_ready (GObject      *source_object,
 
         lac = mm_location_3gpp_get_location_area_code (location_3gpp);
 
-        // Most likely this is an LTE connection and with the mozilla
-        // services they use the tracking area code in place of the
-        // location area code in this case.
-        // https://ichnaea.readthedocs.io/en/latest/api/geolocate.html#cell-tower-fields
-        if (lac == 0x0 || lac == 0xFFFE) {
-                lac = mm_location_3gpp_get_tracking_area_code(location_3gpp);
-                tec = GCLUE_TOWER_TEC_4G;
-        }
-
         cell_id = mm_location_3gpp_get_cell_id (location_3gpp);
 
-        if (is_location_3gpp_same (manager, opc, lac, cell_id)) {
+        modem_access_tec = mm_modem_get_access_technologies(priv->modem);
+
+        if (modem_access_tec == MM_MODEM_ACCESS_TECHNOLOGY_GSM ||
+            modem_access_tec == MM_MODEM_ACCESS_TECHNOLOGY_GPRS ||
+            modem_access_tec == MM_MODEM_ACCESS_TECHNOLOGY_EDGE) {
+                tec = GCLUE_TOWER_TEC_2G;
+        } else if (modem_access_tec == MM_MODEM_ACCESS_TECHNOLOGY_UMTS ||
+                   modem_access_tec == MM_MODEM_ACCESS_TECHNOLOGY_HSDPA ||
+                   modem_access_tec == MM_MODEM_ACCESS_TECHNOLOGY_HSUPA ||
+                   modem_access_tec == MM_MODEM_ACCESS_TECHNOLOGY_HSPA ||
+                   modem_access_tec == MM_MODEM_ACCESS_TECHNOLOGY_HSPA_PLUS) {
+                tec = GCLUE_TOWER_TEC_3G;
+        } else if (modem_access_tec == MM_MODEM_ACCESS_TECHNOLOGY_LTE) {
+                lac = mm_location_3gpp_get_tracking_area_code(location_3gpp);
+                tec = GCLUE_TOWER_TEC_4G;
+        } else {
+                tec = GCLUE_TOWER_TEC_UNKNOWN;
+        }
+
+        if (is_location_3gpp_same (manager, opc, lac, cell_id, tec)) {
                 g_debug ("New 3GPP location is same as last one");
                 return;
         }
         g_clear_object (&priv->location_3gpp);
         priv->location_3gpp = g_steal_pointer (&location_3gpp);
+        priv->location_3gpp_ignore_previous = FALSE;
+        priv->tec = tec;
 
         g_signal_emit (manager, signals[FIX_3G], 0, opc, lac, cell_id, tec);
+}
+
+static void
+on_location_changed_get_3gpp (GObject *modem_object,
+                              GClueModemManager *manager)
+{
+#if MM_CHECK_VERSION(1, 18, 0)
+	on_get_3gpp_ready(modem_object, NULL, manager);
+#else
+	mm_modem_location_get_3gpp (MM_MODEM_LOCATION (modem_object),
+				    manager->priv->cancellable,
+				    on_get_3gpp_ready,
+				    manager);
+#endif
 }
 
 static void
@@ -390,20 +441,28 @@ on_get_cdma_ready (GObject      *source_object,
                    GAsyncResult *res,
                    gpointer      user_data)
 {
-        GClueModemManager *manager = GCLUE_MODEM_MANAGER (user_data);
+        GClueModemManager *manager;
         MMModemLocation *modem_location = MM_MODEM_LOCATION (source_object);
         g_autoptr(MMLocationCdmaBs) location_cdma = NULL;
-        GError *error = NULL;
+#if !MM_CHECK_VERSION(1, 18, 0)
+        g_autoptr(GError) error = NULL;
 
         location_cdma = mm_modem_location_get_cdma_bs_finish (modem_location,
                                                               res,
                                                               &error);
         if (error != NULL) {
-                g_warning ("Failed to get location from 3GPP: %s",
-                           error->message);
-                g_error_free (error);
+                if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+                        g_warning ("Failed to get location from CDMA: %s",
+                                   error->message);
+                }
+
                 return;
         }
+#else
+        location_cdma = mm_modem_location_get_signaled_cdma_bs (modem_location);
+#endif
+
+        manager = GCLUE_MODEM_MANAGER (user_data);
 
         if (location_cdma == NULL) {
                 g_debug ("No CDMA");
@@ -415,6 +474,20 @@ on_get_cdma_ready (GObject      *source_object,
                        0,
                        mm_location_cdma_bs_get_latitude (location_cdma),
                        mm_location_cdma_bs_get_longitude (location_cdma));
+}
+
+static void
+on_location_changed_get_cdma (GObject *modem_object,
+                              GClueModemManager *manager)
+{
+#if MM_CHECK_VERSION(1, 18, 0)
+	on_get_cdma_ready(modem_object, NULL, manager);
+#else
+	mm_modem_location_get_cdma_bs (MM_MODEM_LOCATION (modem_object),
+				manager->priv->cancellable,
+				on_get_cdma_ready,
+				manager);
+#endif
 }
 
 static gboolean
@@ -436,24 +509,33 @@ on_get_gps_nmea_ready (GObject      *source_object,
                        GAsyncResult *res,
                        gpointer      user_data)
 {
-        GClueModemManager *manager = GCLUE_MODEM_MANAGER (user_data);
-        GClueModemManagerPrivate *priv = manager->priv;
+        GClueModemManager *manager;
+        GClueModemManagerPrivate *priv;
         MMModemLocation *modem_location = MM_MODEM_LOCATION (source_object);
         g_autoptr(MMLocationGpsNmea) location_nmea = NULL;
         static const gchar *sentences[3];
         const gchar *gga, *rmc;
         gint i = 0;
-        GError *error = NULL;
+#if !MM_CHECK_VERSION(1, 18, 0)
+        g_autoptr(GError) error = NULL;
 
         location_nmea = mm_modem_location_get_gps_nmea_finish (modem_location,
                                                                res,
                                                                &error);
         if (error != NULL) {
-                g_warning ("Failed to get location from NMEA information: %s",
-                           error->message);
-                g_error_free (error);
+                if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+                        g_warning ("Failed to get location from NMEA information: %s",
+                                   error->message);
+                }
+
                 return;
         }
+#else
+	location_nmea = mm_modem_location_get_signaled_gps_nmea (modem_location);
+#endif
+
+        manager = GCLUE_MODEM_MANAGER (user_data);
+        priv = manager->priv;
 
         if (location_nmea == NULL) {
                 g_debug ("No NMEA");
@@ -486,28 +568,32 @@ on_get_gps_nmea_ready (GObject      *source_object,
 }
 
 static void
+on_location_changed_get_gps_nmea (GObject    *modem_object,
+                                  GClueModemManager *manager)
+{
+#if MM_CHECK_VERSION(1, 18, 0)
+	on_get_gps_nmea_ready(modem_object, NULL, manager);
+#else
+	mm_modem_location_get_gps_nmea (MM_MODEM_LOCATION (modem_object),
+				manager->priv->cancellable,
+				on_get_gps_nmea_ready,
+				manager);
+#endif
+}
+
+static void
 on_location_changed (GObject    *modem_object,
                      GParamSpec *pspec,
                      gpointer    user_data)
 {
-        MMModemLocation *modem_location = MM_MODEM_LOCATION (modem_object);
         GClueModemManager *manager = GCLUE_MODEM_MANAGER (user_data);
 
         if ((manager->priv->caps & MM_MODEM_LOCATION_SOURCE_3GPP_LAC_CI) != 0)
-                mm_modem_location_get_3gpp (modem_location,
-                                            manager->priv->cancellable,
-                                            on_get_3gpp_ready,
-                                            manager);
+		on_location_changed_get_3gpp (modem_object, manager);
         if ((manager->priv->caps & MM_MODEM_LOCATION_SOURCE_CDMA_BS) != 0)
-                mm_modem_location_get_cdma_bs (modem_location,
-                                               manager->priv->cancellable,
-                                               on_get_cdma_ready,
-                                               manager);
+		on_location_changed_get_cdma (modem_object, manager);
         if ((manager->priv->caps & MM_MODEM_LOCATION_SOURCE_GPS_NMEA) != 0)
-                mm_modem_location_get_gps_nmea (modem_location,
-                                                manager->priv->cancellable,
-                                                on_get_gps_nmea_ready,
-                                                manager);
+		on_location_changed_get_gps_nmea (modem_object, manager);
 }
 
 static void
@@ -516,8 +602,9 @@ on_modem_location_setup (GObject      *modem_object,
                          gpointer      user_data)
 {
         GTask *task = G_TASK (user_data);
-        GClueModemManager *manager;
-        GClueModemManagerPrivate *priv;
+        GClueModemManager *manager = GCLUE_MODEM_MANAGER
+                (g_task_get_source_object (task));
+        GClueModemManagerPrivate *priv = manager->priv;
         GError *error = NULL;
 
         if (!mm_modem_location_setup_finish (MM_MODEM_LOCATION (modem_object),
@@ -527,10 +614,11 @@ on_modem_location_setup (GObject      *modem_object,
 
                 goto out;
         }
-        manager = GCLUE_MODEM_MANAGER (g_task_get_source_object (task));
-        priv = manager->priv;
+
         g_debug ("Modem '%s' setup.", mm_object_get_path (priv->mm_object));
 
+        /* Make sure that we actually emit that signal */
+        priv->location_3gpp_ignore_previous = TRUE;
         on_location_changed (modem_object, NULL, manager);
 
         g_task_return_boolean (task, TRUE);
@@ -550,8 +638,6 @@ enable_caps (GClueModemManager    *manager,
 
         priv->caps |= caps;
         task = g_task_new (manager, cancellable, callback, user_data);
-
-        priv = GCLUE_MODEM_MANAGER (g_task_get_source_object (task))->priv;
 
         caps = mm_modem_location_get_enabled (priv->modem_location) | priv->caps;
         mm_modem_location_setup (priv->modem_location,
@@ -656,15 +742,13 @@ on_gps_refresh_rate_set (GObject      *source_object,
                          GAsyncResult *res,
                          gpointer      user_data)
 {
-        gboolean ret;
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
-        ret = mm_modem_location_set_gps_refresh_rate_finish
+        mm_modem_location_set_gps_refresh_rate_finish
                 (MM_MODEM_LOCATION (source_object), res, &error);
-        if (!ret) {
+        if (error && !g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
                 g_warning ("Failed to set GPS refresh rate: %s",
                            error->message);
-                g_error_free (error);
         }
 }
 
@@ -736,6 +820,8 @@ on_mm_object_removed (GDBusObjectManager *object_manager,
                 return;
         g_debug ("Modem '%s' removed.", mm_object_get_path (priv->mm_object));
 
+        clear_3gpp_location (manager);
+
         g_signal_handlers_disconnect_by_func (G_OBJECT (priv->modem_location),
                                               G_CALLBACK (on_location_changed),
                                               user_data);
@@ -753,18 +839,26 @@ on_manager_new_ready (GObject      *modem_object,
                       GAsyncResult *res,
                       gpointer      user_data)
 {
-        GClueModemManagerPrivate *priv = GCLUE_MODEM_MANAGER (user_data)->priv;
+        MMManager *mmmanager;
+        GClueModemManager *manager;
+        GClueModemManagerPrivate *priv;
         GList *objects, *node;
-        GError *error = NULL;
+        g_autoptr(GError) error = NULL;
 
-        priv->manager = mm_manager_new_finish (res, &error);
-        if (priv->manager == NULL) {
-                g_warning ("Failed to connect to ModemManager: %s",
-                           error->message);
-                g_error_free (error);
+        mmmanager = mm_manager_new_finish (res, &error);
+        if (mmmanager == NULL) {
+                if (error && !g_error_matches (error, G_IO_ERROR,
+                                               G_IO_ERROR_CANCELLED)) {
+                        g_warning ("Failed to connect to ModemManager: %s",
+                                   error->message);
+                }
 
                 return;
         }
+
+        manager = GCLUE_MODEM_MANAGER (user_data);
+        priv = manager->priv;
+        priv->manager = mmmanager;
 
         objects = g_dbus_object_manager_get_objects
                         (G_DBUS_OBJECT_MANAGER (priv->manager));
@@ -779,15 +873,15 @@ on_manager_new_ready (GObject      *modem_object,
         }
         g_list_free_full (objects, g_object_unref);
 
-        g_signal_connect (G_OBJECT (priv->manager),
-                          "object-added",
-                          G_CALLBACK (on_mm_object_added),
-                          user_data);
+        g_signal_connect_object (G_OBJECT (priv->manager),
+                                 "object-added",
+                                 G_CALLBACK (on_mm_object_added),
+                                 manager, 0);
 
-        g_signal_connect (G_OBJECT (priv->manager),
-                          "object-removed",
-                          G_CALLBACK (on_mm_object_removed),
-                          user_data);
+        g_signal_connect_object (G_OBJECT (priv->manager),
+                                 "object-removed",
+                                 G_CALLBACK (on_mm_object_removed),
+                                 manager, 0);
 }
 
 static void
@@ -795,19 +889,22 @@ on_bus_get_ready (GObject      *modem_object,
                   GAsyncResult *res,
                   gpointer      user_data)
 {
-        GClueModemManagerPrivate *priv = GCLUE_MODEM_MANAGER (user_data)->priv;
-        GDBusConnection *connection;
-        GError *error = NULL;
+        GClueModemManagerPrivate *priv;
+        g_autoptr(GDBusConnection) connection = NULL;
+        g_autoptr(GError) error = NULL;
 
         connection = g_bus_get_finish (res, &error);
         if (connection == NULL) {
-                g_warning ("Failed to connect to system D-Bus: %s",
-                           error->message);
-                g_error_free (error);
+                if (error && !g_error_matches (error, G_IO_ERROR,
+                                               G_IO_ERROR_CANCELLED)) {
+                        g_warning ("Failed to connect to system D-Bus: %s",
+                                   error->message);
+                }
 
                 return;
         }
 
+        priv = GCLUE_MODEM_MANAGER (user_data)->priv;
         mm_manager_new (connection,
                         0,
                         priv->cancellable,
@@ -1043,7 +1140,7 @@ gclue_modem_manager_disable_3g (GClueModem   *modem,
         g_return_val_if_fail (gclue_modem_manager_get_is_3g_available (modem), FALSE);
         manager = GCLUE_MODEM_MANAGER (modem);
 
-        g_clear_object (&manager->priv->location_3gpp);
+        clear_3gpp_location (manager);
         g_debug ("Clearing 3GPP location caps from modem");
         return clear_caps (manager,
                            MM_MODEM_LOCATION_SOURCE_3GPP_LAC_CI,
@@ -1062,7 +1159,7 @@ gclue_modem_manager_disable_cdma (GClueModem   *modem,
         g_return_val_if_fail (gclue_modem_manager_get_is_cdma_available (modem), FALSE);
         manager = GCLUE_MODEM_MANAGER (modem);
 
-        g_clear_object (&manager->priv->location_3gpp);
+        clear_3gpp_location (manager);
         g_debug ("Clearing CDMA location caps from modem");
         return clear_caps (manager,
                            MM_MODEM_LOCATION_SOURCE_CDMA_BS,

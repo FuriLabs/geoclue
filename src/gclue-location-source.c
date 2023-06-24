@@ -419,27 +419,36 @@ gclue_location_source_set_location (GClueLocationSource *source,
         priv->location = gclue_location_duplicate (location);
 
         if (priv->scramble_location) {
-                gdouble latitude, distance, accuracy;
+                gdouble latitude, distance, accuracy, scramble_range;
 
                 latitude = gclue_location_get_latitude (priv->location);
                 accuracy = gclue_location_get_accuracy (priv->location);
 
+                scramble_range = GCLUE_LOCATION_ACCURACY_NEIGHBORHOOD;
+                if (accuracy >= scramble_range) {
+                        /* If the location source is already pretty inaccurate
+                         * do just a limited range scrambling to be sure.
+                         */
+                        scramble_range /= 3;
+                }
+
                 /* Randomization is needed to stop apps from calculationg the
                  * actual location.
                  */
-                distance = (gdouble) g_random_int_range (1, 3);
+                distance = g_random_double_range (0, scramble_range);
+                distance /= 1000;
 
                 if (g_random_boolean ())
                         latitude += distance * LATITUDE_IN_KM;
                 else
                         latitude -= distance * LATITUDE_IN_KM;
-                accuracy += 3000;
+                accuracy += scramble_range;
 
                 g_object_set (G_OBJECT (priv->location),
                               "latitude", latitude,
                               "accuracy", accuracy,
                               NULL);
-                g_debug ("location scrambled");
+                g_debug ("%s location scrambled", G_OBJECT_TYPE_NAME (source));
         }
 
         speed = gclue_location_get_speed (location);

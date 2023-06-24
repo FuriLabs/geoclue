@@ -1,5 +1,5 @@
 geoclue_deps = base_deps + [ dependency('json-glib-1.0', version: '>= 0.14.0'),
-                             dependency('libsoup-2.4', version: '>= 2.42.0') ]
+                             dependency('libsoup-3.0', version: '>= 3.0.0') ]
 
 sources = [ libgeoclue_public_api_gen_sources[1],
             geoclue_iface_sources,
@@ -24,11 +24,13 @@ sources += [ 'gclue-main.c',
              'gclue-service-manager.h', 'gclue-service-manager.c',
              'gclue-service-client.h', 'gclue-service-client.c',
              'gclue-service-location.h', 'gclue-service-location.c',
+             'gclue-static-source.c', 'gclue-static-source.h',
              'gclue-web-source.c', 'gclue-web-source.h',
              'gclue-wifi.h', 'gclue-wifi.c',
              'gclue-mozilla.h', 'gclue-mozilla.c',
              'gclue-min-uint.h', 'gclue-min-uint.c',
-             'gclue-location.h', 'gclue-location.c' ]
+             'gclue-location.h', 'gclue-location.c',
+             'gclue-utils.h' ]
 
 if get_option('3g-source') or get_option('cdma-source') or get_option('modem-gps-source')
     geoclue_deps += [ dependency('mm-glib', version: '>= 1.10') ]

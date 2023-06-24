@@ -4,25 +4,26 @@ before_script:
     - apt-get install --yes git gobject-introspection libmm-glib-dev wget valac
     - apt-get install --yes libnotify-dev xsltproc gtk-doc-tools python3-pip
     - apt-get install --yes ninja-build gettext modemmanager-dev
-    - pip3 install meson==0.53.2
+    - DEBIAN_FRONTEND=noninteractive apt-get install --yes libsoup-3.0
+    - pip3 install meson==0.60.0
 
 # Ubuntu 14.04 is not supported, see README for details
 #
 
-ubuntu-18.04:
-    image: ubuntu:bionic
+ubuntu-22.04:
+    image: ubuntu:22.04
     artifacts:
         when: always
-        name: "bionic-${CI_COMMIT_REF_NAME}"
+        name: "jammy-${CI_COMMIT_REF_NAME}"
         paths:
             - "${CI_PROJECT_DIR}/build"
     script: meson build && ninja -C build && ninja -C build test && ninja -C build install
 
-ubuntu-18.04-no-backend:
-    image: ubuntu:bionic
+ubuntu-22.04-no-backend:
+    image: ubuntu:22.04
     artifacts:
         when: always
-        name: "bionic-no-backend-${CI_COMMIT_REF_NAME}"
+        name: "jammy-no-backend-${CI_COMMIT_REF_NAME}"
         paths:
             - "${CI_PROJECT_DIR}/build"
     script: meson -Denable-backend=false build && ninja -C build && ninja -C build test && ninja -C build install

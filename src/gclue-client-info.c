@@ -356,14 +356,17 @@ on_dbus_proxy_ready (GObject      *source_object,
         GTask *task = G_TASK (user_data);
         gpointer *info = g_task_get_source_object (task);
         GClueClientInfoPrivate *priv = GCLUE_CLIENT_INFO (info)->priv;
+        GDBusProxy *dbus_proxy;
         GError *error = NULL;
 
-        priv->dbus_proxy = g_dbus_proxy_new_for_bus_finish (res, &error);
-        if (priv->dbus_proxy == NULL) {
+        dbus_proxy = g_dbus_proxy_new_for_bus_finish (res, &error);
+        if (dbus_proxy == NULL) {
                 g_task_return_error (task, error);
                 g_object_unref (task);
                 return;
         }
+
+        priv->dbus_proxy = dbus_proxy;
 
         g_dbus_proxy_call (priv->dbus_proxy,
                            "GetConnectionUnixUser",
