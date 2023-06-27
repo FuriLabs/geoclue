@@ -10,6 +10,8 @@ include <tunables/global>
   include <abstractions/nameservice>
 
   /etc/geoclue/geoclue.conf r,
+  /etc/geoclue/conf.d/ r,
+  /etc/geoclue/conf.d/*.conf r,
   /proc/*/cgroup r,
   /usr/libexec/geoclue mr,
 
