@@ -730,13 +730,18 @@ on_read_nmea_sentence (GObject      *object,
                                         g_warning ("Error when receiving message: %s",
                                                    error->message);
                                 }
+                                service_broken (source);
+                                return;
                         } else {
-                                g_debug ("NMEA nothing to read");
+                                g_debug ("NMEA empty read");
+                                /* GLib has a bug where g_data_input_stream_read_upto_finish
+                                 * returns NULL when reading a line with only stop chars.
+                                 * Convert this NULL to a zero-length message. See:
+                                 * https://gitlab.gnome.org/GNOME/glib/-/issues/655
+                                 */
+                                message = g_strdup ("");
                         }
 
-                        service_broken (source);
-
-                        return;
                 }
                 g_debug ("Network source sent: \"%s\"", message);
 
