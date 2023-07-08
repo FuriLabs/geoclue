@@ -655,8 +655,9 @@ gclue_location_create_from_rmc (const char     *rmc,
         }
 
         /* RMC sentence is invalid */
-        if (g_strcmp0 (parts[3], "A") != 0)
+        if (g_strcmp0 (parts[2], "A") != 0) {
                 return NULL;
+        }
 
         guint64 timestamp = parse_nmea_timestamp (parts[1]);
         gdouble lat = parse_coordinate_string (parts[3], parts[4]);
