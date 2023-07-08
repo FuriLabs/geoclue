@@ -748,6 +748,7 @@ gclue_location_create_from_nmeas (const char     *nmeas[],
                         (gga_loc, gclue_location_get_speed(rmc_loc));
                 gclue_location_set_heading
                         (gga_loc, gclue_location_get_heading(rmc_loc));
+                g_object_set (gga_loc, "description", "GPS GGA+RMC", NULL);
                 g_object_unref (rmc_loc);
 
                 return gga_loc;
