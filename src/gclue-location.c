@@ -618,8 +618,10 @@ gclue_location_create_from_gga (const char *gga)
         timestamp = parse_nmea_timestamp (parts[1]);
         latitude = parse_coordinate_string (parts[2], parts[3]);
         longitude = parse_coordinate_string (parts[4], parts[5]);
-        if (latitude == INVALID_COORDINATE || longitude == INVALID_COORDINATE)
+        if (latitude == INVALID_COORDINATE || longitude == INVALID_COORDINATE) {
+                g_warning ("Invalid coordinate on NMEA GGA sentence.");
                 return NULL;
+        }
 
         altitude = parse_altitude_string (parts[9], parts[10]);
 
@@ -663,8 +665,10 @@ gclue_location_create_from_rmc (const char     *rmc,
         gdouble lat = parse_coordinate_string (parts[3], parts[4]);
         gdouble lon = parse_coordinate_string (parts[5], parts[6]);
 
-        if (lat == INVALID_COORDINATE || lon == INVALID_COORDINATE)
+        if (lat == INVALID_COORDINATE || lon == INVALID_COORDINATE) {
+                g_warning ("Invalid coordinate on NMEA RMC sentence.");
                 return NULL;
+        }
 
         gdouble speed = GCLUE_LOCATION_SPEED_UNKNOWN;
         if (parts[7][0] != '\0')
