@@ -744,8 +744,6 @@ on_read_nmea_sentence (GObject      *object,
                         g_strlcpy (gga, message, NMEA_STR_LEN);
                 } else if (gclue_nmea_type_is (message, "RMC")) {
                         g_strlcpy (rmc, message, NMEA_STR_LEN);
-                } else {
-                        g_debug ("Ignoring NMEA sentence, as it's neither GGA or RMC: %s", message);
                 }
 
                 nmea_skip_delim (G_BUFFERED_INPUT_STREAM (data_input_stream),
