@@ -715,7 +715,6 @@ gclue_location_create_from_rmc (const char     *rmc,
  * gclue_location_create_from_nmeas:
  * @nmea: A NULL terminated array NMEA sentence strings
  * @prev_location: Previous location provided from the location source
- * @error: Place-holder for errors.
  *
  * Creates a new #GClueLocation object by combining data from multiple NMEA
  * sentences.
@@ -726,8 +725,7 @@ gclue_location_create_from_rmc (const char     *rmc,
  **/
 GClueLocation *
 gclue_location_create_from_nmeas (const char     *nmeas[],
-                                  GClueLocation  *prev_location,
-                                  GError        **error)
+                                  GClueLocation  *prev_location)
 {
         GClueLocation *gga_loc = NULL;
         GClueLocation *rmc_loc = NULL;
@@ -758,10 +756,7 @@ gclue_location_create_from_nmeas (const char     *nmeas[],
         if (rmc_loc)
                 return rmc_loc;
 
-        g_set_error_literal (error,
-                             G_IO_ERROR,
-                             G_IO_ERROR_INVALID_ARGUMENT,
-                             "Valid NMEA GGA or RMC sentence not found");
+        g_debug ("Valid NMEA GGA or RMC sentence not found");
         return NULL;
 }
 

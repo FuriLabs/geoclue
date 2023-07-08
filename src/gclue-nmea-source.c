@@ -771,12 +771,8 @@ on_read_nmea_sentence (GObject      *object,
                 prev_location = gclue_location_source_get_location
                         (GCLUE_LOCATION_SOURCE (source));
                 location = gclue_location_create_from_nmeas (sentences,
-                                                             prev_location,
-                                                             &error);
-
-                if (error != NULL) {
-                        g_warning ("Error: %s", error->message);
-                } else {
+                                                             prev_location);
+                if (location) {
                         gclue_location_source_set_location
                                 (GCLUE_LOCATION_SOURCE (source), location);
                 }
