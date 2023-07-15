@@ -12,6 +12,7 @@ include <tunables/global>
   /etc/geoclue/geoclue.conf r,
   /etc/geoclue/conf.d/ r,
   /etc/geoclue/conf.d/*.conf r,
+  /etc/geolocation r,
   /proc/*/cgroup r,
   /usr/libexec/geoclue mr,
 
