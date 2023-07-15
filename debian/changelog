@@ -1,3 +1,11 @@
+geoclue-2.0 (2.7.0-2) unstable; urgency=medium
+
+  * Apparmor: Allow reading configuration files in /etc/geoclue/conf.d/
+  * Apparmor: Allow reading /etc/geolocation.
+    Thanks to Edward Betts <edward@4angle.com>
+
+ -- Laurent Bigonville <bigon@debian.org>  Sat, 15 Jul 2023 12:36:08 +0200
+
 geoclue-2.0 (2.7.0-1) unstable; urgency=medium
 
   [ Michael Biebl ]
