@@ -37,7 +37,7 @@ if get_option('enable-backend')
     # DBus Service policy file
     dbus_service_dir = get_option('dbus-sys-dir')
     if dbus_service_dir == ''
-        dbus_service_dir = join_paths(sysconfdir, 'dbus-1', 'system.d')
+        dbus_service_dir = join_paths(datadir, 'dbus-1', 'system.d')
     endif
     configure_file(output: 'org.freedesktop.GeoClue2.conf',
                    input: 'org.freedesktop.GeoClue2.conf.in',
