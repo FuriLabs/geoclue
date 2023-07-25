@@ -1,3 +1,10 @@
+geoclue-2.0 (2.7.0-3) UNRELEASED; urgency=medium
+
+  * Move D-Bus policy files from /etc/dbus-1 to /usr/share/dbus-1 (Closes:
+    #1041780)
+
+ -- Laurent Bigonville <bigon@debian.org>  Tue, 25 Jul 2023 11:56:10 +0200
+
 geoclue-2.0 (2.7.0-2) unstable; urgency=medium
 
   * Apparmor: Allow reading configuration files in /etc/geoclue/conf.d/
