@@ -13,6 +13,7 @@ include <tunables/global>
   /etc/geoclue/conf.d/ r,
   /etc/geoclue/conf.d/*.conf r,
   /etc/geolocation r,
+  /proc/sys/net/ipv6/conf/all/disable_ipv6 r,
   /proc/*/cgroup r,
   /usr/libexec/geoclue mr,
 
