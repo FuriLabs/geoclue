@@ -4,7 +4,7 @@
   is already included in your distro/OS, you should be able to use the
   package manager's command to install all build depedndancies.
 
-  * gio (>= 2.44.0)
+  * gio
   * gobject-introspection
   * json-glib
   * libsoup3.0
