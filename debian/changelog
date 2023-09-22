@@ -1,4 +1,4 @@
-geoclue-2.0 (2.7.1-1) UNRELEASED; urgency=medium
+geoclue-2.0 (2.7.1-1) unstable; urgency=medium
 
   * New upstream release
     - Bump libglib2.0-dev BD to >= 2.68.0
@@ -6,7 +6,7 @@ geoclue-2.0 (2.7.1-1) UNRELEASED; urgency=medium
   * Update apparmor policy to allow several DBus operations, from Ubuntu
     Thanks to Georgia Garcia (Closes: #1050694)
 
- -- Laurent Bigonville <bigon@debian.org>  Fri, 22 Sep 2023 10:13:20 +0200
+ -- Laurent Bigonville <bigon@debian.org>  Fri, 22 Sep 2023 13:03:48 +0200
 
 geoclue-2.0 (2.7.0-3) unstable; urgency=medium
 
