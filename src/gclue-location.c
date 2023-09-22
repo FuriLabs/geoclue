@@ -29,9 +29,11 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define TIME_DIFF_THRESHOLD 60000000 /* 60 seconds */
+#define TIME_DIFF_THRESHOLD (60 * G_USEC_PER_SEC) /* 60 seconds */
 #define EARTH_RADIUS_KM 6372.795
 #define KNOTS_IN_METERS_PER_SECOND 0.51444
+#define RMC_TIME_DIFF_THRESHOLD 5 /* 5 seconds */
+#define RMC_DEFAULT_ACCURACY 5    /* 5 meters */
 
 struct _GClueLocationPrivate {
         char   *description;
@@ -479,14 +481,20 @@ parse_altitude_string (const char *altitude,
         return g_ascii_strtod (altitude, NULL);
 }
 
+/* Return a timestamp derived from the NMEA timestamp and system date as
+ * seconds since epoch.
+ * If system time cannot be retrieved, return 0.
+ * If timestamp parsing fails, return system time.
+ * If the parsed time is in the future when compared to the system time,
+ * return the parsed time yesterday.
+ */
 static gint64
 parse_nmea_timestamp (const char *nmea_ts)
 {
-        char parts[3][3];
-        int i, hours, minutes, seconds;
         g_autoptr(GDateTime) now = NULL;
+        g_autoptr(GDateTime) midnight = NULL;
         g_autoptr(GDateTime) ts = NULL;
-        guint64 ret;
+        GTimeSpan timespan;
 
         now = g_date_time_new_now_utc ();
         if (now == NULL) {
@@ -494,51 +502,32 @@ parse_nmea_timestamp (const char *nmea_ts)
                 return 0;
         }
 
-        ret = g_date_time_to_unix (now);
-
-        if (strlen (nmea_ts) < 6) {
-                if (strlen (nmea_ts) >= 1)
-                        /* Empty string just means no ts, so no warning */
-                        g_warning ("Failed to parse NMEA timestamp '%s'",
-                                   nmea_ts);
-
-                goto parse_error;
+        if (!nmea_ts || !*nmea_ts) {  /* Empty timestamp, no warning */
+                return g_date_time_to_unix (now);
         }
 
-        for (i = 0; i < 3; i++) {
-                memmove (parts[i], nmea_ts + (i * 2), 2);
-                parts[i][2] = '\0';
+        timespan = gclue_nmea_timestamp_to_timespan (nmea_ts);
+        if (timespan < 0) {
+                g_warning ("Failed to parse NMEA timestamp '%s'", nmea_ts);
+                return g_date_time_to_unix (now);
         }
-        hours = atoi (parts[0]);
-        minutes = atoi (parts[1]);
-        seconds = atoi (parts[2]);
 
-        ts = g_date_time_new_utc (g_date_time_get_year (now),
-                                  g_date_time_get_month (now),
-                                  g_date_time_get_day_of_month (now),
-                                  hours,
-                                  minutes,
-                                  seconds);
-        if (ts == NULL)
-                goto parse_error;
+        midnight = g_date_time_new_utc (g_date_time_get_year (now),
+                                        g_date_time_get_month (now),
+                                        g_date_time_get_day_of_month (now),
+                                        0,
+                                        0,
+                                        0);
+        ts = g_date_time_add (midnight, timespan);
 
         if (g_date_time_difference (ts, now) > TIME_DIFF_THRESHOLD) {
                 g_debug ("NMEA timestamp '%s' in future. Assuming yesterday's.",
                          nmea_ts);
-
                 g_clear_pointer (&ts, g_date_time_unref);
-                ts = g_date_time_new_utc (g_date_time_get_year (now),
-                                          g_date_time_get_month (now),
-                                          g_date_time_get_day_of_month (now) - 1,
-                                          hours,
-                                          minutes,
-                                          seconds);
+                ts = g_date_time_add (midnight, timespan - G_TIME_SPAN_DAY);
         }
 
-        ret = g_date_time_to_unix (ts);
-
-parse_error:
-        return ret;
+        return g_date_time_to_unix (ts);
 }
 
 /**
@@ -604,7 +593,7 @@ gclue_location_new_full (gdouble     latitude,
 }
 
 static GClueLocation *
-gclue_location_create_from_gga (const char *gga, GError **error)
+gclue_location_create_from_gga (const char *gga)
 {
         GClueLocation *location;
         gdouble latitude, longitude, accuracy, altitude;
@@ -614,10 +603,12 @@ gclue_location_create_from_gga (const char *gga, GError **error)
 
         parts = g_strsplit (gga, ",", -1);
         if (g_strv_length (parts) < 14) {
-                g_set_error_literal (error,
-                                     G_IO_ERROR,
-                                     G_IO_ERROR_INVALID_ARGUMENT,
-                                     "Invalid NMEA GGA sentence");
+                g_warning ("Invalid NMEA GGA sentence.");
+                return NULL;
+        }
+
+        if (g_ascii_strtoll (parts[6], NULL, 10) == 0) {
+                /* No fix, ignore. */
                 return NULL;
         }
 
@@ -628,10 +619,7 @@ gclue_location_create_from_gga (const char *gga, GError **error)
         latitude = parse_coordinate_string (parts[2], parts[3]);
         longitude = parse_coordinate_string (parts[4], parts[5]);
         if (latitude == INVALID_COORDINATE || longitude == INVALID_COORDINATE) {
-                g_set_error_literal (error,
-                                     G_IO_ERROR,
-                                     G_IO_ERROR_INVALID_ARGUMENT,
-                                     "Invalid NMEA GGA sentence");
+                g_warning ("Invalid coordinate on NMEA GGA sentence.");
                 return NULL;
         }
 
@@ -655,22 +643,32 @@ gclue_location_create_from_gga (const char *gga, GError **error)
 
 static GClueLocation *
 gclue_location_create_from_rmc (const char     *rmc,
-                                GClueLocation  *prev_location,
-                                GError        **error)
+                                GClueLocation  *prev_location)
 {
         GClueLocation *location;
         g_auto(GStrv) parts = NULL;
+        gdouble accuracy;
+        gdouble altitude;
 
         parts = g_strsplit (rmc, ",", -1);
-        if (g_strv_length (parts) < 13)
-                goto error;
+        if (g_strv_length (parts) < 13) {
+                g_warning ("Invalid NMEA RMC sentence.");
+                return NULL;
+        }
+
+        /* RMC sentence is invalid */
+        if (g_strcmp0 (parts[2], "A") != 0) {
+                return NULL;
+        }
 
         guint64 timestamp = parse_nmea_timestamp (parts[1]);
         gdouble lat = parse_coordinate_string (parts[3], parts[4]);
         gdouble lon = parse_coordinate_string (parts[5], parts[6]);
 
-        if (lat == INVALID_COORDINATE || lon == INVALID_COORDINATE)
-                goto error;
+        if (lat == INVALID_COORDINATE || lon == INVALID_COORDINATE) {
+                g_warning ("Invalid coordinate on NMEA RMC sentence.");
+                return NULL;
+        }
 
         gdouble speed = GCLUE_LOCATION_SPEED_UNKNOWN;
         if (parts[7][0] != '\0')
@@ -686,6 +684,23 @@ gclue_location_create_from_rmc (const char     *rmc,
                 heading = GCLUE_LOCATION_HEADING_UNKNOWN;
         }
 
+        accuracy = RMC_DEFAULT_ACCURACY;
+        altitude = GCLUE_LOCATION_ALTITUDE_UNKNOWN;
+        if (prev_location != NULL) {
+                guint64 prev_loc_timestamp;
+
+                prev_loc_timestamp = gclue_location_get_timestamp (prev_location);
+
+                /* Sentence is older then previous location, reject */
+                if (timestamp < prev_loc_timestamp)
+                        return NULL;
+
+                if (timestamp - prev_loc_timestamp < RMC_TIME_DIFF_THRESHOLD) {
+                        accuracy = gclue_location_get_accuracy (prev_location);
+                        altitude = gclue_location_get_altitude (prev_location);
+                }
+        }
+
         location = g_object_new (GCLUE_TYPE_LOCATION,
                                  "latitude", lat,
                                  "longitude", lon,
@@ -693,34 +708,17 @@ gclue_location_create_from_rmc (const char     *rmc,
                                  "speed", speed,
                                  "heading", heading,
                                  "description", "GPS RMC",
+                                 "accuracy", accuracy,
+                                 "altitude", altitude,
                                  NULL);
 
-        if (prev_location != NULL) {
-                g_object_set (location,
-                              "accuracy",
-                              gclue_location_get_accuracy (prev_location),
-                              NULL);
-                g_object_set (location,
-                              "altitude",
-                              gclue_location_get_altitude (prev_location),
-                              NULL);
-        }
-
         return location;
-
-error:
-        g_set_error_literal (error,
-                             G_IO_ERROR,
-                             G_IO_ERROR_INVALID_ARGUMENT,
-                             "Invalid NMEA RMC sentence");
-        return NULL;
 }
 
 /**
  * gclue_location_create_from_nmeas:
  * @nmea: A NULL terminated array NMEA sentence strings
  * @prev_location: Previous location provided from the location source
- * @error: Place-holder for errors.
  *
  * Creates a new #GClueLocation object by combining data from multiple NMEA
  * sentences.
@@ -731,8 +729,7 @@ error:
  **/
 GClueLocation *
 gclue_location_create_from_nmeas (const char     *nmeas[],
-                                  GClueLocation  *prev_location,
-                                  GError        **error)
+                                  GClueLocation  *prev_location)
 {
         GClueLocation *gga_loc = NULL;
         GClueLocation *rmc_loc = NULL;
@@ -740,10 +737,10 @@ gclue_location_create_from_nmeas (const char     *nmeas[],
 
         for (iter = nmeas; *iter != NULL; iter++) {
                 if (!gga_loc && gclue_nmea_type_is (*iter, "GGA"))
-                        gga_loc = gclue_location_create_from_gga (*iter, NULL);
+                        gga_loc = gclue_location_create_from_gga (*iter);
                 if (!rmc_loc && gclue_nmea_type_is (*iter, "RMC"))
                         rmc_loc = gclue_location_create_from_rmc
-                                (*iter, prev_location, NULL);
+                                (*iter, prev_location);
                 if (gga_loc && rmc_loc)
                     break;
         }
@@ -753,6 +750,7 @@ gclue_location_create_from_nmeas (const char     *nmeas[],
                         (gga_loc, gclue_location_get_speed(rmc_loc));
                 gclue_location_set_heading
                         (gga_loc, gclue_location_get_heading(rmc_loc));
+                g_object_set (gga_loc, "description", "GPS GGA+RMC", NULL);
                 g_object_unref (rmc_loc);
 
                 return gga_loc;
@@ -762,10 +760,7 @@ gclue_location_create_from_nmeas (const char     *nmeas[],
         if (rmc_loc)
                 return rmc_loc;
 
-        g_set_error_literal (error,
-                             G_IO_ERROR,
-                             G_IO_ERROR_INVALID_ARGUMENT,
-                             "Valid NMEA GGA or RMC sentence not found");
+        g_debug ("Valid NMEA GGA or RMC sentence not found");
         return NULL;
 }
 

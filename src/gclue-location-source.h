@@ -84,6 +84,8 @@ void              gclue_location_source_set_location
                                                GClueLocation       *location);
 gboolean          gclue_location_source_get_active
                                               (GClueLocationSource *source);
+gboolean          gclue_location_source_get_priority_source
+                                              (GClueLocationSource *source);
 GClueAccuracyLevel
                   gclue_location_source_get_available_accuracy_level
                                               (GClueLocationSource *source);

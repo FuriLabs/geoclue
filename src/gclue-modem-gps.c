@@ -198,7 +198,9 @@ gclue_modem_gps_get_singleton (void)
         static GClueModemGPS *source = NULL;
 
         if (source == NULL) {
-                source = g_object_new (GCLUE_TYPE_MODEM_GPS, NULL);
+                source = g_object_new (GCLUE_TYPE_MODEM_GPS,
+                                       "priority-source", TRUE,
+                                       NULL);
                 g_object_weak_ref (G_OBJECT (source),
                                    on_modem_gps_destroyed,
                                    &source);
@@ -216,21 +218,13 @@ on_fix_gps (GClueModem *modem,
         GClueLocationSource *source = GCLUE_LOCATION_SOURCE (user_data);
         GClueLocation *prev_location;
         g_autoptr(GClueLocation) location = NULL;
-        g_autoptr(GError) error = NULL;
 
         prev_location = gclue_location_source_get_location (source);
-        location = gclue_location_create_from_nmeas (nmeas,
-                                                     prev_location,
-                                                     &error);
+        location = gclue_location_create_from_nmeas (nmeas, prev_location);
 
-        if (error != NULL) {
-            g_warning ("Error: %s", error->message);
-
-            return;
+        if (location) {
+                gclue_location_source_set_location (source, location);
         }
-
-        gclue_location_source_set_location (source,
-                                            location);
 }
 
 static GClueLocationSourceStartResult

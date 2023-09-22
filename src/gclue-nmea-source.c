@@ -730,13 +730,18 @@ on_read_nmea_sentence (GObject      *object,
                                         g_warning ("Error when receiving message: %s",
                                                    error->message);
                                 }
+                                service_broken (source);
+                                return;
                         } else {
-                                g_debug ("NMEA nothing to read");
+                                g_debug ("NMEA empty read");
+                                /* GLib has a bug where g_data_input_stream_read_upto_finish
+                                 * returns NULL when reading a line with only stop chars.
+                                 * Convert this NULL to a zero-length message. See:
+                                 * https://gitlab.gnome.org/GNOME/glib/-/issues/655
+                                 */
+                                message = g_strdup ("");
                         }
 
-                        service_broken (source);
-
-                        return;
                 }
                 g_debug ("Network source sent: \"%s\"", message);
 
@@ -744,8 +749,6 @@ on_read_nmea_sentence (GObject      *object,
                         g_strlcpy (gga, message, NMEA_STR_LEN);
                 } else if (gclue_nmea_type_is (message, "RMC")) {
                         g_strlcpy (rmc, message, NMEA_STR_LEN);
-                } else {
-                        g_debug ("Ignoring NMEA sentence, as it's neither GGA or RMC: %s", message);
                 }
 
                 nmea_skip_delim (G_BUFFERED_INPUT_STREAM (data_input_stream),
@@ -773,12 +776,8 @@ on_read_nmea_sentence (GObject      *object,
                 prev_location = gclue_location_source_get_location
                         (GCLUE_LOCATION_SOURCE (source));
                 location = gclue_location_create_from_nmeas (sentences,
-                                                             prev_location,
-                                                             &error);
-
-                if (error != NULL) {
-                        g_warning ("Error: %s", error->message);
-                } else {
+                                                             prev_location);
+                if (location) {
                         gclue_location_source_set_location
                                 (GCLUE_LOCATION_SOURCE (source), location);
                 }
@@ -1071,7 +1070,9 @@ gclue_nmea_source_get_singleton (void)
         static GClueNMEASource *source = NULL;
 
         if (source == NULL) {
-                source = g_object_new (GCLUE_TYPE_NMEA_SOURCE, NULL);
+                source = g_object_new (GCLUE_TYPE_NMEA_SOURCE,
+                                       "priority-source", TRUE,
+                                       NULL);
                 g_object_add_weak_pointer (G_OBJECT (source),
                                            (gpointer) &source);
         } else {
