@@ -565,6 +565,8 @@ on_submit_source_location_notify (GObject    *source_object,
         if (location == NULL ||
             gclue_location_get_accuracy (location) >
             SUBMISSION_ACCURACY_THRESHOLD ||
+            gclue_location_get_accuracy (location) ==
+            GCLUE_LOCATION_ACCURACY_UNKNOWN ||
             gclue_location_get_timestamp (location) <
             web->priv->last_submitted + SUBMISSION_TIME_THRESHOLD)
                 return;

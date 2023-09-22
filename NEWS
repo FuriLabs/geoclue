@@ -1,3 +1,24 @@
+2.7.1
+=====
+
+- Add 'age' field to MLS locate queries
+- Location updates now always have an accuracy value
+- Improvements to NMEA parsing:
+  - Parse NMEA timestamps with sub-second accuracy
+  - Add default accuracy to NMEA RMC locations
+  - Ignore locations from GGA and RMC sentences if the GNSS fix is not valid
+- Prioritize GNSS sources with a recent fix over other sources, preventing location jumps
+- Install D-Bus policy in /usr/share, not /etc
+- Upgrade GLib / Gio dependency to version 2.68.0
+- Correct gi annotations in GClueSimple
+- Various small fixes
+
+Contributors:
+- Chris Talbot
+- Gioele Barabucci
+- Philipp Hörist
+- Teemu Ikonen
+
 2.7.0
 =====
 

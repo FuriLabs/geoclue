@@ -7,8 +7,10 @@ before_script:
     - DEBIAN_FRONTEND=noninteractive apt-get install --yes libsoup-3.0
     - pip3 install meson==0.60.0
 
-# Ubuntu 14.04 is not supported, see README for details
-#
+workflow:
+    rules:
+        - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+        - if: $CI_PIPELINE_SOURCE == 'push'
 
 ubuntu-22.04:
     image: ubuntu:22.04
