@@ -569,8 +569,10 @@ gclue_config_init (GClueConfig *config)
         dir = g_dir_open (CONFIG_D_DIRECTORY, 0, &error);
 
         if (error != NULL) {
-                g_warning ("Failed to open %s: %s",
-                           CONFIG_D_DIRECTORY, error->message);
+                if (!g_error_matches (error, G_FILE_ERROR, G_FILE_ERROR_NOENT)) {
+                        g_warning ("Failed to open %s: %s",
+                                   CONFIG_D_DIRECTORY, error->message);
+                }
                 goto out;
         }
 
