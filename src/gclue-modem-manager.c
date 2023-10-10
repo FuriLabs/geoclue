@@ -427,12 +427,12 @@ on_location_changed_get_3gpp (GObject *modem_object,
                               GClueModemManager *manager)
 {
 #if MM_CHECK_VERSION(1, 18, 0)
-	on_get_3gpp_ready(modem_object, NULL, manager);
+        on_get_3gpp_ready(modem_object, NULL, manager);
 #else
-	mm_modem_location_get_3gpp (MM_MODEM_LOCATION (modem_object),
-				    manager->priv->cancellable,
-				    on_get_3gpp_ready,
-				    manager);
+        mm_modem_location_get_3gpp (MM_MODEM_LOCATION (modem_object),
+                                    manager->priv->cancellable,
+                                    on_get_3gpp_ready,
+                                    manager);
 #endif
 }
 
@@ -481,12 +481,12 @@ on_location_changed_get_cdma (GObject *modem_object,
                               GClueModemManager *manager)
 {
 #if MM_CHECK_VERSION(1, 18, 0)
-	on_get_cdma_ready(modem_object, NULL, manager);
+        on_get_cdma_ready(modem_object, NULL, manager);
 #else
-	mm_modem_location_get_cdma_bs (MM_MODEM_LOCATION (modem_object),
-				manager->priv->cancellable,
-				on_get_cdma_ready,
-				manager);
+        mm_modem_location_get_cdma_bs (MM_MODEM_LOCATION (modem_object),
+                                       manager->priv->cancellable,
+                                       on_get_cdma_ready,
+                                       manager);
 #endif
 }
 
@@ -531,7 +531,7 @@ on_get_gps_nmea_ready (GObject      *source_object,
                 return;
         }
 #else
-	location_nmea = mm_modem_location_get_signaled_gps_nmea (modem_location);
+        location_nmea = mm_modem_location_get_signaled_gps_nmea (modem_location);
 #endif
 
         manager = GCLUE_MODEM_MANAGER (user_data);
@@ -572,12 +572,12 @@ on_location_changed_get_gps_nmea (GObject    *modem_object,
                                   GClueModemManager *manager)
 {
 #if MM_CHECK_VERSION(1, 18, 0)
-	on_get_gps_nmea_ready(modem_object, NULL, manager);
+        on_get_gps_nmea_ready(modem_object, NULL, manager);
 #else
-	mm_modem_location_get_gps_nmea (MM_MODEM_LOCATION (modem_object),
-				manager->priv->cancellable,
-				on_get_gps_nmea_ready,
-				manager);
+        mm_modem_location_get_gps_nmea (MM_MODEM_LOCATION (modem_object),
+                                        manager->priv->cancellable,
+                                        on_get_gps_nmea_ready,
+                                        manager);
 #endif
 }
 
@@ -589,11 +589,11 @@ on_location_changed (GObject    *modem_object,
         GClueModemManager *manager = GCLUE_MODEM_MANAGER (user_data);
 
         if ((manager->priv->caps & MM_MODEM_LOCATION_SOURCE_3GPP_LAC_CI) != 0)
-		on_location_changed_get_3gpp (modem_object, manager);
+                on_location_changed_get_3gpp (modem_object, manager);
         if ((manager->priv->caps & MM_MODEM_LOCATION_SOURCE_CDMA_BS) != 0)
-		on_location_changed_get_cdma (modem_object, manager);
+                on_location_changed_get_cdma (modem_object, manager);
         if ((manager->priv->caps & MM_MODEM_LOCATION_SOURCE_GPS_NMEA) != 0)
-		on_location_changed_get_gps_nmea (modem_object, manager);
+                on_location_changed_get_gps_nmea (modem_object, manager);
 }
 
 static void
