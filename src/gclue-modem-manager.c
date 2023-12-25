@@ -665,6 +665,7 @@ clear_caps (GClueModemManager    *manager,
             GCancellable         *cancellable,
             GError              **error)
 {
+        MMModemLocationSource enabled_caps;
         GClueModemManagerPrivate *priv;
 
         priv = manager->priv;
@@ -674,8 +675,11 @@ clear_caps (GClueModemManager    *manager,
 
         priv->caps &= ~caps;
 
+        /* We'll disable only the capability we are told to disable,
+         * in case there are other programs interacting with ModemManager */
+        enabled_caps = mm_modem_location_get_enabled (priv->modem_location);
         return mm_modem_location_setup_sync (priv->modem_location,
-                                             priv->caps,
+                                             enabled_caps & ~caps,
                                              TRUE,
                                              cancellable,
                                              error);
