@@ -1,3 +1,13 @@
+geoclue-2.0 (2.7.1-2) unstable; urgency=medium
+
+  * Team upload
+  * Install systemd service files into /usr/lib.
+    Add a corresponding versioned Build-Depends on debhelper (>= 13.11.6) to
+    ensure we have a recent enough version of dh_installsystemd.
+  * Update lintian override accordingly
+
+ -- Michael Biebl <biebl@debian.org>  Wed, 31 Jan 2024 14:45:04 +0100
+
 geoclue-2.0 (2.7.1-1) unstable; urgency=medium
 
   * New upstream release
