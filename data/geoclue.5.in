@@ -241,6 +241,9 @@ For extra security, the static location file can be made readable just by the ge
 # chmod 600 @sysconfdir@/geolocation
 .EE
 .br
+.SH CLIENT LIST
+Sending SIGUSR1 to a running geoclue process prints the current list of clients to the log.
+.br
 .SH AUTHOR
 .na
 .nf
