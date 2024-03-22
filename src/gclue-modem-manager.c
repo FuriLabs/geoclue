@@ -697,6 +697,58 @@ modem_has_caps (GClueModemManager    *manager,
 }
 
 static void
+on_enable_agps_ready (GObject      *source,
+                      GAsyncResult *result,
+                      gpointer      user_data)
+{
+        GClueModemManager *manager;
+        g_autoptr(GError) error = NULL;
+
+        g_return_if_fail (GCLUE_IS_MODEM_MANAGER (source));
+        manager = GCLUE_MODEM_MANAGER (source);
+
+        if (!enable_caps_finish (manager, result, &error)) {
+                g_warning ("Failed to enable assisted GPS: %s", error->message);
+                /* Clear AGPS caps so that subsequent calls to enable_caps do not fail */
+                manager->priv->caps &= ~(MM_MODEM_LOCATION_SOURCE_AGPS_MSB | MM_MODEM_LOCATION_SOURCE_AGPS_MSA);
+        }
+}
+
+static void
+enable_agps (GClueModemManager *manager)
+{
+        MMModemLocationSource assistance_caps = MM_MODEM_LOCATION_SOURCE_NONE;
+
+        g_return_if_fail (
+                gclue_modem_manager_get_is_gps_available (GCLUE_MODEM (manager)));
+
+        if (manager->priv->modem_location
+            && mm_modem_location_get_supl_server (manager->priv->modem_location) != NULL) {
+                MMModemLocationSource caps;
+
+                caps = mm_modem_location_get_capabilities (manager->priv->modem_location);
+                /* Prefer MSB assistance */
+                if (caps & MM_MODEM_LOCATION_SOURCE_AGPS_MSB) {
+                        assistance_caps |= MM_MODEM_LOCATION_SOURCE_AGPS_MSB;
+                        g_debug ("Enabing MSB assisted GPS");
+                } else if (caps & MM_MODEM_LOCATION_SOURCE_AGPS_MSA) {
+                        assistance_caps |= MM_MODEM_LOCATION_SOURCE_AGPS_MSA;
+                        g_debug ("Enabling MSA assisted GPS");
+                }
+        }
+        if (assistance_caps == MM_MODEM_LOCATION_SOURCE_NONE) {
+                g_debug ("Assisted GPS not available");
+                return;
+        }
+
+        enable_caps (manager,
+                     assistance_caps,
+                     manager->priv->cancellable,
+                     on_enable_agps_ready,
+                     manager);
+}
+
+static void
 on_mm_object_added (GDBusObjectManager *object_manager,
                     GDBusObject        *object,
                     gpointer            user_data);
@@ -740,6 +792,7 @@ on_mm_modem_state_notify (GObject    *gobject,
                 g_debug ("Enabling 3G and CDMA location on modem '%s'", path);
                 g_object_notify_by_pspec (G_OBJECT (manager), gParamSpecs[PROP_IS_3G_AVAILABLE]);
                 g_object_notify_by_pspec (G_OBJECT (manager), gParamSpecs[PROP_IS_CDMA_AVAILABLE]);
+                enable_agps (manager);
         }
         g_object_unref (mm_modem);
 }
@@ -815,6 +868,7 @@ on_mm_object_added (GDBusObjectManager *object_manager,
         if (modem_is_enabled) {
                 g_object_notify_by_pspec (G_OBJECT (manager), gParamSpecs[PROP_IS_3G_AVAILABLE]);
                 g_object_notify_by_pspec (G_OBJECT (manager), gParamSpecs[PROP_IS_CDMA_AVAILABLE]);
+                enable_agps (manager);
         } else {
                 g_debug ("3G or CDMA are not available on non-enabled modem '%s'", path);
         }
@@ -1106,29 +1160,11 @@ gclue_modem_manager_enable_gps (GClueModem         *modem,
                                 GAsyncReadyCallback callback,
                                 gpointer            user_data)
 {
-        MMModemLocationSource assistance_caps;
-
         g_return_if_fail (GCLUE_IS_MODEM_MANAGER (modem));
         g_return_if_fail (gclue_modem_manager_get_is_gps_available (modem));
 
-        assistance_caps = MM_MODEM_LOCATION_SOURCE_NONE;
-#if MM_CHECK_VERSION(1, 12, 0)
-        /* Prefer MSB assistance */
-        if (modem_has_caps (GCLUE_MODEM_MANAGER (modem),
-                            MM_MODEM_LOCATION_SOURCE_AGPS_MSB)) {
-                assistance_caps |= MM_MODEM_LOCATION_SOURCE_AGPS_MSB;
-                g_debug ("Using MSB assisted GPS");
-        } else if (modem_has_caps (GCLUE_MODEM_MANAGER (modem),
-                                   MM_MODEM_LOCATION_SOURCE_AGPS_MSA)) {
-                assistance_caps |= MM_MODEM_LOCATION_SOURCE_AGPS_MSA;
-                g_debug ("Using MSA assisted GPS");
-        } else {
-                g_debug ("Assisted GPS not available");
-        }
-#endif
-
         enable_caps (GCLUE_MODEM_MANAGER (modem),
-                     MM_MODEM_LOCATION_SOURCE_GPS_NMEA | assistance_caps,
+                     MM_MODEM_LOCATION_SOURCE_GPS_NMEA,
                      cancellable,
                      callback,
                      user_data);
@@ -1191,22 +1227,15 @@ gclue_modem_manager_disable_gps (GClueModem   *modem,
                                  GError      **error)
 {
         GClueModemManager *manager;
-        MMModemLocationSource assistance_caps;
 
         g_return_val_if_fail (GCLUE_IS_MODEM_MANAGER (modem), FALSE);
         g_return_val_if_fail (gclue_modem_manager_get_is_gps_available (modem), FALSE);
         manager = GCLUE_MODEM_MANAGER (modem);
 
-#if MM_CHECK_VERSION(1, 12, 0)
-        assistance_caps = manager->priv->caps & (MM_MODEM_LOCATION_SOURCE_AGPS_MSA | MM_MODEM_LOCATION_SOURCE_AGPS_MSB);
-#else
-        assistance_caps = MM_MODEM_LOCATION_SOURCE_NONE;
-#endif
-
         g_clear_object (&manager->priv->location_nmea);
         g_debug ("Clearing GPS NMEA caps from modem");
         return clear_caps (manager,
-                           MM_MODEM_LOCATION_SOURCE_GPS_NMEA | assistance_caps,
+                           MM_MODEM_LOCATION_SOURCE_GPS_NMEA,
                            cancellable,
                            error);
 }
