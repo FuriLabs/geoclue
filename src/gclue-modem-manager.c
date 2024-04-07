@@ -896,6 +896,8 @@ on_mm_object_removed (GDBusObjectManager *object_manager,
         g_clear_object (&priv->modem);
         g_clear_object (&priv->modem_location);
 
+        priv->caps = 0;
+
         g_object_notify_by_pspec (G_OBJECT (manager), gParamSpecs[PROP_IS_3G_AVAILABLE]);
         g_object_notify_by_pspec (G_OBJECT (manager), gParamSpecs[PROP_IS_CDMA_AVAILABLE]);
         g_object_notify_by_pspec (G_OBJECT (manager), gParamSpecs[PROP_IS_GPS_AVAILABLE]);
