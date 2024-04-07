@@ -41,6 +41,9 @@ gclue_modem_interface_init (GClueModemInterface *iface);
 
 struct _GClueModemManagerPrivate {
         MMManager *manager;
+
+        GHashTable *modems_not_enabled;
+
         MMObject *mm_object;
         MMModem *modem;
         MMModemLocation *modem_location;
@@ -147,6 +150,7 @@ gclue_modem_manager_finalize (GObject *gmodem)
         g_clear_object (&priv->mm_object);
         g_clear_object (&priv->modem);
         g_clear_object (&priv->modem_location);
+        g_clear_pointer (&priv->modems_not_enabled, g_hash_table_unref);
 }
 
 static void
@@ -821,18 +825,28 @@ on_mm_object_added (GDBusObjectManager *object_manager,
         GClueModemManager *manager = GCLUE_MODEM_MANAGER (user_data);
         MMModem *mm_modem;
         MMModemLocation *modem_location;
-        const char *path;
+        const char *path = mm_object_get_path (mm_object);
         gboolean modem_is_enabled;
 
-        if (manager->priv->mm_object != NULL)
+        if (manager->priv->mm_object != NULL) {
+                g_debug ("New modem '%s' but already have one", path);
                 return;
+        }
 
-        path = mm_object_get_path (mm_object);
+        if (g_hash_table_lookup (manager->priv->modems_not_enabled, path)) {
+                g_warning ("New modem '%s' notification for an existing non-enabled modem",
+                           path);
+                return;
+        }
+
         g_debug ("New modem '%s'", path);
         mm_modem = mm_object_get_modem (mm_object);
         modem_is_enabled = mm_modem_get_state (mm_modem) >= MM_MODEM_STATE_ENABLED;
         if (!modem_is_enabled) {
                 g_debug ("Modem '%s' not enabled", path);
+
+                g_hash_table_insert (manager->priv->modems_not_enabled,
+                                     g_strdup (path), g_object_ref (mm_modem));
 
                 g_signal_connect_object (mm_modem,
                                          "notify::state",
@@ -882,10 +896,15 @@ on_mm_object_removed (GDBusObjectManager *object_manager,
         MMObject *mm_object = MM_OBJECT (object);
         GClueModemManager *manager = GCLUE_MODEM_MANAGER (user_data);
         GClueModemManagerPrivate *priv = manager->priv;
+        const char *path = mm_object_get_path (priv->mm_object);
 
-        if (priv->mm_object == NULL || priv->mm_object != mm_object)
+        g_hash_table_remove (manager->priv->modems_not_enabled, path);
+
+        if (priv->mm_object == NULL || priv->mm_object != mm_object) {
+                g_debug ("Unused modem '%s' removed.", path);
                 return;
-        g_debug ("Modem '%s' removed.", mm_object_get_path (priv->mm_object));
+        }
+        g_debug ("Modem '%s' removed.", path);
 
         clear_3gpp_location (manager);
 
@@ -1000,6 +1019,10 @@ static void
 gclue_modem_manager_init (GClueModemManager *manager)
 {
         manager->priv = gclue_modem_manager_get_instance_private (manager);
+        manager->priv->modems_not_enabled = g_hash_table_new_full (g_str_hash,
+                                                                   g_str_equal,
+                                                                   g_free,
+                                                                   g_object_unref);
 }
 
 static void
