@@ -753,52 +753,19 @@ enable_agps (GClueModemManager *manager)
 }
 
 static void
-on_mm_object_added (GDBusObjectManager *object_manager,
-                    GDBusObject        *object,
-                    gpointer            user_data);
-
-static void
-on_mm_modem_state_notify (GObject    *gobject,
-                          GParamSpec *pspec,
-                          gpointer    user_data)
+disconnect_modem_location (GClueModemManager *manager)
 {
-        MMModem *mm_modem = MM_MODEM (gobject);
-        GClueModemManager *manager = GCLUE_MODEM_MANAGER (user_data);
         GClueModemManagerPrivate *priv = manager->priv;
-        GDBusObjectManager *obj_manager = G_DBUS_OBJECT_MANAGER (priv->manager);
-        const char *path = mm_modem_get_path (mm_modem);
 
-        if (priv->mm_object != NULL && priv->modem != NULL
-            && g_strcmp0 (path, mm_modem_get_path (priv->modem)) != 0) {
-                // In the meantime another modem with location caps was found.
-                g_signal_handlers_disconnect_by_func (mm_modem,
-                                                      on_mm_modem_state_notify,
-                                                      user_data);
-                g_object_unref (gobject);
-
+        if (!priv->modem_location) {
                 return;
         }
 
-        if (mm_modem_get_state (mm_modem) < MM_MODEM_STATE_ENABLED)
-                return;
+        g_signal_handlers_disconnect_by_func (G_OBJECT (priv->modem_location),
+                                              G_CALLBACK (on_location_changed),
+                                              manager);
 
-        g_debug ("Modem '%s' now enabled", path);
-
-        g_signal_handlers_disconnect_by_func (mm_modem,
-                                              on_mm_modem_state_notify,
-                                              user_data);
-
-        if (priv->mm_object == NULL) {
-                on_mm_object_added (obj_manager,
-                                    g_dbus_object_manager_get_object (obj_manager, path),
-                                    user_data);
-        } else {
-                g_debug ("Enabling 3G and CDMA location on modem '%s'", path);
-                g_object_notify_by_pspec (G_OBJECT (manager), gParamSpecs[PROP_IS_3G_AVAILABLE]);
-                g_object_notify_by_pspec (G_OBJECT (manager), gParamSpecs[PROP_IS_CDMA_AVAILABLE]);
-                enable_agps (manager);
-        }
-        g_object_unref (mm_modem);
+        g_clear_object (&priv->modem_location);
 }
 
 static void
@@ -816,6 +783,115 @@ on_gps_refresh_rate_set (GObject      *source_object,
         }
 }
 
+static gboolean
+try_modem_location (GClueModemManager *manager,
+                    MMObject *mm_object)
+{
+        const char *path = mm_object_get_path (mm_object);
+        g_autoptr(MMModemLocation) modem_location = NULL;
+
+        modem_location = mm_object_get_modem_location (mm_object);
+        if (modem_location == NULL) {
+                g_debug ("Modem '%s' does not have location capabilities", path);
+                return FALSE;
+        }
+
+        g_debug ("Modem '%s' has location capabilities", path);
+
+        g_assert (!manager->priv->modem_location);
+        manager->priv->modem_location = g_object_ref (modem_location);
+
+        mm_modem_location_set_gps_refresh_rate (manager->priv->modem_location,
+                                                manager->priv->time_threshold,
+                                                manager->priv->cancellable,
+                                                on_gps_refresh_rate_set,
+                                                NULL);
+
+        g_signal_connect (G_OBJECT (manager->priv->modem_location),
+                          "notify::location",
+                          G_CALLBACK (on_location_changed),
+                          manager);
+
+        return TRUE;
+}
+
+static void
+try_modem (GClueModemManager *manager,
+           MMObject *mm_object,
+           MMModem *mm_modem,
+           gboolean modem_is_enabled)
+{
+        const char *path = mm_object_get_path (mm_object);
+
+        if (!try_modem_location (manager,
+                                 mm_object)) {
+                return;
+        }
+
+        manager->priv->mm_object = g_object_ref (mm_object);
+        manager->priv->modem = g_object_ref (mm_modem);
+
+        /* Has to be done after setting up manager->priv objects */
+        g_object_notify_by_pspec (G_OBJECT (manager), gParamSpecs[PROP_IS_GPS_AVAILABLE]);
+
+        if (modem_is_enabled) {
+                g_object_notify_by_pspec (G_OBJECT (manager), gParamSpecs[PROP_IS_3G_AVAILABLE]);
+                g_object_notify_by_pspec (G_OBJECT (manager), gParamSpecs[PROP_IS_CDMA_AVAILABLE]);
+                enable_agps (manager);
+        } else {
+                g_debug ("3G or CDMA are not available on non-enabled modem '%s'", path);
+        }
+}
+
+static void
+on_mm_modem_state_notify (GObject    *gobject,
+                          GParamSpec *pspec,
+                          gpointer    user_data)
+{
+        MMModem *mm_modem = MM_MODEM (gobject);
+        GClueModemManager *manager = GCLUE_MODEM_MANAGER (user_data);
+        GClueModemManagerPrivate *priv = manager->priv;
+        GDBusObjectManager *obj_manager = G_DBUS_OBJECT_MANAGER (priv->manager);
+        const char *path = mm_modem_get_path (mm_modem);
+        g_autoptr(MMObject) mm_object = NULL;
+
+        if (mm_modem_get_state (mm_modem) < MM_MODEM_STATE_ENABLED)
+                return;
+
+        g_signal_handlers_disconnect_by_func (mm_modem,
+                                              on_mm_modem_state_notify,
+                                              user_data);
+
+        if (priv->modem != NULL && priv->modem != mm_modem) {
+                g_debug ("Ignoring enabled modem '%s' as already have another one",
+                         path);
+                return;
+        }
+
+        g_debug ("Modem '%s' now enabled", path);
+
+        mm_object = MM_OBJECT (g_dbus_object_manager_get_object (obj_manager, path));
+        g_assert (mm_object);
+
+        if (priv->mm_object == NULL) {
+                try_modem (manager, mm_object, mm_modem, TRUE);
+        } else {
+                /* MM re-initializes the location interface so we have to re-connect */
+                disconnect_modem_location (manager);
+                if (!try_modem_location (manager, mm_object)) {
+                        /* Notify that sadly GPS is no longer available */
+                        g_object_notify_by_pspec (G_OBJECT (manager), gParamSpecs[PROP_IS_GPS_AVAILABLE]);
+                        return;
+                }
+
+                g_debug ("Enabling 3G and CDMA location on modem '%s'", path);
+                g_assert (manager->priv->modem_location);
+                g_object_notify_by_pspec (G_OBJECT (manager), gParamSpecs[PROP_IS_3G_AVAILABLE]);
+                g_object_notify_by_pspec (G_OBJECT (manager), gParamSpecs[PROP_IS_CDMA_AVAILABLE]);
+                enable_agps (manager);
+        }
+}
+
 static void
 on_mm_object_added (GDBusObjectManager *object_manager,
                     GDBusObject        *object,
@@ -823,8 +899,7 @@ on_mm_object_added (GDBusObjectManager *object_manager,
 {
         MMObject *mm_object = MM_OBJECT (object);
         GClueModemManager *manager = GCLUE_MODEM_MANAGER (user_data);
-        MMModem *mm_modem;
-        MMModemLocation *modem_location;
+        g_autoptr(MMModem) mm_modem = NULL;
         const char *path = mm_object_get_path (mm_object);
         gboolean modem_is_enabled;
 
@@ -855,37 +930,7 @@ on_mm_object_added (GDBusObjectManager *object_manager,
                                          0);
         }
 
-        modem_location = mm_object_peek_modem_location (mm_object);
-        if (modem_location == NULL) {
-                g_debug ("Modem '%s' does not have location capabilities", path);
-                return;
-        }
-
-        g_debug ("Modem '%s' has location capabilities", path);
-
-        manager->priv->mm_object = g_object_ref (mm_object);
-        manager->priv->modem = mm_modem;
-        manager->priv->modem_location = mm_object_get_modem_location (mm_object);
-
-        mm_modem_location_set_gps_refresh_rate (manager->priv->modem_location,
-                                                manager->priv->time_threshold,
-                                                manager->priv->cancellable,
-                                                on_gps_refresh_rate_set,
-                                                NULL);
-
-        g_signal_connect (G_OBJECT (manager->priv->modem_location),
-                          "notify::location",
-                          G_CALLBACK (on_location_changed),
-                          manager);
-
-        g_object_notify_by_pspec (G_OBJECT (manager), gParamSpecs[PROP_IS_GPS_AVAILABLE]);
-        if (modem_is_enabled) {
-                g_object_notify_by_pspec (G_OBJECT (manager), gParamSpecs[PROP_IS_3G_AVAILABLE]);
-                g_object_notify_by_pspec (G_OBJECT (manager), gParamSpecs[PROP_IS_CDMA_AVAILABLE]);
-                enable_agps (manager);
-        } else {
-                g_debug ("3G or CDMA are not available on non-enabled modem '%s'", path);
-        }
+        try_modem (manager, mm_object, mm_modem, modem_is_enabled);
 }
 
 static void
@@ -908,12 +953,14 @@ on_mm_object_removed (GDBusObjectManager *object_manager,
 
         clear_3gpp_location (manager);
 
-        g_signal_handlers_disconnect_by_func (G_OBJECT (priv->modem_location),
-                                              G_CALLBACK (on_location_changed),
+        disconnect_modem_location (manager);
+
+        g_signal_handlers_disconnect_by_func (G_OBJECT (priv->modem),
+                                              on_mm_modem_state_notify,
                                               user_data);
+
         g_clear_object (&priv->mm_object);
         g_clear_object (&priv->modem);
-        g_clear_object (&priv->modem_location);
 
         priv->caps = 0;
 
