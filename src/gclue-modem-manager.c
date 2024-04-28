@@ -780,6 +780,7 @@ on_gps_refresh_rate_set (GObject      *source_object,
         if (error && !g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
                 g_warning ("Failed to set GPS refresh rate: %s",
                            error->message);
+                /* TODO: try selecting better modem if GPS is unsupported? */
         }
 }
 
@@ -796,6 +797,7 @@ try_modem_location (GClueModemManager *manager,
                 return FALSE;
         }
 
+        /* TODO: check that modem actually has some usable capabilities, like GNSS */
         g_debug ("Modem '%s' has location capabilities", path);
 
         g_assert (!manager->priv->modem_location);
@@ -881,6 +883,7 @@ on_mm_modem_state_notify (GObject    *gobject,
                 if (!try_modem_location (manager, mm_object)) {
                         /* Notify that sadly GPS is no longer available */
                         g_object_notify_by_pspec (G_OBJECT (manager), gParamSpecs[PROP_IS_GPS_AVAILABLE]);
+                        /* TODO: try next modem */
                         return;
                 }
 
@@ -967,6 +970,8 @@ on_mm_object_removed (GDBusObjectManager *object_manager,
         g_object_notify_by_pspec (G_OBJECT (manager), gParamSpecs[PROP_IS_3G_AVAILABLE]);
         g_object_notify_by_pspec (G_OBJECT (manager), gParamSpecs[PROP_IS_CDMA_AVAILABLE]);
         g_object_notify_by_pspec (G_OBJECT (manager), gParamSpecs[PROP_IS_GPS_AVAILABLE]);
+
+        /* TODO: try next modem */
 }
 
 static void
