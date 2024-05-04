@@ -147,7 +147,7 @@ struct _GClueHybrisInterface {
         // GnssDebug
         void     (*gnssDebugInit) (GClueHybris *hybris);
 
-        // GnnNi
+        // GnssNi
         void     (*gnssNiInit)    (GClueHybris *hybris);
         void     (*gnssNiRespond) (GClueHybris *hybris,
                                    int32_t notifId,
@@ -162,9 +162,9 @@ struct _GClueHybrisInterface {
         void     (*aGnssInit)              (GClueHybris *hybris);
         gboolean (*aGnssDataConnClosed)    (GClueHybris *hybris);
         gboolean (*aGnssDataConnFailed)    (GClueHybris *hybris);
-//        bool (*aGnssDataConnOpen)      (GClueHybris *hybris,
-//                                        const QByteArray &apn,
-//                                        const QString &protocol);
+        gboolean (*aGnssDataConnOpen)      (GClueHybris *hybris,
+                                        const char* apn,
+                                        const char* protocol);
         gboolean (*aGnssSetServer)         (GClueHybris *hybris,
                                         HybrisAGnssType type,
                                         const char *hostname,
@@ -199,7 +199,7 @@ gboolean gclue_hybris_gnssSetPositionMode       (GClueHybris *hybris,
 // GnssDebug
 void gclue_hybris_gnssDebugInit                 (GClueHybris *hybris);
 
-// GnnNi
+// GnssNi
 void gclue_hybris_gnssNiInit                    (GClueHybris *hybris);
 void gclue_hybris_gnssNiRespond                 (GClueHybris *hybris,
                                                  int32_t notifId,
@@ -214,9 +214,9 @@ gboolean gclue_hybris_gnssXtraInjectXtraData    (GClueHybris *hybris,
 void gclue_hybris_aGnssInit                     (GClueHybris *hybris);
 gboolean gclue_hybris_aGnssDataConnClosed       (GClueHybris *hybris);
 gboolean gclue_hybris_aGnssDataConnFailed       (GClueHybris *hybris);
-//bool gclue_hybris_aGnssDataConnOpen             (GClueHybris *hybris,
-//                                                 const QByteArray &apn,
-//                                                 const QString &protocol);
+gboolean gclue_hybris_aGnssDataConnOpen         (GClueHybris *hybris,
+                                                 const char* apn,
+                                                 const char* protocol);
 gboolean gclue_hybris_aGnssSetServer            (GClueHybris *hybris,
                                                  HybrisAGnssType type,
                                                  const char *hostname,
