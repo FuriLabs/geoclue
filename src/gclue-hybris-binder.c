@@ -93,11 +93,14 @@ gboolean gclue_hybris_binder_gnssSetPositionMode(GClueHybris *hybris,
                                                  guint32 minIntervalMs,
                                                  guint32 preferredAccuracyMeters,
                                                  guint32 preferredTimeMs);
+
 void gclue_hybris_binder_gnssDebugInit(GClueHybris *hybris);
+
 void gclue_hybris_binder_gnssNiInit(GClueHybris *hybris);
 void gclue_hybris_binder_gnssNiRespond(GClueHybris *hybris,
                                        int32_t notifId,
                                        HybrisGnssUserResponseType userResponse);
+
 void gclue_hybris_binder_gnssXtraInit(GClueHybris *hybris);
 gboolean gclue_hybris_binder_gnssXtraInjectXtraData(GClueHybris *hybris,
                                                     gchar *xtraData);
@@ -105,6 +108,9 @@ gboolean gclue_hybris_binder_gnssXtraInjectXtraData(GClueHybris *hybris,
 void gclue_hybris_binder_aGnssInit(GClueHybris *hybris);
 gboolean gclue_hybris_binder_aGnssDataConnClosed(GClueHybris *hybris);
 gboolean gclue_hybris_binder_aGnssDataConnFailed(GClueHybris *hybris);
+gboolean gclue_hybris_binder_aGnssDataConnOpen(GClueHybris *hybris,
+                                               const char* apn,
+                                               const char* protocol);
 gboolean gclue_hybris_binder_aGnssSetServer(GClueHybris *hybris,
                                             HybrisAGnssType type,
                                             const char *hostname,
@@ -270,6 +276,17 @@ bool service_exists(GBinderServiceManager* sm, const char* service)
 
     gbinder_remote_object_unref(obj);
     obj = NULL;
+}
+
+HybrisApnIpType fromContextProtocol(const char* protocol) {
+    if (strcmp(protocol, "ip") == 0)
+        return HYBRIS_APN_IP_IPV4;
+    else if (strcmp(protocol, "ipv6") == 0)
+        return HYBRIS_APN_IP_IPV6;
+    else if (strcmp(protocol, "dual") == 0)
+        return HYBRIS_APN_IP_IPV4V6;
+    else
+        return HYBRIS_APN_IP_INVALID;
 }
 
 const void *geoclue_binder_gnss_decode_struct1(
@@ -701,7 +718,7 @@ gclue_hybris_interface_init(GClueHybrisInterface *iface)
     iface->aGnssInit = gclue_hybris_binder_aGnssInit;
     iface->aGnssDataConnClosed = gclue_hybris_binder_aGnssDataConnClosed;
     iface->aGnssDataConnFailed = gclue_hybris_binder_aGnssDataConnFailed;
-    //iface->aGnssDataConnOpen = gclue_hybris_binder_aGnssDataConnOpen;
+    iface->aGnssDataConnOpen = gclue_hybris_binder_aGnssDataConnOpen;
     iface->aGnssSetServer = gclue_hybris_binder_aGnssSetServer;
     iface->aGnssRilInit = gclue_hybris_binder_aGnssRilInit;
 }
@@ -1422,6 +1439,38 @@ gboolean gclue_hybris_binder_aGnssDataConnFailed(GClueHybris *hybris)
     }
 
     gbinder_remote_reply_unref(reply);
+    return ret;
+}
+
+gboolean gclue_hybris_binder_aGnssDataConnOpen(GClueHybris *hybris, const char* apn, const char* protocol)
+{
+    GClueHybrisBinder *hbinder;
+    GClueHybrisBinderPrivate *priv;
+    g_return_val_if_fail(GCLUE_IS_HYBRIS_BINDER(hybris), FALSE);
+    hbinder = GCLUE_HYBRIS_BINDER(hybris);
+    priv = hbinder->priv;
+
+    int status = 0;
+    gboolean ret = FALSE;
+    GBinderLocalRequest *req;
+    GBinderRemoteReply *reply;
+    GBinderWriter writer;
+
+    req = gbinder_client_new_request(priv->m_clientAGnss);
+
+    gbinder_local_request_init_writer(req, &writer);
+    gbinder_writer_append_hidl_string(&writer, apn);
+    gbinder_writer_append_int32(&writer, fromContextProtocol(protocol));
+    reply = gbinder_client_transact_sync_reply(priv->m_clientAGnss,
+                                               AGNSS_DATA_CONN_OPEN, req, &status);
+
+    if (!status) {
+        ret = isReplySuccess(reply);
+    }
+
+    gbinder_local_request_unref(req);
+    gbinder_remote_reply_unref(reply);
+
     return ret;
 }
 

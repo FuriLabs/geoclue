@@ -154,10 +154,18 @@ gboolean gclue_hybris_aGnssDataConnFailed(GClueHybris *hybris) {
         return GCLUE_HYBRIS_GET_INTERFACE(hybris)->aGnssDataConnFailed(hybris);
 }
 
+gboolean gclue_hybris_aGnssDataConnOpen(GClueHybris *hybris,
+                                        const char* apn,
+                                        const char* protocol) {
+        g_return_val_if_fail(GCLUE_IS_HYBRIS(hybris), FALSE);
+
+        return GCLUE_HYBRIS_GET_INTERFACE(hybris)->aGnssDataConnFailed(hybris);
+}
+
 gboolean gclue_hybris_aGnssSetServer(GClueHybris *hybris,
-                                HybrisAGnssType type,
-                                const char *hostname,
-                                int port) {
+                                     HybrisAGnssType type,
+                                     const char *hostname,
+                                     int port) {
         g_return_val_if_fail(GCLUE_IS_HYBRIS(hybris), FALSE);
 
         return GCLUE_HYBRIS_GET_INTERFACE(hybris)->aGnssSetServer(hybris, type, hostname, port);
