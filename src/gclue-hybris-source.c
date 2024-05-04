@@ -171,9 +171,9 @@ gclue_hybris_source_init (GClueHybrisSource *source)
                      "available-accuracy-level", level, NULL);
 
         gclue_hybris_gnssInit(priv->hybris);
-        //gclue_hybris_aGnssInit(priv->hybris);
+        gclue_hybris_aGnssInit(priv->hybris);
         gclue_hybris_gnssNiInit(priv->hybris);
-        //gclue_hybris_aGnssRilInit(priv->hybris);
+        gclue_hybris_aGnssRilInit(priv->hybris);
         gclue_hybris_gnssXtraInit(priv->hybris);
         gclue_hybris_gnssDebugInit(priv->hybris);
 }
