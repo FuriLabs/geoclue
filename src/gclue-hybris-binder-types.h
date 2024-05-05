@@ -143,7 +143,9 @@ enum AGnssStatusValue : guint8 {
 
 enum AGnssType : guint8 {
     TYPE_SUPL         = 1,
-    TYPE_C2K          = 2
+    TYPE_C2K          = 2,
+    TYPE_SUPL_EIMS    = 3,
+    TYPE_SUPL_IMS     = 4
 };
 
 typedef struct agnss_status_ip_v4 {
