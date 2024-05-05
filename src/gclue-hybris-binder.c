@@ -183,7 +183,8 @@ enum AGnssFunctions {
 
 enum AGnssCallbacks {
     AGNSS_STATUS_IP_V4_CB = 1,
-    AGNSS_STATUS_IP_V6_CB = 2
+    AGNSS_STATUS_IP_V6_CB = 2,
+    AGNSS_STATUS_CB = 3
 };
 
 enum AGnssRilFunctions {
@@ -609,23 +610,81 @@ GBinderLocalReply *geoclue_binder_agnss_callback(
         switch (code) {
         case AGNSS_STATUS_IP_V4_CB:
             {
-            /*gint32 ipv4;
+            gint32 ipv4;
 
             const AGnssStatusIpV4 *status = geoclue_binder_gnss_decode_struct
                 (AGnssStatusIpV4, &reader);
 
-            ipv4 = status->ipV4Addr;*/
+            ipv4 = status->ipV4Addr;
+            g_debug("lcGeoclueHybris: AGNSS IPv4 %d", ipv4);
+
+            if (status->type & TYPE_SUPL) {
+                g_debug("lcGeoclueHybris: AGNSS type is SUPL");
+            }
+            if (status->type & TYPE_C2K) {
+                g_debug("lcGeoclueHybris: AGNSS type is C2K");
+            }
+            if (status->type & TYPE_SUPL_EIMS) {
+                g_debug("lcGeoclueHybris: AGNSS type is SUPL EIMS");
+            }
+            if (status->type & TYPE_SUPL_IMS) {
+                g_debug("lcGeoclueHybris: AGNSS type is SUPL IMS");
+            }
+            if (status->status & REQUEST_AGNSS_DATA_CONN) {
+                g_debug("lcGeoclueHybris: AGNSS request data conn");
+            }
+            if (status->status & RELEASE_AGNSS_DATA_CONN) {
+                g_debug("lcGeoclueHybris: AGNSS release data conn");
+            }
+            if (status->status & AGNSS_STATUS_DATA_CONNECTED) {
+                g_debug("lcGeoclueHybris: AGNSS data connected");
+            }
+            if (status->status & AGNSS_STATUS_DATA_CONN_DONE) {
+                g_debug("lcGeoclueHybris: AGNSS data conn done");
+            }
+            if (status->status & AGNSS_STATUS_DATA_CONN_FAILED) {
+                g_debug("lcGeoclueHybris: AGNSS data conn failed");
+            }
 
             }
             break;
         case AGNSS_STATUS_IP_V6_CB:
             {
-            /*guint8* ipv6;
+            const guint8* ipv6;
 
             const AGnssStatusIpV6 *status = geoclue_binder_gnss_decode_struct
                 (AGnssStatusIpV6, &reader);
 
-            ipv6 = status->ipV6Addr;*/
+            ipv6 = status->ipV6Addr;
+            g_debug("lcGeoclueHybris: AGNSS IPv6");
+
+            if (status->type & TYPE_SUPL) {
+                g_debug("lcGeoclueHybris: AGNSS type is SUPL");
+            }
+            if (status->type & TYPE_C2K) {
+                g_debug("lcGeoclueHybris: AGNSS type is C2K");
+            }
+            if (status->type & TYPE_SUPL_EIMS) {
+                g_debug("lcGeoclueHybris: AGNSS type is SUPL EIMS");
+            }
+            if (status->type & TYPE_SUPL_IMS) {
+                g_debug("lcGeoclueHybris: AGNSS type is SUPL IMS");
+            }
+            if (status->status & REQUEST_AGNSS_DATA_CONN) {
+                g_debug("lcGeoclueHybris: AGNSS request data conn");
+            }
+            if (status->status & RELEASE_AGNSS_DATA_CONN) {
+                g_debug("lcGeoclueHybris: AGNSS release data conn");
+            }
+            if (status->status & AGNSS_STATUS_DATA_CONNECTED) {
+                g_debug("lcGeoclueHybris: AGNSS data connected");
+            }
+            if (status->status & AGNSS_STATUS_DATA_CONN_DONE) {
+                g_debug("lcGeoclueHybris: AGNSS data conn done");
+            }
+            if (status->status & AGNSS_STATUS_DATA_CONN_FAILED) {
+                g_debug("lcGeoclueHybris: AGNSS data conn failed");
+            }
 
             }
             break;
