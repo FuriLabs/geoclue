@@ -128,6 +128,24 @@ enum ID : guint32 {
     MSISDN  = 1 << 1L
 };
 
+enum AGnssStatusValue : guint8 {
+    /** GNSS requests data connection for AGNSS. */
+    REQUEST_AGNSS_DATA_CONN  = 1,
+    /** GNSS releases the AGNSS data connection. */
+    RELEASE_AGNSS_DATA_CONN  = 2,
+    /** AGNSS data connection initiated */
+    AGNSS_STATUS_DATA_CONNECTED     = 3,
+    /** AGNSS data connection completed */
+    AGNSS_STATUS_DATA_CONN_DONE     = 4,
+    /** AGNSS data connection failed */
+    AGNSS_STATUS_DATA_CONN_FAILED   = 5
+};
+
+enum AGnssType : guint8 {
+    TYPE_SUPL         = 1,
+    TYPE_C2K          = 2
+};
+
 typedef struct agnss_status_ip_v4 {
     AGnssType type ALIGNED(1);
     AGnssStatusValue status ALIGNED(1);

@@ -301,6 +301,28 @@ void print_capabilities(guint32 capabilities) {
     if (capabilities & NAV_MESSAGES) g_debug("  - NAV_MESSAGES");
 }
 
+gboolean parse_supl_file(const char *filepath, char **domain, int *port)
+{
+    FILE *file = fopen(filepath, "r");
+    if (!file) {
+        return FALSE;
+    }
+
+    char buffer[256];
+    if (fgets(buffer, sizeof(buffer), file)) {
+        char *colon = strchr(buffer, ':');
+        if (colon) {
+            *colon = '\0';
+            *domain = g_strdup(buffer);
+            *port = atoi(colon + 1);
+            fclose(file);
+            return TRUE;
+        }
+    }
+    fclose(file);
+    return FALSE;
+}
+
 const void *geoclue_binder_gnss_decode_struct1(
     GBinderReader *in,
     guint size)
@@ -588,37 +610,23 @@ GBinderLocalReply *geoclue_binder_agnss_callback(
         case AGNSS_STATUS_IP_V4_CB:
             {
             /*gint32 ipv4;
-            guint8* ipv6;
-            gchar *ssid;
-            gchar *password;
 
             const AGnssStatusIpV4 *status = geoclue_binder_gnss_decode_struct
                 (AGnssStatusIpV4, &reader);
 
             ipv4 = status->ipV4Addr;*/
 
-            //QMetaObject::invokeMethod(staticProvider, "agpsStatus", Qt::QueuedConnection,
-            //                          Q_ARG(qint16, status->type), Q_ARG(quint16, status->status),
-            //                          Q_ARG(QHostAddress, ipv4), Q_ARG(QHostAddress, ipv6),
-            //                          Q_ARG(QByteArray, ssid), Q_ARG(QByteArray, password));
             }
             break;
         case AGNSS_STATUS_IP_V6_CB:
             {
-            /*gint32 ipv4;
-            guint8* ipv6;
-            gchar *ssid;
-            gchar *password;
+            /*guint8* ipv6;
 
             const AGnssStatusIpV6 *status = geoclue_binder_gnss_decode_struct
                 (AGnssStatusIpV6, &reader);
 
             ipv6 = status->ipV6Addr;*/
 
-            //QMetaObject::invokeMethod(staticProvider, "agpsStatus", Qt::QueuedConnection,
-            //                          Q_ARG(qint16, status->type), Q_ARG(quint16, status->status),
-            //                          Q_ARG(QHostAddress, ipv4), Q_ARG(QHostAddress, ipv6),
-            //                          Q_ARG(QByteArray, ssid), Q_ARG(QByteArray, password));
             }
             break;
         default:
@@ -1390,6 +1398,7 @@ void gclue_hybris_binder_aGnssInit(GClueHybris *hybris)
 
     GBinderRemoteReply *reply;
     int status = 0;
+    gboolean supl_ret;
 
     if (priv->m_gnss2Available) {
         reply = gbinder_client_transact_sync_reply(priv->m_clientGnss_2_0,
@@ -1427,6 +1436,26 @@ void gclue_hybris_binder_aGnssInit(GClueHybris *hybris)
                     g_warning("Initialising AGNSS interface failed %d", status);
                 }
             }
+
+            if (g_file_test("/etc/geoclue/supl", G_FILE_TEST_EXISTS)) {
+                char *supl_domain = NULL;
+                int supl_port = 0;
+
+                if (parse_supl_file("/etc/geoclue/supl", &supl_domain, &supl_port)) {
+                    g_debug("Using SUPL server from file: %s:%d", supl_domain, supl_port);
+                    supl_ret = gclue_hybris_binder_aGnssSetServer(hybris, HYBRIS_APN_IP_IPV4, supl_domain, supl_port);
+
+                    if (supl_ret) {
+                        g_debug("SUPL server %s:%d has been set successfully", supl_domain, supl_port);
+                    } else {
+                        g_debug("Failed to set %s:%d SUPL server", supl_domain, supl_port);
+                    }
+                    g_free(supl_domain);
+                } else {
+                    g_debug("No SUPL server available");
+                }
+            }
+
             gbinder_local_request_unref(req);
         }
     }
