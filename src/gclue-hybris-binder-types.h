@@ -128,6 +128,12 @@ enum ID : guint32 {
     MSISDN  = 1 << 1L
 };
 
+enum SetIDType : guint8 {
+    SETID_NONE    = 0,
+    SETID_IMSI    = 1,
+    SETID_MSISDM  = 2
+};
+
 enum AGnssStatusValue : guint8 {
     /** GNSS requests data connection for AGNSS. */
     REQUEST_AGNSS_DATA_CONN  = 1,

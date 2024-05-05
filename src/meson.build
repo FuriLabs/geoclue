@@ -58,7 +58,8 @@ if get_option('nmea-source')
 endif
 
 if get_option('hybris-source')
-    geoclue_deps += [ dependency('libgbinder') ]
+    geoclue_deps += [ dependency('libgbinder'),
+                      dependency('dbus-1') ]
     sources += [ 'gclue-hybris-source.h',
                  'gclue-hybris-source.c',
                  'gclue-hybris-binder-types.h',

@@ -19,6 +19,7 @@
 #include <strings.h>
 #include <sys/time.h>
 #include <stdbool.h>
+#include <dbus/dbus.h>
 
 #define GNSS_BINDER_DEFAULT_DEV  "/dev/hwbinder"
 
@@ -116,6 +117,9 @@ gboolean gclue_hybris_binder_aGnssSetServer(GClueHybris *hybris,
                                             const char *hostname,
                                             int port);
 
+gboolean gclue_hybris_binder_aGnssRilsetSetId(GClueHybris *hybris,
+                                              int type,
+                                              const char *setid);
 void gclue_hybris_binder_aGnssRilInit(GClueHybris *hybris);
 
 enum GnssFunctions {
@@ -190,7 +194,7 @@ enum AGnssCallbacks {
 enum AGnssRilFunctions {
     AGNSS_RIL_SET_CALLBACK = 1,
     AGNSS_RIL_SET_REF_LOCATION = 2,
-    AGNSS_RIL_SET_ID = 3,
+    AGNSS_RIL_SET_SET_ID = 3,
     AGNSS_RIL_UPDATE_NETWORK_STATE = 4,
     AGNSS_RIL_UPDATE_NETWORK_AVAILABILITY = 5
 };
@@ -264,6 +268,73 @@ enum GnssCallbacks_2_0 {
 /*==========================================================================*
  * Implementation
  *==========================================================================*/
+
+int get_subscriber_identity(char** imsi) {
+    DBusError error;
+    dbus_error_init(&error);
+    DBusConnection *conn;
+
+    conn = dbus_bus_get(DBUS_BUS_SYSTEM, &error);
+    if (dbus_error_is_set(&error)) {
+        dbus_error_free(&error);
+        return 0;
+    }
+
+    DBusMessage *msg, *reply;
+    DBusMessageIter args, array_iter, dict_iter;
+    int found = 0;
+
+    msg = dbus_message_new_method_call("org.ofono",
+                                       "/ril_0",
+                                       "org.ofono.SimManager",
+                                       "GetProperties");
+    if (msg == NULL) {
+        msg = dbus_message_new_method_call("org.ofono",
+                                           "/ril_1",
+                                           "org.ofono.SimManager",
+                                           "GetProperties");
+
+        if (msg == NULL) {
+            return 0;
+        }
+    }
+
+    reply = dbus_connection_send_with_reply_and_block(conn, msg, -1, &error);
+    if (dbus_error_is_set(&error)) {
+        dbus_error_free(&error);
+        dbus_message_unref(msg);
+        return 0;
+    }
+
+    if (dbus_message_iter_init(reply, &args) &&
+        DBUS_TYPE_ARRAY == dbus_message_iter_get_arg_type(&args)) {
+        dbus_message_iter_recurse(&args, &array_iter);
+
+        while (dbus_message_iter_get_arg_type(&array_iter) != DBUS_TYPE_INVALID) {
+            dbus_message_iter_recurse(&array_iter, &dict_iter);
+            DBusMessageIter sub_iter;
+            char *prop_name;
+            char *prop_value;
+
+            dbus_message_iter_get_basic(&dict_iter, &prop_name);
+
+            if (strcmp(prop_name, "SubscriberIdentity") == 0) {
+                dbus_message_iter_next(&dict_iter);
+                dbus_message_iter_recurse(&dict_iter, &sub_iter);
+                dbus_message_iter_get_basic(&sub_iter, &prop_value);
+                *imsi = strdup(prop_value);
+                found = 1;
+            }
+            dbus_message_iter_next(&array_iter);
+        }
+    } else {
+        return 0;
+    }
+
+    dbus_message_unref(reply);
+    dbus_message_unref(msg);
+    return found;
+}
 
 bool service_exists(GBinderServiceManager* sm, const char* service)
 {
@@ -825,6 +896,7 @@ gclue_hybris_interface_init(GClueHybrisInterface *iface)
     iface->aGnssDataConnOpen = gclue_hybris_binder_aGnssDataConnOpen;
     iface->aGnssSetServer = gclue_hybris_binder_aGnssSetServer;
     iface->aGnssRilInit = gclue_hybris_binder_aGnssRilInit;
+    iface->aGnssRilsetSetId = gclue_hybris_binder_aGnssRilsetSetId;
 }
 
 void gclue_hybris_binder_dropGnss(GClueHybrisBinder *hbinder)
@@ -1643,6 +1715,7 @@ void gclue_hybris_binder_aGnssRilInit(GClueHybris *hybris)
 
     GBinderRemoteReply *reply;
     int status = 0;
+    gboolean setid_ret;
 
     if (priv->m_gnss2Available) {
         reply = gbinder_client_transact_sync_reply(priv->m_clientGnss_2_0,
@@ -1681,8 +1754,53 @@ void gclue_hybris_binder_aGnssRilInit(GClueHybris *hybris)
                     g_warning("Initialising AGNSS RIL interface failed %d", status);
                 }
             }
+
+            char *subscriber_identity = NULL;
+            if (get_subscriber_identity(&subscriber_identity) == 1) {
+                g_debug("Setting AGNSS RIL IMSI %s", subscriber_identity);
+                setid_ret = gclue_hybris_binder_aGnssRilsetSetId(hybris, SETID_IMSI, subscriber_identity);
+
+                if (setid_ret) {
+                     g_debug("Successfully set AGNSS RIL IMSI to %s", subscriber_identity);
+                }
+
+                free(subscriber_identity);
+            }
+
             gbinder_local_request_unref(req);
         }
     }
     gbinder_remote_reply_unref(reply);
+}
+
+gboolean gclue_hybris_binder_aGnssRilsetSetId(GClueHybris *hybris, int type, const char *setid)
+{
+    GClueHybrisBinder *hbinder;
+    GClueHybrisBinderPrivate *priv;
+    g_return_val_if_fail(GCLUE_IS_HYBRIS_BINDER(hybris), FALSE);
+    hbinder = GCLUE_HYBRIS_BINDER(hybris);
+    priv = hbinder->priv;
+
+    int status = 0;
+    gboolean ret = FALSE;
+    GBinderLocalRequest *req;
+    GBinderRemoteReply *reply;
+    GBinderWriter writer;
+
+    req = gbinder_client_new_request(priv->m_clientAGnssRil);
+
+    gbinder_local_request_init_writer(req, &writer);
+    gbinder_writer_append_int32(&writer, type);
+    gbinder_writer_append_hidl_string(&writer, setid);
+    reply = gbinder_client_transact_sync_reply(priv->m_clientAGnssRil,
+                                               AGNSS_RIL_SET_SET_ID, req, &status);
+
+    if (!status) {
+        ret = isReplySuccess(reply);
+    }
+
+    gbinder_local_request_unref(req);
+    gbinder_remote_reply_unref(reply);
+
+    return ret;
 }
