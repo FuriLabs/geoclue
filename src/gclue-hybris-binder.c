@@ -195,7 +195,7 @@ enum AGnssRilFunctions {
 };
 
 enum AGnssRilCallbacks {
-    AGNSS_RIL_REQUEST_REF_ID_CB = 1,
+    AGNSS_RIL_REQUEST_SET_ID_CB = 1,
     AGNSS_RIL_REQUEST_REF_LOC_CB = 2
 };
 
@@ -287,6 +287,18 @@ HybrisApnIpType fromContextProtocol(const char* protocol) {
         return HYBRIS_APN_IP_IPV4V6;
     else
         return HYBRIS_APN_IP_INVALID;
+}
+
+void print_capabilities(guint32 capabilities) {
+    g_debug("lcGeoclueHybris: capabilities:");
+    if (capabilities & SCHEDULING) g_debug("  - SCHEDULING");
+    if (capabilities & MSB) g_debug("  - MSB");
+    if (capabilities & MSA) g_debug("  - MSA");
+    if (capabilities & SINGLE_SHOT) g_debug("  - SINGLE_SHOT");
+    if (capabilities & ON_DEMAND_TIME) g_debug("  - ON_DEMAND_TIME");
+    if (capabilities & GEOFENCING) g_debug("  - GEOFENCING");
+    if (capabilities & MEASUREMENTS) g_debug("  - MEASUREMENTS");
+    if (capabilities & NAV_MESSAGES) g_debug("  - NAV_MESSAGES");
 }
 
 const void *geoclue_binder_gnss_decode_struct1(
@@ -426,10 +438,16 @@ GBinderLocalReply *geoclue_binder_gnss_callback(
             guint32 stat;
             if (gbinder_reader_read_uint32(&reader, &stat)) {
                 if (stat == HYBRIS_GNSS_STATUS_ENGINE_ON) {
-                    //QMetaObject::invokeMethod(staticProvider, "engineOn", Qt::QueuedConnection);
+                    g_debug("lcGeoclueHybris: GNSS status engine on");
                 }
                 if (stat == HYBRIS_GNSS_STATUS_ENGINE_OFF) {
-                    //QMetaObject::invokeMethod(staticProvider, "engineOff", Qt::QueuedConnection);
+                    g_debug("lcGeoclueHybris: GNSS status engine off");
+                }
+                if (stat == HYBRIS_GNSS_STATUS_SESSION_END) {
+                    g_debug("lcGeoclueHybris: GNSS status session end");
+                }
+                if (stat == HYBRIS_GNSS_STATUS_SESSION_BEGIN) {
+                    g_debug("lcGeoclueHybris: GNSS status session begin");
                 }
             }
             }
@@ -488,7 +506,7 @@ GBinderLocalReply *geoclue_binder_gnss_callback(
             {
             guint32 capabilities;
             if (gbinder_reader_read_uint32(&reader, &capabilities)) {
-                g_debug("lcGeoclueHybris: capabilities %d", capabilities);
+                print_capabilities(capabilities);
             }
             }
             break;
@@ -500,10 +518,15 @@ GBinderLocalReply *geoclue_binder_gnss_callback(
             //QMetaObject::invokeMethod(staticProvider, "injectUtcTime", Qt::QueuedConnection);
             break;
         case GNSS_SET_SYSTEM_INFO_CB:
-            g_debug("lcGeoclueHybris: GNSS set system info");
+            {
+            guint16 yearOfHw;
+            if (gbinder_reader_read_uint16(&reader, &yearOfHw)) {
+                g_debug("lcGeoclueHybris: GNSS set system info year %d", yearOfHw);
+            }
+            }
             break;
         default:
-            g_warning("Failed to decode callback %u", code);
+            g_warning("Failed to decode GNSS callback %u", code);
             break;
         }
         *status = GBINDER_STATUS_OK;
@@ -535,7 +558,7 @@ GBinderLocalReply *geoclue_binder_gnss_xtra_callback(
             //QMetaObject::invokeMethod(staticProvider, "xtraDownloadRequest", Qt::QueuedConnection);
             break;
         default:
-            g_warning("Failed to decode callback %u", code);
+            g_warning("Failed to decode GNSS XTRA callback %u", code);
             break;
         }
         *status = GBINDER_STATUS_OK;
@@ -557,7 +580,6 @@ GBinderLocalReply *geoclue_binder_agnss_callback(
 {
     const char *iface = gbinder_remote_request_interface(req);
     //GClueHybrisBinder *hbinder = (GClueHybrisBinder *)user_data;
-
     if (!g_strcmp0(iface, AGNSS_CALLBACK)) {
         GBinderReader reader;
 
@@ -600,7 +622,7 @@ GBinderLocalReply *geoclue_binder_agnss_callback(
             }
             break;
         default:
-            g_warning("Failed to decode callback %u", code);
+            g_warning("Failed to decode AGNSS callback %u", code);
             break;
         }
         *status = GBINDER_STATUS_OK;
@@ -629,14 +651,29 @@ GBinderLocalReply *geoclue_binder_agnss_ril_callback(
 
         gbinder_remote_request_init_reader(req, &reader);
         switch (code) {
-        case AGNSS_RIL_REQUEST_REF_ID_CB:
-            g_debug("lcGeoclueHybris: AGNSS RIL request ref ID");
+        case AGNSS_RIL_REQUEST_SET_ID_CB:
+            {
+            guint32 id;
+            if (gbinder_reader_read_uint32(&reader, &id)) {
+                switch (id) {
+                    case IMSI:
+                        g_debug("lcGeoclueHybris: AGNSS RIL request set ID IMSI");
+                        break;
+                    case MSISDN:
+                        g_debug("lcGeoclueHybris: AGNSS RIL request set ID MSISDN");
+                        break;
+                    default:
+                        g_debug("lcGeoclueHybris: AGNSS RIL request set unknown ID %d", id);
+                        break;
+                }
+            }
+            }
             break;
         case AGNSS_RIL_REQUEST_REF_LOC_CB:
             g_debug("lcGeoclueHybris: AGNSS RIL request ref location");
             break;
         default:
-            g_warning("Failed to decode callback %u", code);
+            g_warning("Failed to decode AGNSS RIL callback %u", code);
             break;
         }
         *status = GBINDER_STATUS_OK;
@@ -669,7 +706,7 @@ GBinderLocalReply *geoclue_binder_gnss_ni_callback(
             g_debug("lcGeoclueHybris: GNSS NI notify");
             break;
         default:
-            g_warning("Failed to decode callback %u", code);
+            g_warning("Failed to decode GNSS NI callback %u", code);
             break;
         }
         *status = GBINDER_STATUS_OK;

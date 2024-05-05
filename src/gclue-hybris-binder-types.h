@@ -112,6 +112,22 @@ enum {
     HYBRIS_GNSS_LOCATION_HAS_BEARING_ACCURACY = 128, // 0x0080
 };
 
+enum Capabilities : guint32 {
+    SCHEDULING                      = 1 << 0,
+    MSB                             = 1 << 1,
+    MSA                             = 1 << 2,
+    SINGLE_SHOT                     = 1 << 3,
+    ON_DEMAND_TIME                  = 1 << 4,
+    GEOFENCING                      = 1 << 5,
+    MEASUREMENTS                    = 1 << 6,
+    NAV_MESSAGES                    = 1 << 7
+};
+
+enum ID : guint32 {
+    IMSI    = 1 << 0L,
+    MSISDN  = 1 << 1L
+};
+
 typedef struct agnss_status_ip_v4 {
     AGnssType type ALIGNED(1);
     AGnssStatusValue status ALIGNED(1);
