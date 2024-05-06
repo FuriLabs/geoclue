@@ -568,8 +568,8 @@ GBinderLocalReply *geoclue_binder_gnss_callback(
                 GClueHybrisSatelliteInfo *satInfo = g_slice_new0(GClueHybrisSatelliteInfo);
                 GnssSvInfo svInfo = svStatus->gnssSvList[i];
 
-                g_debug("lcGeoclueHybrisSv: SV Info - SV ID: %d, Constellation: %d, C/N0 dB-Hz: %f, Elevation: %f, Azimuth: %f",
-                        svInfo.svid, svInfo.constellation, svInfo.cN0Dbhz, svInfo.elevationDegrees, svInfo.azimuthDegrees);
+                g_debug("lcGeoclueHybrisSv: SV ID: %d, Constellation: %d, C/N0 dB-Hz: %f, Elevation: %f, Azimuth: %f, Carrier frequency: %f",
+                        svInfo.svid, svInfo.constellation, svInfo.cN0Dbhz, svInfo.elevationDegrees, svInfo.azimuthDegrees, svInfo.carrierFrequencyHz);
 
                 satInfo->snr = svInfo.cN0Dbhz;
                 satInfo->elevation = svInfo.elevationDegrees;
@@ -578,14 +578,23 @@ GBinderLocalReply *geoclue_binder_gnss_callback(
                 // From https://github.com/barbeau/gpstest
                 // and https://github.com/mvglasow/satstat/wiki/NMEA-IDs
                 if (svInfo.constellation == SBAS) {
+                    g_debug("lcGeoclueHybrisSv: SV constellation is SBAS");
                     prn -= 87;
                 } else if (svInfo.constellation == GLONASS) {
+                    g_debug("lcGeoclueHybrisSv: SV constellation is GLONASS");
                     prn += 64;
                 } else if (svInfo.constellation == BEIDOU) {
+                    g_debug("lcGeoclueHybrisSv: SV constellation is BEIDOU");
                     prn += 200;
                 } else if (svInfo.constellation == GALILEO) {
+                    g_debug("lcGeoclueHybrisSv: SV constellation is GALILEO");
                     prn += 300;
+                } else if (svInfo.constellation == GPS) {
+                    g_debug("lcGeoclueHybrisSv: SV constellation is GPS");
+                } else if (svInfo.constellation == QZSS) {
+                    g_debug("lcGeoclueHybrisSv: SV constellation is QZSS");
                 }
+
                 satInfo->prn = prn;
                 satellites = g_list_append(satellites, satInfo);
 
@@ -593,7 +602,15 @@ GBinderLocalReply *geoclue_binder_gnss_callback(
 
                 if (svInfo.svFlag & HYBRIS_GNSS_SV_FLAGS_USED_IN_FIX) {
                     usedPrns = g_list_append(usedPrns, &prn);
-                    g_debug("lcGeoclueHybrisSv: PRN %d used in fix", prn);
+                    g_debug("lcGeoclueHybrisSv: SV %d used in fix", svInfo.svid);
+                } else if (svInfo.svFlag & HYBRIS_GNSS_SV_FLAGS_NONE) {
+                    g_debug("lcGeoclueHybrisSv: SV %d has no flags", svInfo.svid);
+                } else if (svInfo.svFlag & HYBRIS_GNSS_SV_FLAGS_HAS_EPHEMERIS_DATA) {
+                    g_debug("lcGeoclueHybrisSv: SV %d has ephemeris data", svInfo.svid);
+                } else if (svInfo.svFlag & HYBRIS_GNSS_SV_FLAGS_HAS_ALMANAC_DATA) {
+                    g_debug("lcGeoclueHybrisSv: SV %d has almanac data", svInfo.svid);
+                } else if (svInfo.svFlag & HYBRIS_GNSS_SV_FLAGS_HAS_CARRIER_FREQUENCY) {
+                    g_debug("lcGeoclueHybrisSv: SV %d has carrier frequency", svInfo.svid);
                 }
             }
 
