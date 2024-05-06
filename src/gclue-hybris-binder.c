@@ -441,9 +441,6 @@ void parseRmc(GString *nmea)
         double variation = g_strtod(fields[10], NULL);
         if (fields[11][0] == 'W')
             variation = -variation;
-
-        //QMetaObject::invokeMethod(staticProvider, "setMagneticVariation", Qt::QueuedConnection,
-        //                          Q_ARG(double, variation));
     }
 }
 
@@ -491,35 +488,46 @@ GBinderLocalReply *geoclue_binder_gnss_callback(
         switch (code) {
         case GNSS_LOCATION_CB:
             {
+            g_debug("lcGeoclueHybrisGnss: GNSS location");
             GClueHybrisLocation* loc = g_slice_new0 (GClueHybrisLocation);
 
             const GnssLocation *location = geoclue_binder_gnss_decode_struct
                 (GnssLocation, &reader);
 
             loc->timestamp = location->timestamp;
+            g_debug("lcGeoclueHybrisGnss: Location timestamp: %" G_GUINT64_FORMAT, loc->timestamp);
 
             if (location->gnssLocationFlags & HYBRIS_GNSS_LOCATION_HAS_LAT_LONG) {
                 loc->latitude = location->latitudeDegrees;
                 loc->longitude = location->longitudeDegrees;
+                g_debug("lcGeoclueHybrisGnss: Latitude: %f, Longitude: %f", loc->latitude, loc->longitude);
             }
 
-            if (location->gnssLocationFlags & HYBRIS_GNSS_LOCATION_HAS_ALTITUDE)
+            if (location->gnssLocationFlags & HYBRIS_GNSS_LOCATION_HAS_ALTITUDE) {
                 loc->altitude = location->altitudeMeters;
+                g_debug("lcGeoclueHybrisGnss: Altitude: %f meters", loc->altitude);
+            }
 
-            if (location->gnssLocationFlags & HYBRIS_GNSS_LOCATION_HAS_SPEED)
+            if (location->gnssLocationFlags & HYBRIS_GNSS_LOCATION_HAS_SPEED) {
                 loc->speed = location->speedMetersPerSec * MpsToKnots;
+                g_debug("lcGeoclueHybrisGnss: Speed: %f knots", loc->speed);
+            }
 
-            if (location->gnssLocationFlags & HYBRIS_GNSS_LOCATION_HAS_BEARING)
+            if (location->gnssLocationFlags & HYBRIS_GNSS_LOCATION_HAS_BEARING) {
                 loc->direction = location->bearingDegrees;
+                g_debug("lcGeoclueHybrisGnss: Bearing: %f degrees", loc->direction);
+            }
 
             if ((location->gnssLocationFlags & HYBRIS_GNSS_LOCATION_HAS_HORIZONTAL_ACCURACY) ||
                 (location->gnssLocationFlags & HYBRIS_GNSS_LOCATION_HAS_VERTICAL_ACCURACY)) {
                 GClueHybrisAccuracy* accuracy = g_slice_new0 (GClueHybrisAccuracy);
                 if (location->gnssLocationFlags & HYBRIS_GNSS_LOCATION_HAS_HORIZONTAL_ACCURACY) {
                     accuracy->horizontal = location->horizontalAccuracyMeters;
+                    g_debug("lcGeoclueHybrisGnss: Horizontal Accuracy: %f meters", accuracy->horizontal);
                 }
                 if (location->gnssLocationFlags & HYBRIS_GNSS_LOCATION_HAS_VERTICAL_ACCURACY) {
                     accuracy->vertical = location->verticalAccuracyMeters;
+                    g_debug("lcGeoclueHybrisGnss: Vertical Accuracy: %f meters", accuracy->vertical);
                 }
                 loc->accuracy = accuracy;
             }
@@ -551,12 +559,18 @@ GBinderLocalReply *geoclue_binder_gnss_callback(
             const GnssSvStatus *svStatus = geoclue_binder_gnss_decode_struct
                 (GnssSvStatus, &reader);
 
+            g_debug("lcGeoclueHybrisSv: Number of SVs: %u", svStatus->numSvs);
+
             GList *satellites = g_list_alloc();
             GList *usedPrns = g_list_alloc();
 
             for (int i = 0; i < svStatus->numSvs; ++i) {
                 GClueHybrisSatelliteInfo *satInfo = g_slice_new0(GClueHybrisSatelliteInfo);
                 GnssSvInfo svInfo = svStatus->gnssSvList[i];
+
+                g_debug("lcGeoclueHybrisSv: SV Info - SV ID: %d, Constellation: %d, C/N0 dB-Hz: %f, Elevation: %f, Azimuth: %f",
+                        svInfo.svid, svInfo.constellation, svInfo.cN0Dbhz, svInfo.elevationDegrees, svInfo.azimuthDegrees);
+
                 satInfo->snr = svInfo.cN0Dbhz;
                 satInfo->elevation = svInfo.elevationDegrees;
                 satInfo->azimuth = svInfo.azimuthDegrees;
@@ -575,8 +589,12 @@ GBinderLocalReply *geoclue_binder_gnss_callback(
                 satInfo->prn = prn;
                 satellites = g_list_append(satellites, satInfo);
 
-                if (svInfo.svFlag & HYBRIS_GNSS_SV_FLAGS_USED_IN_FIX)
+                g_debug("lcGeoclueHybrisSv: Adjusted PRN: %d", prn);
+
+                if (svInfo.svFlag & HYBRIS_GNSS_SV_FLAGS_USED_IN_FIX) {
                     usedPrns = g_list_append(usedPrns, &prn);
+                    g_debug("lcGeoclueHybrisSv: PRN %d used in fix", prn);
+                }
             }
 
             //QMetaObject::invokeMethod(staticProvider, "setSatellite", Qt::QueuedConnection,
@@ -649,6 +667,7 @@ GBinderLocalReply *geoclue_binder_gnss_xtra_callback(
         gbinder_remote_request_init_reader(req, &reader);
         switch (code) {
         case GNSS_XTRA_DOWNLOAD_REQUEST_CB:
+            g_debug("lcGeoclueHybris: XTRA download request");
             //QMetaObject::invokeMethod(staticProvider, "xtraDownloadRequest", Qt::QueuedConnection);
             break;
         default:
@@ -1160,6 +1179,7 @@ gboolean gclue_hybris_binder_gnssStart(GClueHybris *hybris)
     if (!ret) {
         g_warning("Failed to start positioning");
     }
+
     return ret;
 }
 

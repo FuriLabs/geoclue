@@ -176,3 +176,11 @@ void gclue_hybris_aGnssRilInit(GClueHybris *hybris) {
 
         GCLUE_HYBRIS_GET_INTERFACE(hybris)->aGnssRilInit(hybris);
 }
+
+gboolean gclue_hybris_aGnssRilsetSetId(GClueHybris *hybris,
+                                       int type,
+                                       const char *setid) {
+        g_return_val_if_fail(GCLUE_IS_HYBRIS(hybris), FALSE);
+
+        return GCLUE_HYBRIS_GET_INTERFACE(hybris)->aGnssRilsetSetId(hybris, type, setid);
+}
