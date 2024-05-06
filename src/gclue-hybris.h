@@ -156,22 +156,25 @@ struct _GClueHybrisInterface {
         // GnssXtra
         void     (*gnssXtraInit)           (GClueHybris *hybris);
         gboolean (*gnssXtraInjectXtraData) (GClueHybris *hybris,
-                                        gchar *xtraData);
+                                            gchar *xtraData);
 
         // AGnss
         void     (*aGnssInit)              (GClueHybris *hybris);
         gboolean (*aGnssDataConnClosed)    (GClueHybris *hybris);
         gboolean (*aGnssDataConnFailed)    (GClueHybris *hybris);
         gboolean (*aGnssDataConnOpen)      (GClueHybris *hybris,
-                                        const char* apn,
-                                        const char* protocol);
+                                            const char* apn,
+                                            const char* protocol);
         gboolean (*aGnssSetServer)         (GClueHybris *hybris,
-                                        HybrisAGnssType type,
-                                        const char *hostname,
-                                        int port);
+                                            HybrisAGnssType type,
+                                            const char *hostname,
+                                            int port);
 
         // AGnssRil
         void (*aGnssRilInit)           (GClueHybris *hybris);
+        gboolean (*aGnssRilsetSetId)         (GClueHybris *hybris,
+                                              int type,
+                                              const char *setid);
 };
 
 gboolean gclue_hybris_gnssInit  (GClueHybris *hybris);
@@ -224,6 +227,9 @@ gboolean gclue_hybris_aGnssSetServer            (GClueHybris *hybris,
 
 // AGnssRil
 void gclue_hybris_aGnssRilInit                  (GClueHybris *hybris);
+gboolean gclue_hybris_aGnssRilsetSetId          (GClueHybris *hybris,
+                                                 int type,
+                                                 const char *setid);
 
 G_END_DECLS
 
