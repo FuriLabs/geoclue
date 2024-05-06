@@ -1,6 +1,7 @@
 /* vim: set et ts=8 sw=8: */
 /*
  * Copyright 2021 The Droidian Project
+ * Copyright 2024 Furi Labs
  *
  * Geoclue is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free
@@ -17,6 +18,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
  * Authors: Erfan Abdi <erfangplus@gmail.com>
+ *          Bardia Moshiri <fakeshell@bardia.tech>
  */
 
 #ifndef GCLUE_HYBRIS_H
