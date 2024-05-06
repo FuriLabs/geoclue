@@ -15,11 +15,15 @@
 #include "gclue-hybris-binder.h"
 
 #include <stdlib.h>
+#include <unistd.h>
+#include <stdbool.h>
+#include <stdio.h>
 #include <glib.h>
 #include <strings.h>
 #include <sys/time.h>
-#include <stdbool.h>
 #include <dbus/dbus.h>
+#include <arpa/inet.h>
+#include <sys/time.h>
 
 #define GNSS_BINDER_DEFAULT_DEV  "/dev/hwbinder"
 
@@ -265,6 +269,29 @@ enum GnssCallbacks_2_0 {
 #define AGNSS_RIL_REMOTE_2_0    GNSS_IFACE_2_0("IAGnssRil")
 #define AGNSS_RIL_CALLBACK_2_0  GNSS_IFACE_2_0("IAGnssRilCallback")
 
+#define NTP_TIMESTAMP_DELTA 2208988800ull
+
+typedef struct {
+    uint16_t seconds;
+    uint16_t fraction;
+} NtpShort;
+
+typedef struct {
+    uint32_t seconds;
+    uint32_t fraction;
+} NtpTime;
+
+typedef struct {
+    uint8_t flags;
+    NtpShort rootDelay;
+    NtpShort rootDispersion;
+    uint32_t referenceId;
+    NtpTime referenceTimestamp;
+    NtpTime originTimestamp;
+    NtpTime receiveTimestamp;
+    NtpTime transmitTimestamp;
+} NtpMessage;
+
 /*==========================================================================*
  * Implementation
  *==========================================================================*/
@@ -393,6 +420,55 @@ gboolean parse_supl_file(const char *filepath, char **domain, int *port)
     }
     fclose(file);
     return FALSE;
+}
+
+int queryNTPServer(int64_t *timeMs, int *uncertaintyMs, int64_t *timeReferenceMs) {
+    int sockfd;
+    struct sockaddr_in servaddr;
+    NtpMessage request;
+
+    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sockfd < 0) {
+        return 0;
+    }
+
+    memset(&servaddr, 0, sizeof(servaddr));
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_port = htons(123);
+    servaddr.sin_addr.s_addr = inet_addr("129.6.15.28"); // TODO: make this configurable
+
+    memset(&request, 0, sizeof(NtpMessage));
+
+    struct timeval currentTime;
+    gettimeofday(&currentTime, NULL);
+    request.transmitTimestamp.seconds = htonl(currentTime.tv_sec + NTP_TIMESTAMP_DELTA);
+    request.transmitTimestamp.fraction = htonl((uint32_t)((double)(currentTime.tv_usec + 1) * (double)(1LL << 32) / 1000000));
+    int64_t requestTicks = currentTime.tv_sec * 1000 + currentTime.tv_usec / 1000;
+
+    sendto(sockfd, (const char *)&request, sizeof(NtpMessage), 0,
+           (const struct sockaddr *)&servaddr, sizeof(servaddr));
+
+    NtpMessage response;
+    socklen_t len = sizeof(servaddr);
+    int n = recvfrom(sockfd, (char *)&response, sizeof(NtpMessage),
+                     MSG_WAITALL, (struct sockaddr *)&servaddr, &len);
+
+    struct timeval receiveTime;
+    gettimeofday(&receiveTime, NULL);
+    int64_t responseTicks = receiveTime.tv_sec * 1000 + receiveTime.tv_usec / 1000;
+
+    if (n < 0) {
+        close(sockfd);
+        return 0;
+    }
+
+    int64_t secs = (int64_t)ntohl(response.transmitTimestamp.seconds) - NTP_TIMESTAMP_DELTA;
+    *timeMs = secs * 1000 + ((int64_t)ntohl(response.transmitTimestamp.fraction) * 1000) / (1LL << 32);
+    *timeReferenceMs = responseTicks;
+    *uncertaintyMs = abs((int)((responseTicks - requestTicks) / 2));
+
+    close(sockfd);
+    return 1;
 }
 
 const void *geoclue_binder_gnss_decode_struct1(
@@ -1104,6 +1180,8 @@ gboolean gclue_hybris_binder_gnssInit(GClueHybris *hybris)
     priv = hbinder->priv;
 
     gboolean ret = FALSE;
+    int64_t timeMs, timeReferenceMs;
+    int32_t uncertaintyMs;
 
     g_warning("Initialising GNSS interface");
 
@@ -1152,6 +1230,13 @@ gboolean gclue_hybris_binder_gnssInit(GClueHybris *hybris)
                 } else {
                     priv->m_gnss2Available = 1;
                 }
+            }
+
+            int success = queryNTPServer(&timeMs, &uncertaintyMs, &timeReferenceMs);
+            if (!success) {
+                g_debug("Failed to query NTP server");
+            } else {
+                gclue_hybris_binder_gnssInjectTime(hybris, timeMs, timeReferenceMs, uncertaintyMs);
             }
 
             if (!status) {
