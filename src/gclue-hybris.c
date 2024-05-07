@@ -45,144 +45,184 @@ gclue_hybris_default_init (GClueHybrisInterface *iface)
                       G_TYPE_POINTER);
 }
 
-gboolean gclue_hybris_gnssInit(GClueHybris *hybris) {
-        g_return_val_if_fail(GCLUE_IS_HYBRIS(hybris), FALSE);
+gboolean
+gclue_hybris_gnssInit (GClueHybris *hybris)
+{
+        g_return_val_if_fail (GCLUE_IS_HYBRIS (hybris), FALSE);
 
-        return GCLUE_HYBRIS_GET_INTERFACE(hybris)->gnssInit(hybris);
+        return GCLUE_HYBRIS_GET_INTERFACE (hybris)->gnssInit (hybris);
 }
 
-gboolean gclue_hybris_gnssStart(GClueHybris *hybris) {
-        g_return_val_if_fail(GCLUE_IS_HYBRIS(hybris), FALSE);
+gboolean
+gclue_hybris_gnssStart (GClueHybris *hybris)
+{
+        g_return_val_if_fail (GCLUE_IS_HYBRIS (hybris), FALSE);
 
-        return GCLUE_HYBRIS_GET_INTERFACE(hybris)->gnssStart(hybris);
+        return GCLUE_HYBRIS_GET_INTERFACE (hybris)->gnssStart (hybris);
 }
 
-gboolean gclue_hybris_gnssStop(GClueHybris *hybris) {
-        g_return_val_if_fail(GCLUE_IS_HYBRIS(hybris), FALSE);
+gboolean
+gclue_hybris_gnssStop (GClueHybris *hybris)
+{
+        g_return_val_if_fail (GCLUE_IS_HYBRIS (hybris), FALSE);
 
-        return GCLUE_HYBRIS_GET_INTERFACE(hybris)->gnssStop(hybris);
+        return GCLUE_HYBRIS_GET_INTERFACE (hybris)->gnssStop (hybris);
 }
 
-void gclue_hybris_gnssCleanup(GClueHybris *hybris) {
-        g_return_if_fail(GCLUE_IS_HYBRIS(hybris));
+void
+gclue_hybris_gnssCleanup (GClueHybris *hybris)
+{
+        g_return_if_fail (GCLUE_IS_HYBRIS (hybris));
 
-        GCLUE_HYBRIS_GET_INTERFACE(hybris)->gnssCleanup(hybris);
+        GCLUE_HYBRIS_GET_INTERFACE (hybris)->gnssCleanup (hybris);
 }
 
-gboolean gclue_hybris_gnssInjectTime(GClueHybris *hybris,
-                                     HybrisGnssUtcTime timeMs,
-                                     int64_t timeReferenceMs,
-                                     int32_t uncertaintyMs) {
-        g_return_val_if_fail(GCLUE_IS_HYBRIS(hybris), FALSE);
+gboolean
+gclue_hybris_gnssInjectTime (GClueHybris *hybris,
+                             HybrisGnssUtcTime timeMs,
+                             int64_t timeReferenceMs,
+                             int32_t uncertaintyMs)
+{
+        g_return_val_if_fail (GCLUE_IS_HYBRIS (hybris), FALSE);
 
-        return GCLUE_HYBRIS_GET_INTERFACE(hybris)->gnssInjectTime(hybris, timeMs, timeReferenceMs, uncertaintyMs);
+        return GCLUE_HYBRIS_GET_INTERFACE (hybris)->gnssInjectTime (hybris, timeMs, timeReferenceMs, uncertaintyMs);
 }
 
-gboolean gclue_hybris_gnssInjectLocation(GClueHybris *hybris,
-                                         double latitudeDegrees,
-                                         double longitudeDegrees,
-                                         float accuracyMeters) {
-        g_return_val_if_fail(GCLUE_IS_HYBRIS(hybris), FALSE);
+gboolean
+gclue_hybris_gnssInjectLocation (GClueHybris *hybris,
+                                 double latitudeDegrees,
+                                 double longitudeDegrees,
+                                 float accuracyMeters)
+{
+        g_return_val_if_fail (GCLUE_IS_HYBRIS (hybris), FALSE);
 
-        return GCLUE_HYBRIS_GET_INTERFACE(hybris)->gnssInjectLocation(hybris, latitudeDegrees, longitudeDegrees, accuracyMeters);
+        return GCLUE_HYBRIS_GET_INTERFACE (hybris)->gnssInjectLocation (hybris, latitudeDegrees, longitudeDegrees, accuracyMeters);
 }
 
-void gclue_hybris_gnssDeleteAidingData(GClueHybris *hybris,
-                                       HybrisGnssAidingData aidingDataFlags) {
-        g_return_if_fail(GCLUE_IS_HYBRIS(hybris));
+void
+gclue_hybris_gnssDeleteAidingData (GClueHybris *hybris,
+                                   HybrisGnssAidingData aidingDataFlags)
+{
+        g_return_if_fail (GCLUE_IS_HYBRIS (hybris));
 
-        GCLUE_HYBRIS_GET_INTERFACE(hybris)->gnssDeleteAidingData(hybris, aidingDataFlags);
+        GCLUE_HYBRIS_GET_INTERFACE (hybris)->gnssDeleteAidingData (hybris, aidingDataFlags);
 }
 
-gboolean gclue_hybris_gnssSetPositionMode(GClueHybris *hybris,
-                                          HybrisGnssPositionMode mode,
-                                          HybrisGnssPositionRecurrence recurrence,
-                                          guint32 minIntervalMs,
-                                          guint32 preferredAccuracyMeters,
-                                          guint32 preferredTimeMs) {
-        g_return_val_if_fail(GCLUE_IS_HYBRIS(hybris), FALSE);
+gboolean
+gclue_hybris_gnssSetPositionMode (GClueHybris *hybris,
+                                  HybrisGnssPositionMode mode,
+                                  HybrisGnssPositionRecurrence recurrence,
+                                  guint32 minIntervalMs,
+                                  guint32 preferredAccuracyMeters,
+                                  guint32 preferredTimeMs)
+{
+        g_return_val_if_fail (GCLUE_IS_HYBRIS (hybris), FALSE);
 
-        return GCLUE_HYBRIS_GET_INTERFACE(hybris)->gnssSetPositionMode(hybris, mode, recurrence, minIntervalMs, preferredAccuracyMeters, preferredTimeMs);
+        return GCLUE_HYBRIS_GET_INTERFACE (hybris)->gnssSetPositionMode (hybris, mode, recurrence, minIntervalMs, preferredAccuracyMeters, preferredTimeMs);
 }
 
-void gclue_hybris_gnssDebugInit(GClueHybris *hybris) {
-        g_return_if_fail(GCLUE_IS_HYBRIS(hybris));
+void
+gclue_hybris_gnssDebugInit (GClueHybris *hybris)
+{
+        g_return_if_fail (GCLUE_IS_HYBRIS (hybris));
 
-        GCLUE_HYBRIS_GET_INTERFACE(hybris)->gnssDebugInit(hybris);
+        GCLUE_HYBRIS_GET_INTERFACE (hybris)->gnssDebugInit (hybris);
 }
 
-void gclue_hybris_gnssNiInit(GClueHybris *hybris) {
-        g_return_if_fail(GCLUE_IS_HYBRIS(hybris));
+void
+gclue_hybris_gnssNiInit (GClueHybris *hybris)
+{
+        g_return_if_fail (GCLUE_IS_HYBRIS (hybris));
 
-        GCLUE_HYBRIS_GET_INTERFACE(hybris)->gnssNiInit(hybris);
+        GCLUE_HYBRIS_GET_INTERFACE (hybris)->gnssNiInit (hybris);
 }
 
-void gclue_hybris_gnssNiRespond(GClueHybris *hybris,
-                                int32_t notifId,
-                                HybrisGnssUserResponseType userResponse) {
-        g_return_if_fail(GCLUE_IS_HYBRIS(hybris));
+void
+gclue_hybris_gnssNiRespond (GClueHybris *hybris,
+                            int32_t notifId,
+                            HybrisGnssUserResponseType userResponse)
+{
+        g_return_if_fail (GCLUE_IS_HYBRIS (hybris));
 
-        GCLUE_HYBRIS_GET_INTERFACE(hybris)->gnssNiRespond(hybris, notifId, userResponse);
+        GCLUE_HYBRIS_GET_INTERFACE (hybris)->gnssNiRespond (hybris, notifId, userResponse);
 }
 
-void gclue_hybris_gnssXtraInit(GClueHybris *hybris) {
-        g_return_if_fail(GCLUE_IS_HYBRIS(hybris));
+void
+gclue_hybris_gnssXtraInit (GClueHybris *hybris)
+{
+        g_return_if_fail (GCLUE_IS_HYBRIS (hybris));
 
-        GCLUE_HYBRIS_GET_INTERFACE(hybris)->gnssXtraInit(hybris);
+        GCLUE_HYBRIS_GET_INTERFACE (hybris)->gnssXtraInit (hybris);
 }
 
-gboolean gclue_hybris_gnssXtraInjectXtraData(GClueHybris *hybris,
-                                         gchar *xtraData) {
-        g_return_val_if_fail(GCLUE_IS_HYBRIS(hybris), FALSE);
+gboolean
+gclue_hybris_gnssXtraInjectXtraData(GClueHybris *hybris,
+                                    gchar *xtraData)
+{
+        g_return_val_if_fail (GCLUE_IS_HYBRIS (hybris), FALSE);
 
-        return GCLUE_HYBRIS_GET_INTERFACE(hybris)->gnssXtraInjectXtraData(hybris, xtraData);
+        return GCLUE_HYBRIS_GET_INTERFACE (hybris)->gnssXtraInjectXtraData (hybris, xtraData);
 }
 
-void gclue_hybris_aGnssInit(GClueHybris *hybris) {
-        g_return_if_fail(GCLUE_IS_HYBRIS(hybris));
+void
+gclue_hybris_aGnssInit (GClueHybris *hybris)
+{
+        g_return_if_fail (GCLUE_IS_HYBRIS (hybris));
 
-        GCLUE_HYBRIS_GET_INTERFACE(hybris)->aGnssInit(hybris);
+        GCLUE_HYBRIS_GET_INTERFACE (hybris)->aGnssInit (hybris);
 }
 
-gboolean gclue_hybris_aGnssDataConnClosed(GClueHybris *hybris) {
-        g_return_val_if_fail(GCLUE_IS_HYBRIS(hybris), FALSE);
+gboolean
+gclue_hybris_aGnssDataConnClosed (GClueHybris *hybris)
+{
+        g_return_val_if_fail (GCLUE_IS_HYBRIS (hybris), FALSE);
 
-        return GCLUE_HYBRIS_GET_INTERFACE(hybris)->aGnssDataConnClosed(hybris);
+        return GCLUE_HYBRIS_GET_INTERFACE (hybris)->aGnssDataConnClosed (hybris);
 }
 
-gboolean gclue_hybris_aGnssDataConnFailed(GClueHybris *hybris) {
-        g_return_val_if_fail(GCLUE_IS_HYBRIS(hybris), FALSE);
+gboolean
+gclue_hybris_aGnssDataConnFailed (GClueHybris *hybris)
+{
+        g_return_val_if_fail (GCLUE_IS_HYBRIS (hybris), FALSE);
 
-        return GCLUE_HYBRIS_GET_INTERFACE(hybris)->aGnssDataConnFailed(hybris);
+        return GCLUE_HYBRIS_GET_INTERFACE (hybris)->aGnssDataConnFailed (hybris);
 }
 
-gboolean gclue_hybris_aGnssDataConnOpen(GClueHybris *hybris,
-                                        const char* apn,
-                                        const char* protocol) {
-        g_return_val_if_fail(GCLUE_IS_HYBRIS(hybris), FALSE);
+gboolean
+gclue_hybris_aGnssDataConnOpen (GClueHybris *hybris,
+                                const char* apn,
+                                const char* protocol)
+{
+        g_return_val_if_fail (GCLUE_IS_HYBRIS (hybris), FALSE);
 
-        return GCLUE_HYBRIS_GET_INTERFACE(hybris)->aGnssDataConnFailed(hybris);
+        return GCLUE_HYBRIS_GET_INTERFACE (hybris)->aGnssDataConnFailed (hybris);
 }
 
-gboolean gclue_hybris_aGnssSetServer(GClueHybris *hybris,
-                                     HybrisAGnssType type,
-                                     const char *hostname,
-                                     int port) {
-        g_return_val_if_fail(GCLUE_IS_HYBRIS(hybris), FALSE);
+gboolean
+gclue_hybris_aGnssSetServer (GClueHybris *hybris,
+                             HybrisAGnssType type,
+                             const char *hostname,
+                             int port)
+{
+        g_return_val_if_fail (GCLUE_IS_HYBRIS (hybris), FALSE);
 
-        return GCLUE_HYBRIS_GET_INTERFACE(hybris)->aGnssSetServer(hybris, type, hostname, port);
+        return GCLUE_HYBRIS_GET_INTERFACE (hybris)->aGnssSetServer (hybris, type, hostname, port);
 }
 
-void gclue_hybris_aGnssRilInit(GClueHybris *hybris) {
-        g_return_if_fail(GCLUE_IS_HYBRIS(hybris));
+void
+gclue_hybris_aGnssRilInit (GClueHybris *hybris)
+{
+        g_return_if_fail (GCLUE_IS_HYBRIS (hybris));
 
-        GCLUE_HYBRIS_GET_INTERFACE(hybris)->aGnssRilInit(hybris);
+        GCLUE_HYBRIS_GET_INTERFACE (hybris)->aGnssRilInit (hybris);
 }
 
-gboolean gclue_hybris_aGnssRilsetSetId(GClueHybris *hybris,
-                                       int type,
-                                       const char *setid) {
-        g_return_val_if_fail(GCLUE_IS_HYBRIS(hybris), FALSE);
+gboolean
+gclue_hybris_aGnssRilsetSetId(GClueHybris *hybris,
+                              int type,
+                              const char *setid)
+{
+        g_return_val_if_fail (GCLUE_IS_HYBRIS (hybris), FALSE);
 
-        return GCLUE_HYBRIS_GET_INTERFACE(hybris)->aGnssRilsetSetId(hybris, type, setid);
+        return GCLUE_HYBRIS_GET_INTERFACE (hybris)->aGnssRilsetSetId (hybris, type, setid);
 }

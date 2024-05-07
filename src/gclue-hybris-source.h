@@ -64,7 +64,7 @@ struct _GClueHybrisSourceClass {
         GClueLocationSourceClass parent_class;
 };
 
-GClueHybrisSource *gclue_hybris_source_get_singleton(void);
+GClueHybrisSource *gclue_hybris_source_get_singleton (void);
 
 G_END_DECLS
 
