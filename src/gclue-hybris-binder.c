@@ -22,6 +22,7 @@
 #include <dbus/dbus.h>
 #include <arpa/inet.h>
 #include <sys/time.h>
+#include <netdb.h>
 
 #include "gclue-hybris-binder.h"
 #include "gclue-config.h"
@@ -285,6 +286,9 @@ typedef struct {
 
 typedef struct {
     uint8_t flags;
+    uint8_t stratum;
+    int8_t poll;
+    int8_t precision;
     NtpShort rootDelay;
     NtpShort rootDispersion;
     uint32_t referenceId;
@@ -416,49 +420,85 @@ print_capabilities (guint32 capabilities)
 }
 
 gboolean
-parse_supl_file (const char *filepath,
-                 char **domain,
-                 int *port)
+parse_supl_string (const char *supl,
+                   char **domain,
+                   int *port)
 {
-    FILE *file = fopen (filepath, "r");
-    if (!file)
+    if (!supl)
         return FALSE;
 
-    char buffer[256];
-    if (fgets (buffer, sizeof (buffer), file)) {
-        char *colon = strchr (buffer, ':');
-        if (colon) {
-            *colon = '\0';
-            *domain = g_strdup (buffer);
-            *port = atoi (colon + 1);
-            fclose (file);
-            return TRUE;
-        }
+    if (supl[0] == '"' && supl[strlen (supl) - 1] == '"') {
+        char *cleaned_supl = strdup (supl + 1);
+        cleaned_supl[strlen (cleaned_supl) - 1] = '\0';
+        supl = cleaned_supl;
+    } else
+        supl = strdup (supl);
+
+    char *colon = strchr(supl, ':');
+    if (!colon)
+        return FALSE;
+
+    if (colon == supl)
+        return FALSE;
+
+    if (*(colon + 1) == '\0')
+        return FALSE;
+
+    *domain = g_strndup(supl, colon - supl);
+    if (!*domain)
+        return FALSE;
+
+    *port = atoi(colon + 1);
+    if (*port == 0 && strcmp(colon + 1, "0") != 0) {
+        g_free(*domain);
+        *domain = NULL;
+        return FALSE;
     }
 
-    fclose (file);
-    return FALSE;
+    return TRUE;
 }
 
 int
 query_ntp_server (int64_t *timeMs,
                   int *uncertaintyMs,
-                  int64_t *timeReferenceMs)
+                  int64_t *timeReferenceMs,
+                  const char *ntpserver)
 {
-    int sockfd;
-    struct sockaddr_in servaddr;
-    NtpMessage request;
+    if (ntpserver[0] == '"' && ntpserver[strlen (ntpserver) - 1] == '"') {
+        char *cleaned_ntpserver = strdup (ntpserver + 1);
+        cleaned_ntpserver[strlen (cleaned_ntpserver) - 1] = '\0';
+        ntpserver = cleaned_ntpserver;
+    } else
+        ntpserver = strdup (ntpserver);
 
-    sockfd = socket (AF_INET, SOCK_DGRAM, 0);
+    int sockfd = socket (AF_INET, SOCK_DGRAM, 0);
     if (sockfd < 0)
         return 0;
 
+    struct timeval timeout;
+    // timeout after 3 seconds
+    timeout.tv_sec = 3;
+    timeout.tv_usec = 0;
+    if (setsockopt (sockfd, SOL_SOCKET, SO_RCVTIMEO, (const char*) &timeout, sizeof (timeout)) < 0) {
+        close (sockfd);
+        return 0;
+    }
+
+    struct hostent *server = gethostbyname (ntpserver);
+    if (server == NULL) {
+        close (sockfd);
+        return 0;
+    }
+
+    struct sockaddr_in servaddr;
     memset (&servaddr, 0, sizeof (servaddr));
     servaddr.sin_family = AF_INET;
     servaddr.sin_port = htons (123);
-    servaddr.sin_addr.s_addr = inet_addr ("129.6.15.28"); // TODO: make this configurable
+    memcpy (&servaddr.sin_addr.s_addr, server->h_addr, server->h_length);
 
-    memset(&request, 0, sizeof (NtpMessage));
+    NtpMessage request;
+    memset (&request, 0, sizeof (NtpMessage));
+    request.flags = 0x1B;
 
     struct timeval currentTime;
     gettimeofday (&currentTime, NULL);
@@ -490,6 +530,27 @@ query_ntp_server (int64_t *timeMs,
 
     close(sockfd);
     return 1;
+}
+
+static const char *
+get_ntp_server_config ()
+{
+        GClueConfig *config;
+
+        config = gclue_config_get_singleton ();
+        return gclue_config_get_hybris_ntp_server (config);
+}
+
+static const char *
+get_supl_server_config ()
+{
+        GClueConfig *config;
+
+        config = gclue_config_get_singleton ();
+        if (!gclue_config_get_hybris_supl_enabled (config))
+                return NULL;
+
+        return gclue_config_get_hybris_supl_server (config);
 }
 
 const void *
@@ -1185,8 +1246,10 @@ gclue_hybris_binder_gnssInit (GClueHybris *hybris)
     priv = hbinder->priv;
 
     gboolean ret = FALSE;
+    gboolean ntp_ret = FALSE;
     int64_t timeMs, timeReferenceMs;
     int32_t uncertaintyMs;
+    const char *ntp;
 
     g_warning ("Initialising GNSS interface");
 
@@ -1236,11 +1299,16 @@ gclue_hybris_binder_gnssInit (GClueHybris *hybris)
                     priv->m_gnss2Available = 1;
             }
 
-            int success = query_ntp_server (&timeMs, &uncertaintyMs, &timeReferenceMs);
+            ntp = get_ntp_server_config ();
+            int success = query_ntp_server (&timeMs, &uncertaintyMs, &timeReferenceMs, ntp);
             if (!success)
-                g_debug ("Failed to query NTP server");
-            else
-                gclue_hybris_binder_gnssInjectTime (hybris, timeMs, timeReferenceMs, uncertaintyMs);
+                g_debug ("Failed to query NTP server %s", ntp);
+            else {
+                g_debug ("Injecting epoch time %ld from NTP server %s", timeMs, ntp);
+                ntp_ret = gclue_hybris_binder_gnssInjectTime (hybris, timeMs, timeReferenceMs, uncertaintyMs);
+                if (!ntp_ret)
+                    g_debug ("Failed to inject epoch time into GNSS modem");
+            }
 
             if (!status)
                 ret = is_reply_success (reply);
@@ -1670,7 +1738,8 @@ gclue_hybris_binder_aGnssInit (GClueHybris *hybris)
 
     GBinderRemoteReply *reply;
     int status = 0;
-    gboolean supl_ret;
+    gboolean supl_ret = FALSE;
+    const char *supl = NULL;
 
     if (priv->m_gnss2Available)
         reply = gbinder_client_transact_sync_reply (priv->m_clientGnss_2_0, GNSS_GET_EXTENSION_AGNSS_2_0, NULL, &status);
@@ -1704,22 +1773,22 @@ gclue_hybris_binder_aGnssInit (GClueHybris *hybris)
                     g_warning ("Initialising AGNSS interface failed %d", status);
             }
 
-            if (g_file_test ("/etc/geoclue/supl", G_FILE_TEST_EXISTS)) {
+
+            supl = get_supl_server_config ();
+            if (supl != NULL) {
                 char *supl_domain = NULL;
                 int supl_port = 0;
 
-                if (parse_supl_file ("/etc/geoclue/supl", &supl_domain, &supl_port)) {
-                    g_debug ("Using SUPL server from file: %s:%d", supl_domain, supl_port);
+                supl_ret = parse_supl_string (supl, &supl_domain, &supl_port);
+                if (supl_ret) {
                     supl_ret = gclue_hybris_binder_aGnssSetServer (hybris, HYBRIS_APN_IP_IPV4, supl_domain, supl_port);
-
                     if (supl_ret)
                         g_debug ("SUPL server %s:%d has been set successfully", supl_domain, supl_port);
                     else
                         g_debug ("Failed to set %s:%d SUPL server", supl_domain, supl_port);
 
                     g_free (supl_domain);
-                } else
-                    g_debug ("No SUPL server available");
+                }
             }
 
             gbinder_local_request_unref (req);
