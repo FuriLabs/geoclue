@@ -47,6 +47,10 @@ struct _GClueConfigPrivate
         char *wifi_submit_url;
         char *wifi_submit_nick;
 
+        gboolean supl_enabled;
+        char *supl_server;
+        char *ntp_server;
+
         GList *app_configs;
 };
 
@@ -301,11 +305,51 @@ load_network_nmea_config (GClueConfig *config)
                 load_enable_source_config (config, "network-nmea");
 }
 
+#define DEFAULT_NTP_SERVER "pool.ntp.org"
+#define DEFAULT_SUPL_SERVER "localhost:7275"
+
 static void
 load_network_hybris_config (GClueConfig *config)
 {
+        GClueConfigPrivate *priv = config->priv;
+        GError *error = NULL;
+
         config->priv->enable_hybris_source =
                 load_enable_source_config (config, "hybris");
+
+        priv->ntp_server = g_key_file_get_string (priv->key_file,
+                                                  "hybris",
+                                                  "ntp-server",
+                                                  &error);
+        if (error != NULL) {
+                g_debug ("Failed to get config \"hybris/ntp-server\": %s",
+                         error->message);
+                g_clear_error (&error);
+                priv->ntp_server = g_strdup (DEFAULT_NTP_SERVER);
+        }
+
+        priv->supl_enabled = g_key_file_get_boolean (priv->key_file,
+                                                     "hybris",
+                                                     "supl-enabled",
+                                                     &error);
+        if (error != NULL) {
+                g_debug ("Failed to get config \"hybris/supl-enabled\": %s",
+                         error->message);
+                g_error_free (error);
+
+                return;
+        }
+
+        priv->supl_server = g_key_file_get_string (priv->key_file,
+                                                   "hybris",
+                                                   "supl-server",
+                                                   &error);
+        if (error != NULL) {
+                g_debug ("Failed to get config \"hybris/supl-server\": %s",
+                         error->message);
+                g_error_free (error);
+                priv->supl_server = g_strdup (DEFAULT_SUPL_SERVER);
+        }
 }
 
 static void
@@ -505,6 +549,24 @@ gboolean
 gclue_config_get_enable_hybris_source(GClueConfig *config)
 {
         return config->priv->enable_hybris_source;
+}
+
+const char *
+gclue_config_get_hybris_ntp_server (GClueConfig *config)
+{
+        return config->priv->ntp_server;
+}
+
+gboolean
+gclue_config_get_hybris_supl_enabled (GClueConfig *config)
+{
+        return config->priv->supl_enabled;
+}
+
+const char *
+gclue_config_get_hybris_supl_server (GClueConfig *config)
+{
+        return config->priv->supl_server;
 }
 
 void

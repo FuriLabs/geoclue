@@ -87,6 +87,10 @@ gboolean            gclue_config_get_enable_modem_gps_source
 gboolean            gclue_config_get_enable_nmea_source (GClueConfig     *config);
 gboolean            gclue_config_get_enable_hybris_source
                                                         (GClueConfig     *config);
+const char *        gclue_config_get_hybris_ntp_server  (GClueConfig     *config);
+gboolean            gclue_config_get_hybris_supl_enabled
+                                                        (GClueConfig     *config);
+const char *        gclue_config_get_hybris_supl_server (GClueConfig     *config);
 void                gclue_config_set_wifi_submit_data   (GClueConfig     *config,
                                                          gboolean         submit);
 
