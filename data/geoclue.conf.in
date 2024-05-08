@@ -45,6 +45,12 @@ enable=false
 # Enable Hybris source
 enable=true
 
+# To use SUPL from Google uncomment this
+#supl-server="supl.google.com:7275"
+supl-enabled=false
+
+ntp-server="pool.ntp.org"
+
 # WiFi source configuration options
 [wifi]
 
