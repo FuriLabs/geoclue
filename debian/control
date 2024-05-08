@@ -18,6 +18,7 @@ Build-Depends: debhelper-compat (= 12),
                libmm-glib-dev (>= 1.6) [linux-any],
                libnotify-dev,
                libsoup-3.0-dev,
+               libdbus-1-dev,
                meson (>= 0.60.0),
                pkg-config,
                valac
