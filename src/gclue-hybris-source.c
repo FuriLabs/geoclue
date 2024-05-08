@@ -42,9 +42,9 @@ G_DEFINE_TYPE_WITH_CODE (GClueHybrisSource,
                          GCLUE_TYPE_LOCATION_SOURCE,
                          G_ADD_PRIVATE (GClueHybrisSource))
 
-static gboolean
+static GClueLocationSourceStartResult
 gclue_hybris_source_start (GClueLocationSource *source);
-static gboolean
+static GClueLocationSourceStopResult
 gclue_hybris_source_stop (GClueLocationSource *source);
 
 static void
@@ -157,9 +157,7 @@ gclue_hybris_source_init (GClueHybrisSource *source)
 {
         GClueHybrisSourcePrivate *priv;
 
-        source->priv = G_TYPE_INSTANCE_GET_PRIVATE ((source),
-                                                    GCLUE_TYPE_HYBRIS_SOURCE,
-                                                    GClueHybrisSourcePrivate);
+        source->priv = gclue_hybris_source_get_instance_private (source);
         priv = source->priv;
 
         priv->cancellable = g_cancellable_new ();
@@ -203,32 +201,37 @@ gclue_hybris_source_get_singleton (void)
         return source;
 }
 
-static gboolean
+static GClueLocationSourceStartResult
 gclue_hybris_source_start (GClueLocationSource *source)
 {
         GClueLocationSourceClass *base_class;
+        GClueLocationSourceStartResult base_result;
 
-        g_return_val_if_fail (GCLUE_IS_HYBRIS_SOURCE (source), FALSE);
+        g_return_val_if_fail (GCLUE_IS_HYBRIS_SOURCE (source),
+                              GCLUE_LOCATION_SOURCE_START_RESULT_FAILED);
 
         base_class = GCLUE_LOCATION_SOURCE_CLASS (gclue_hybris_source_parent_class);
-        if (!base_class->start (source))
-                return FALSE;
+        base_result = base_class->start (source);
+        if (base_result == GCLUE_LOCATION_SOURCE_START_RESULT_FAILED)
+                return base_result;
 
         connect_to_service (GCLUE_HYBRIS_SOURCE (source));
 
         return TRUE;
 }
 
-static gboolean
+static GClueLocationSourceStopResult
 gclue_hybris_source_stop (GClueLocationSource *source)
 {
         GClueLocationSourceClass *base_class;
+        GClueLocationSourceStopResult base_result;
 
         g_return_val_if_fail (GCLUE_IS_HYBRIS_SOURCE (source), FALSE);
 
         base_class = GCLUE_LOCATION_SOURCE_CLASS (gclue_hybris_source_parent_class);
-        if (!base_class->stop (source))
-                return FALSE;
+        base_result = base_class->stop (source);
+        if (base_result == GCLUE_LOCATION_SOURCE_STOP_RESULT_STILL_USED)
+                return base_result;
 
         disconnect_from_service (GCLUE_HYBRIS_SOURCE (source));
 
