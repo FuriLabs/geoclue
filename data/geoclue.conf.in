@@ -25,19 +25,19 @@ enable=true
 [3g]
 
 # Enable 3G source
-enable=true
+enable=false
 
 # CDMA source configuration options
 [cdma]
 
 # Enable CDMA source
-enable=true
+enable=false
 
 # Modem GPS source configuration options
 [modem-gps]
 
 # Enable Modem-GPS source
-enable=true
+enable=false
 
 # Android HAL source configuration options
 [hybris]
@@ -51,7 +51,7 @@ enable=true
 # Enable WiFi source
 # If this source and the static source below are both disabled a GeoIP-only
 # source will be used instead.
-enable=true
+enable=false
 
 # URL to the WiFi geolocation service. If not set, defaults to Mozilla's
 # Location Service with a hardcoded key. To use a custom key, uncomment this URL
