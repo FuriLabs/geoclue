@@ -96,6 +96,10 @@ gboolean            gclue_config_get_enable_static_source
                                                         (GClueConfig *config);
 gboolean            gclue_config_get_enable_hybris_source
                                                         (GClueConfig     *config);
+const char *        gclue_config_get_hybris_ntp_server  (GClueConfig     *config);
+gboolean            gclue_config_get_hybris_supl_enabled
+                                                        (GClueConfig     *config);
+const char *        gclue_config_get_hybris_supl_server (GClueConfig     *config);
 
 G_END_DECLS
 
