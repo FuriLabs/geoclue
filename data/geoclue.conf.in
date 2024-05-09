@@ -109,7 +109,7 @@ enable=true
 # Enable the static source
 # If you make use of this source, you probably should disable other location
 # sources in this file so they won't override the configured static location.
-enable=true
+enable=false
 
 # Application configuration options
 #
