@@ -265,8 +265,6 @@ load_enable_source_config (GClueConfig *config,
         return enable;
 }
 
-#define DEFAULT_WIFI_URL "https://location.services.mozilla.com/v1/geolocate?key=" MOZILLA_API_KEY
-#define DEFAULT_WIFI_SUBMIT_URL "https://location.services.mozilla.com/v2/geosubmit?key=" MOZILLA_API_KEY
 #define DEFAULT_WIFI_SUBMIT_NICK "geoclue"
 
 static void
@@ -291,11 +289,7 @@ load_wifi_config (GClueConfig *config, gboolean initial)
                 if (error == NULL) {
                         g_clear_pointer (&priv->wifi_url, g_free);
                         priv->wifi_url = g_steal_pointer (&wifi_url);
-                } else if (initial) {
-                        g_debug ("Using the default locate URL: %s", error->message);
-                        g_clear_pointer (&priv->wifi_url, g_free);
-                        priv->wifi_url = g_strdup (DEFAULT_WIFI_URL);
-                } else
+                } else if (priv->enable_wifi_source)
                         g_warning ("Failed to get config \"wifi/url\": %s", error->message);
 
                 g_clear_error (&error);
@@ -323,11 +317,7 @@ load_wifi_config (GClueConfig *config, gboolean initial)
                 if (error == NULL) {
                         g_clear_pointer (&priv->wifi_submit_url, g_free);
                         priv->wifi_submit_url = g_steal_pointer (&wifi_submit_url);
-                } else if (initial) {
-                        g_debug ("Using the default submission URL: %s", error->message);
-                        g_clear_pointer (&priv->wifi_submit_url, g_free);
-                        priv->wifi_submit_url = g_strdup (DEFAULT_WIFI_SUBMIT_URL);
-                } else
+                } else if (priv->wifi_submit)
                         g_warning ("Failed to get config \"wifi/submission-url\": %s", error->message);
 
                 g_clear_error (&error);
@@ -595,6 +585,16 @@ gclue_config_init (GClueConfig *config)
                 load_config_file (config, path, FALSE);
         }
 out:
+        if (!config->priv->wifi_url
+            && (config->priv->enable_wifi_source || config->priv->enable_3g_source)) {
+                g_warning ("Wifi URL is not set, disabling wifi and 3g sources");
+                config->priv->enable_wifi_source = FALSE;
+                config->priv->enable_3g_source = FALSE;
+        }
+        if (!config->priv->wifi_submit_url && config->priv->wifi_submit) {
+                g_warning ("Wifi submit URL is not set, disabling wifi submissions");
+                config->priv->wifi_submit = FALSE;
+        }
         gclue_config_print (config);
 }
 
