@@ -15,13 +15,13 @@ Geoclue comprises the following functionalities :
 - GeoIP (accuracy: city-level)
 - Static location source (reads location from a system-wide file)
 
-WiFi-based geolocation makes use of 
-[Mozilla Location Service](https://wiki.mozilla.org/CloudServices/Location). 
+WiFi and cell tower-based geolocation used to use
+[Mozilla Location Service](https://wiki.mozilla.org/CloudServices/Location),
+which closed on June 12th, 2024. Geoclue currently does not enable WiFi location
+by default, but various commercial services offering a similar location API
+exist.
 
-If geoclue is unable to find you, you can easily fix that by installing 
-and running a 
-[simple app](https://wiki.mozilla.org/CloudServices/Location#Contributing) on 
-your phone. For using phone GPS, you'll need to install the latest version of 
+For using phone GPS, you can install the latest version of
 [GeoclueShare app](https://github.com/ankitstarski/GeoclueShare/releases)
 on your phone (currently, this is supported only on Android devices).
 
