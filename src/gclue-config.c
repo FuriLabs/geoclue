@@ -490,14 +490,14 @@ gclue_config_print (GClueConfig *config)
 
         g_debug ("GeoClue configuration:");
         if (config->priv->num_agents > 0) {
-                g_debug ("Agents:");
+                g_debug ("Allowed agents:");
                 for (i = 0; i < config->priv->num_agents; i++)
                         g_debug ("\t%s", config->priv->agents[i]);
         } else
-                g_debug ("Agents: none");
+                g_debug ("Allowed agents: none");
         g_debug ("Network NMEA source: %s",
                  config->priv->enable_nmea_source? "enabled": "disabled");
-        g_debug ("Network NMEA socket: %s",
+        g_debug ("\tNetwork NMEA socket: %s",
                  config->priv->nmea_socket == NULL? "none": config->priv->nmea_socket);
         g_debug ("3G source: %s",
                  config->priv->enable_3g_source? "enabled": "disabled");
@@ -508,14 +508,14 @@ gclue_config_print (GClueConfig *config)
         g_debug ("WiFi source: %s",
                  config->priv->enable_wifi_source? "enabled": "disabled");
         redacted_locate_url = redact_api_key (config->priv->wifi_url);
-        g_debug ("WiFi locate URL: %s",
+        g_debug ("\tWiFi locate URL: %s",
                  redacted_locate_url == NULL ? "none" : redacted_locate_url);
         redacted_submit_url = redact_api_key (config->priv->wifi_submit_url);
-        g_debug ("WiFi submit URL: %s",
+        g_debug ("\tWiFi submit URL: %s",
                  redacted_submit_url == NULL ? "none" : redacted_submit_url);
-        g_debug ("WiFi submit data: %s",
+        g_debug ("\tWiFi submit data: %s",
                  config->priv->wifi_submit? "enabled": "disabled");
-        g_debug ("WiFi submission nickname: %s",
+        g_debug ("\tWiFi submission nickname: %s",
                  config->priv->wifi_submit_nick == NULL? "none": config->priv->wifi_submit_nick);
         g_debug ("Static source: %s",
                  config->priv->enable_static_source? "enabled": "disabled");
