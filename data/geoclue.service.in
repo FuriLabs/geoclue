@@ -9,23 +9,23 @@ Environment="GSETTINGS_BACKEND=memory"
 ExecStart=@libexecdir@/geoclue
 
 # Filesystem lockdown
-ProtectSystem=strict
-ProtectKernelTunables=true
-ProtectControlGroups=true
-ProtectHome=true
-PrivateTmp=true
+#ProtectSystem=strict
+#ProtectKernelTunables=true
+#ProtectControlGroups=true
+#ProtectHome=true
+#PrivateTmp=true
 
 # Network
-PrivateNetwork=false
+#PrivateNetwork=false
 
 # Execute Mappings
-MemoryDenyWriteExecute=true
+#MemoryDenyWriteExecute=true
 
 # Modules
-ProtectKernelModules=true
+#ProtectKernelModules=true
 
 # Real-time
-RestrictRealtime=true
+#RestrictRealtime=true
 
 # Privilege escalation
-NoNewPrivileges=true
+#NoNewPrivileges=true
