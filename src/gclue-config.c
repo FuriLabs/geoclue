@@ -289,6 +289,10 @@ load_wifi_config (GClueConfig *config, gboolean initial)
                 if (error == NULL) {
                         g_clear_pointer (&priv->wifi_url, g_free);
                         priv->wifi_url = g_steal_pointer (&wifi_url);
+                } else if (initial && DEFAULT_WIFI_URL[0]) {
+                        g_debug ("Using the default locate URL: %s", error->message);
+                        g_clear_pointer (&priv->wifi_url, g_free);
+                        priv->wifi_url = g_strdup (DEFAULT_WIFI_URL);
                 } else if (priv->enable_wifi_source)
                         g_warning ("Failed to get config \"wifi/url\": %s", error->message);
 
@@ -317,6 +321,10 @@ load_wifi_config (GClueConfig *config, gboolean initial)
                 if (error == NULL) {
                         g_clear_pointer (&priv->wifi_submit_url, g_free);
                         priv->wifi_submit_url = g_steal_pointer (&wifi_submit_url);
+                } else if (initial && DEFAULT_WIFI_SUBMIT_URL[0]) {
+                        g_debug ("Using the default submission URL: %s", error->message);
+                        g_clear_pointer (&priv->wifi_submit_url, g_free);
+                        priv->wifi_submit_url = g_strdup (DEFAULT_WIFI_SUBMIT_URL);
                 } else if (priv->wifi_submit)
                         g_warning ("Failed to get config \"wifi/submission-url\": %s", error->message);
 

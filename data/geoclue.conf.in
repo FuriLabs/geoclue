@@ -25,7 +25,7 @@ enable=true
 [3g]
 
 # Enable 3G source
-enable=false
+enable=@default_wifi_enable@
 
 # CDMA source configuration options
 [cdma]
@@ -45,7 +45,7 @@ enable=true
 # Enable WiFi source
 # If this source and the static source below are both disabled a GeoIP-only
 # source will be used instead.
-enable=false
+enable=@default_wifi_enable@
 
 # URL to a WiFi geolocation service compatible with the Ichnaea API
 # (https://ichnaea.readthedocs.io/en/latest/api/geolocate.html).

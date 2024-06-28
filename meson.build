@@ -30,6 +30,8 @@ conf.set_quoted('PACKAGE_BUGREPORT', 'https://gitlab.freedesktop.org/geoclue/geo
 conf.set_quoted('TEST_SRCDIR', meson.project_source_root() + '/data/')
 conf.set_quoted('LOCALEDIR', localedir)
 conf.set_quoted('SYSCONFDIR', sysconfdir)
+conf.set_quoted('DEFAULT_WIFI_URL', get_option('default-wifi-url'))
+conf.set_quoted('DEFAULT_WIFI_SUBMIT_URL', get_option('default-wifi-submit-url'))
 conf.set10('GCLUE_USE_3G_SOURCE', get_option('3g-source'))
 conf.set10('GCLUE_USE_CDMA_SOURCE', get_option('cdma-source'))
 conf.set10('GCLUE_USE_MODEM_GPS_SOURCE', get_option('modem-gps-source'))
