@@ -44,9 +44,9 @@ configinc = include_directories('.')
 gnome = import('gnome')
 cc = meson.get_compiler('c')
 
-base_deps = [ dependency('glib-2.0', version: '>= 2.68.0'),
-              dependency('gio-2.0', version: '>= 2.68.0'),
-              dependency('gio-unix-2.0', version: '>= 2.68.0') ]
+base_deps = [ dependency('glib-2.0', version: '>= 2.74.0'),
+              dependency('gio-2.0', version: '>= 2.74.0'),
+              dependency('gio-unix-2.0', version: '>= 2.74.0') ]
 libm = cc.find_library('m', required: false)
 if libm.found()
     base_deps += [ libm ]
