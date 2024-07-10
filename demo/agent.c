@@ -67,10 +67,32 @@ on_get_bus_ready (GObject      *source_object,
 
 #define ABS_PATH ABS_SRCDIR "/agent"
 
+static void
+activate_cb (GApplication *app,
+             gpointer      user_data)
+{
+        g_bus_get (G_BUS_TYPE_SYSTEM,
+                   NULL,
+                   on_get_bus_ready,
+                   NULL);
+
+        g_application_hold (app);
+}
+
+static void
+is_registered_cb (GApplication *app,
+                  GParamSpec   *pspec,
+                  gpointer      user_data)
+{
+        if (g_application_get_is_registered (app) && g_application_get_is_remote (app))
+                g_message ("Another instance of GeoClue DemoAgent is running.");
+}
+
 int
 main (int argc, char **argv)
 {
-        GMainLoop *main_loop;
+        g_autoptr (GApplication) app = NULL;
+        int status = 0;
         GError *error = NULL;
         GOptionContext *context;
 
@@ -95,17 +117,15 @@ main (int argc, char **argv)
                 exit (0);
         }
 
-        g_bus_get (G_BUS_TYPE_SYSTEM,
-                   NULL,
-                   on_get_bus_ready,
-                   NULL);
+        app = g_application_new ("org.freedesktop.GeoClue2.DemoAgent",
+                                 G_APPLICATION_DEFAULT_FLAGS);
+        g_signal_connect (app, "activate", G_CALLBACK (activate_cb), NULL);
+        g_signal_connect (app, "notify::is-registered", G_CALLBACK (is_registered_cb), NULL);
 
-        main_loop = g_main_loop_new (NULL, FALSE);
-        g_main_loop_run (main_loop);
+        status = g_application_run (G_APPLICATION (app), argc, argv);
 
         if (agent != NULL)
                 g_object_unref (agent);
-        g_main_loop_unref (main_loop);
 
-        return 0;
+        return status;
 }
