@@ -323,15 +323,15 @@ load_wifi_config (GClueConfig *config)
 
         if (load_string_value (config, "wifi", "submission-nick",
                                &wifi_submit_nick)) {
-                /* Submission nickname must be 2 to 32 characters long */
+                /* Nickname must either be empty or 2 to 32 characters long */
                 size_t nick_length = strlen (wifi_submit_nick);
-                if (nick_length >= 2 && nick_length <= 32) {
+                if (nick_length != 1 && nick_length <= 32) {
                         g_clear_pointer (&priv->wifi_submit_nick, g_free);
                         priv->wifi_submit_nick =
                                 g_steal_pointer (&wifi_submit_nick);
                 } else
-                        g_warning ("\"wifi/submission-nick\" must be "
-                                   "between 2 to 32 characters long");
+                        g_warning ("\"wifi/submission-nick\" must be empty "
+                                   "or between 2 to 32 characters long");
         }
 }
 

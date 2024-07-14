@@ -99,7 +99,7 @@ URL to submission API of Mozilla Location Service
 .IP
 .B submission-nick=geoclue
 .br
-A nickname to submit network data with. A nickname must be 2-32 characters long.
+A nickname to submit network data with. If empty, omitted from the submission. Otherwise, must be 2 to 32 characters long. Defaults to "geoclue".
 .br
 .IP \fB[compass]
 .br
