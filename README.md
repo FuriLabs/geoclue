@@ -17,8 +17,14 @@ Geoclue comprises the following functionalities :
 WiFi and cell tower-based geolocation used to use
 [Mozilla Location Service](https://wiki.mozilla.org/CloudServices/Location),
 which closed on June 12th, 2024. Geoclue currently does not enable WiFi location
-by default, but various commercial services offering a similar location API
-exist.
+by default. Some potential replacements for MLS are:
+- [Positon](https://positon.xyz/). *Free-of-charge, network-based location
+service for the open-source software community.* Uses data from a commercial
+location service, requires API keys.
+- [BeaconDB](https://beacondb.net/). *Public domain wireless geolocation
+database.* Crowd-sourced WiFi, Bluetooth and cell tower database.
+- [OLS](https://codeberg.org/tpikonen/ols). *Offline Location Service.*
+Local-data on-device server, mostly useful for devices with GPS.
 
 For using phone GPS, you can install the latest version of
 [GeoclueShare app](https://github.com/ankitstarski/GeoclueShare/releases)
