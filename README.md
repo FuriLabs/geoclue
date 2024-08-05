@@ -12,7 +12,6 @@ Geoclue comprises the following functionalities :
 - GPS of other devices on the local network, e.g smartphones (accuracy:
   in centimeters)
 - 3G modems (accuracy: in kilometers, unless modem has GPS)
-- GeoIP (accuracy: city-level)
 - Static location source (reads location from a system-wide file)
 
 WiFi and cell tower-based geolocation used to use
