@@ -381,7 +381,7 @@ on_client_created (GObject      *source_object,
         priv->client = gclue_client_proxy_create_full_finish (res, &error);
         if (error != NULL) {
                 g_task_return_error (task, error);
-                g_clear_object (&priv->task);
+                g_object_unref (task);
 
                 return;
         }
