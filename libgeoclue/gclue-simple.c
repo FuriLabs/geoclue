@@ -113,7 +113,6 @@ gclue_simple_finalize (GObject *object)
         g_clear_object (&priv->cancellable);
         g_clear_object (&priv->client);
         g_clear_object (&priv->location);
-        g_clear_object (&priv->task);
 
         clear_portal (GCLUE_SIMPLE (object));
 
@@ -303,7 +302,7 @@ on_location_proxy_ready (GObject      *source_object,
         if (error != NULL) {
                 if (priv->task != NULL) {
                         g_task_return_error (priv->task, g_steal_pointer (&error));
-                        g_clear_object (&priv->task);
+                        g_object_unref (priv->task);
                 } else {
                         g_warning ("Failed to create location proxy: %s",
                                    error->message);
@@ -316,7 +315,7 @@ on_location_proxy_ready (GObject      *source_object,
 
         if (priv->task != NULL) {
                 g_task_return_boolean (priv->task, TRUE);
-                g_clear_object (&priv->task);
+                g_object_unref (priv->task);
         } else {
                 g_object_notify (G_OBJECT (user_data), "location");
         }
@@ -358,7 +357,7 @@ on_client_started (GObject      *source_object,
         gclue_client_call_start_finish (client, res, &error);
         if (error != NULL) {
                 g_task_return_error (task, error);
-                g_clear_object (&simple->priv->task);
+                g_object_unref (task);
 
                 return;
         }
@@ -395,6 +394,8 @@ on_client_created (GObject      *source_object,
         }
 
         priv->task = task;
+        g_object_add_weak_pointer (G_OBJECT (task), (gpointer*) &priv->task);
+
         priv->update_id =
                 g_signal_connect (priv->client,
                                   "location-updated",
@@ -503,7 +504,7 @@ on_portal_location_updated (XdpLocation *portal,
 
         if (priv->task) {
                 g_task_return_boolean (priv->task, TRUE);
-                g_clear_object (&priv->task);
+                g_object_unref (priv->task);
         }
         else {
                 g_object_notify (G_OBJECT (simple), "location");
@@ -534,7 +535,7 @@ on_started (GDBusConnection *bus,
         if (response != 0) {
                 clear_portal (simple);
                 g_task_return_new_error (priv->task, G_IO_ERROR, G_IO_ERROR_FAILED, "Start failed");
-                g_clear_object (&priv->task);
+                g_object_unref (priv->task);
         }
 }
 
@@ -550,8 +551,8 @@ on_portal_started_finish (GObject      *source_object,
 
         if (!xdp_location_call_start_finish (priv->portal, NULL, res, &error)) {
                 clear_portal (simple);
-                g_task_return_new_error (priv->task, G_IO_ERROR, G_IO_ERROR_FAILED, "Start failed");
-                g_clear_object (&priv->task);
+                g_task_return_new_error (task, G_IO_ERROR, G_IO_ERROR_FAILED, "Start failed");
+                g_object_unref (task);
         }
 }
 
@@ -585,6 +586,7 @@ on_session_created (GObject *source,
         }
 
         priv->task = task;
+        g_object_add_weak_pointer (G_OBJECT (task), (gpointer*) &priv->task);
 
         token = g_strdup_printf ("geoclue%d", g_random_int_range (0, G_MAXINT));
         request_path = g_strconcat (PORTAL_OBJECT_PATH, "/request/", priv->sender, "/", token, NULL);
