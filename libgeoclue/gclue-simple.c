@@ -332,6 +332,20 @@ on_location_updated (GClueClient *client,
 }
 
 static void
+async_init_return_error_when_cancelled (GTask *task)
+{
+        /* Sub-tasks were returning when the async init is cancelled. With no
+         * further async call, and the top level task only checking cancellation
+         * when g_task_return_* is called, we need to listen to this signal.
+         */
+        g_signal_connect_object (g_task_get_cancellable (task),
+                                 "cancelled",
+                                 G_CALLBACK (g_task_return_error_if_cancelled),
+                                 task,
+                                 G_CONNECT_SWAPPED);
+}
+
+static void
 on_client_started (GObject      *source_object,
                    GAsyncResult *res,
                    gpointer      user_data)
@@ -349,6 +363,8 @@ on_client_started (GObject      *source_object,
                 g_task_return_error (task, g_steal_pointer (&error));
                 return;
         }
+
+        async_init_return_error_when_cancelled (task);
 
         location = gclue_client_get_location (client);
 
@@ -534,6 +550,8 @@ on_portal_started_finish (GObject      *source_object,
                         g_task_return_error (task, g_steal_pointer (&error));
                 else
                         g_task_return_new_error (task, G_IO_ERROR, G_IO_ERROR_FAILED, "Start failed");
+        } else {
+                async_init_return_error_when_cancelled (task);
         }
 }
 
