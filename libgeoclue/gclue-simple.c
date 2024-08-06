@@ -530,7 +530,10 @@ on_portal_started_finish (GObject      *source_object,
         g_autoptr (GError) error = NULL;
 
         if (!xdp_location_call_start_finish (priv->portal, NULL, res, &error)) {
-                g_task_return_new_error (task, G_IO_ERROR, G_IO_ERROR_FAILED, "Start failed");
+                if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+                        g_task_return_error (task, g_steal_pointer (&error));
+                else
+                        g_task_return_new_error (task, G_IO_ERROR, G_IO_ERROR_FAILED, "Start failed");
         }
 }
 
@@ -581,7 +584,7 @@ on_session_created (GObject *source,
                                  priv->session_id,
                                  "", /* FIXME parent window */
                                  g_variant_builder_end (&options),
-                                 NULL,
+                                 g_task_get_cancellable (priv->task),
                                  on_portal_started_finish,
                                  priv->task);
 }
@@ -622,6 +625,7 @@ on_portal_created (GObject      *source_object,
         int i;
         g_autofree char *session_token = NULL;
         GVariantBuilder options;
+        GCancellable *cancellable;
 
         priv->portal = xdp_location_proxy_new_for_bus_finish (res, &error);
 
@@ -654,9 +658,11 @@ on_portal_created (GObject      *source_object,
         g_variant_builder_add (&options, "{sv}", "time-threshold", g_variant_new_uint32 (0));
         g_variant_builder_add (&options, "{sv}", "accuracy", g_variant_new_uint32 (accuracy_level_to_portal (simple->priv->accuracy_level)));
 
+        cancellable = g_task_get_cancellable (task);
         xdp_location_call_create_session (priv->portal,
                                           g_variant_builder_end (&options),
-                                          NULL, on_session_created,
+                                          cancellable,
+                                          on_session_created,
                                           g_steal_pointer (&task));
 }
 
