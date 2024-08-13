@@ -297,12 +297,12 @@ on_location_proxy_ready (GObject      *source_object,
 {
         GClueSimplePrivate *priv = GCLUE_SIMPLE (user_data)->priv;
         GClueLocation *location;
-        GError *error = NULL;
+        g_autoptr (GError) error = NULL;
 
         location = gclue_location_proxy_new_for_bus_finish (res, &error);
         if (error != NULL) {
                 if (priv->task != NULL) {
-                        g_task_return_error (priv->task, error);
+                        g_task_return_error (priv->task, g_steal_pointer (&error));
                         g_clear_object (&priv->task);
                 } else {
                         g_warning ("Failed to create location proxy: %s",
@@ -546,7 +546,7 @@ on_portal_started_finish (GObject      *source_object,
         GTask *task = G_TASK (user_data);
         GClueSimple *simple = g_task_get_source_object (task);
         GClueSimplePrivate *priv = simple->priv;
-        GError *error = NULL;
+        g_autoptr (GError) error = NULL;
 
         if (!xdp_location_call_start_finish (priv->portal, NULL, res, &error)) {
                 clear_portal (simple);
