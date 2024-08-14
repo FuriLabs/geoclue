@@ -295,7 +295,7 @@ on_location_proxy_ready (GObject      *source_object,
                          gpointer      user_data)
 {
         GClueSimplePrivate *priv = GCLUE_SIMPLE (user_data)->priv;
-        GClueLocation *location;
+        g_autoptr (GClueLocation) location = NULL;
         g_autoptr (GError) error = NULL;
 
         location = gclue_location_proxy_new_for_bus_finish (res, &error);
@@ -309,8 +309,7 @@ on_location_proxy_ready (GObject      *source_object,
 
                 return;
         }
-        g_clear_object (&priv->location);
-        priv->location = location;
+        g_set_object (&priv->location, location);
 
         if (priv->task != NULL) {
                 g_task_return_boolean (priv->task, TRUE);
@@ -344,25 +343,23 @@ on_client_started (GObject      *source_object,
                    GAsyncResult *res,
                    gpointer      user_data)
 {
-        GTask *task = G_TASK (user_data);
+        g_autoptr (GTask) task = G_TASK (user_data);
         GClueClient *client = GCLUE_CLIENT (source_object);
         GClueSimple *simple;
         const char *location;
-        GError *error = NULL;
+        g_autoptr (GError) error = NULL;
 
         simple = g_task_get_source_object (task);
 
         gclue_client_call_start_finish (client, res, &error);
         if (error != NULL) {
-                g_task_return_error (task, error);
+                g_task_return_error (task, g_steal_pointer (&error));
                 return;
         }
 
         location = gclue_client_get_location (client);
 
         on_location_updated (client, NULL, location, simple);
-
-        g_object_unref (task);
 }
 
 static void
@@ -370,16 +367,14 @@ on_client_created (GObject      *source_object,
                    GAsyncResult *res,
                    gpointer      user_data)
 {
-        GTask *task = G_TASK (user_data);
+        g_autoptr (GTask) task = G_TASK (user_data);
         GClueSimple *simple = g_task_get_source_object (task);
         GClueSimplePrivate *priv = simple->priv;
-        GError *error = NULL;
+        g_autoptr (GError) error = NULL;
 
         priv->client = gclue_client_proxy_create_full_finish (res, &error);
         if (error != NULL) {
-                g_task_return_error (task, error);
-                g_object_unref (task);
-
+                g_task_return_error (task, g_steal_pointer (&error));
                 return;
         }
         if (priv->distance_threshold != 0) {
@@ -391,8 +386,8 @@ on_client_created (GObject      *source_object,
                         (priv->client, priv->time_threshold);
         }
 
-        priv->task = task;
-        g_object_add_weak_pointer (G_OBJECT (task), (gpointer*) &priv->task);
+        priv->task = g_steal_pointer (&task);
+        g_object_add_weak_pointer (G_OBJECT (priv->task), (gpointer*) &priv->task);
 
         priv->update_id =
                 g_signal_connect (priv->client,
@@ -401,9 +396,9 @@ on_client_created (GObject      *source_object,
                                   simple);
 
         gclue_client_call_start (priv->client,
-                                 g_task_get_cancellable (task),
+                                 g_task_get_cancellable (priv->task),
                                  on_client_started,
-                                 task);
+                                 priv->task);
 }
 
 /* We use the portal if we are inside a flatpak,
@@ -478,7 +473,7 @@ on_portal_location_updated (XdpLocation *portal,
         double heading;
         const char *description;
         GVariant *timestamp;
-        GClueLocation *location = gclue_location_skeleton_new ();
+        g_autoptr (GClueLocation) location = gclue_location_skeleton_new ();
 
         g_variant_lookup (data, "Latitude", "d", &latitude);
         g_variant_lookup (data, "Longitude", "d", &longitude);
@@ -506,8 +501,6 @@ on_portal_location_updated (XdpLocation *portal,
         else {
                 g_object_notify (G_OBJECT (simple), "location");
         }
-
-        g_object_unref (location);
 }
 
 static void
@@ -540,7 +533,7 @@ on_portal_started_finish (GObject      *source_object,
                           GAsyncResult *res,
                           gpointer      user_data)
 {       
-        GTask *task = G_TASK (user_data);
+        g_autoptr (GTask) task = G_TASK (user_data);
         GClueSimple *simple = g_task_get_source_object (task);
         GClueSimplePrivate *priv = simple->priv;
         g_autoptr (GError) error = NULL;
@@ -549,8 +542,6 @@ on_portal_started_finish (GObject      *source_object,
                 clear_portal (simple);
                 g_task_return_new_error (task, G_IO_ERROR, G_IO_ERROR_FAILED, "Start failed");
         }
-
-        g_object_unref (task);
 }
 
 static void
@@ -558,11 +549,11 @@ on_session_created (GObject *source,
                     GAsyncResult *result,
                     gpointer user_data)
 {
-        GTask *task = G_TASK (user_data);
+        g_autoptr (GTask) task = G_TASK (user_data);
         GClueSimple *simple = g_task_get_source_object (task);
         GClueSimplePrivate *priv = simple->priv;
         GDBusConnection *bus = g_dbus_proxy_get_connection (G_DBUS_PROXY (priv->portal));
-        GError *error = NULL;
+        g_autoptr (GError) error = NULL;
         g_autofree char *handle = NULL;
         g_autofree char *token = NULL;
         g_autofree char *request_path = NULL;
@@ -570,20 +561,18 @@ on_session_created (GObject *source,
 
         if (!xdp_location_call_create_session_finish (priv->portal, &handle, result, &error)) {
                 clear_portal (simple);
-                g_task_return_error (task, error);
-                g_object_unref (task);
+                g_task_return_error (task, g_steal_pointer (&error));
                 return;
         }
 
         if (!g_str_equal (handle, priv->session_id)) {
                 clear_portal (simple);
                 g_task_return_new_error (task, G_IO_ERROR, G_IO_ERROR_FAILED, "Unexpected session id");
-                g_object_unref (task);
                 return;
         }
 
-        priv->task = task;
-        g_object_add_weak_pointer (G_OBJECT (task), (gpointer*) &priv->task);
+        priv->task = g_steal_pointer (&task);
+        g_object_add_weak_pointer (G_OBJECT (priv->task), (gpointer*) &priv->task);
 
         token = g_strdup_printf ("geoclue%d", g_random_int_range (0, G_MAXINT));
         request_path = g_strconcat (PORTAL_OBJECT_PATH, "/request/", priv->sender, "/", token, NULL);
@@ -606,7 +595,7 @@ on_session_created (GObject *source,
                                  g_variant_builder_end (&options),
                                  NULL,
                                  on_portal_started_finish,
-                                 task);
+                                 priv->task);
 }
 
 static int
@@ -637,11 +626,11 @@ on_portal_created (GObject      *source_object,
                    GAsyncResult *res,
                    gpointer      user_data)
 {
-        GTask *task = G_TASK (user_data);
+        g_autoptr (GTask) task = G_TASK (user_data);
         GClueSimple *simple = g_task_get_source_object (task);
         GClueSimplePrivate *priv = simple->priv;
         GDBusConnection *bus;
-        GError *error = NULL;
+        g_autoptr (GError) error = NULL;
         int i;
         g_autofree char *session_token = NULL;
         GVariantBuilder options;
@@ -649,8 +638,7 @@ on_portal_created (GObject      *source_object,
         priv->portal = xdp_location_proxy_new_for_bus_finish (res, &error);
 
         if (error != NULL) {
-                g_task_return_error (task, error);
-                g_object_unref (task);
+                g_task_return_error (task, g_steal_pointer (&error));
                 return;
         }
 
@@ -679,7 +667,8 @@ on_portal_created (GObject      *source_object,
 
         xdp_location_call_create_session (priv->portal,
                                           g_variant_builder_end (&options),
-                                          NULL, on_session_created, task);
+                                          NULL, on_session_created,
+                                          g_steal_pointer (&task));
 }
 
 static void
@@ -783,13 +772,13 @@ gclue_simple_new_finish (GAsyncResult *result,
                          GError      **error)
 {
         GObject *object;
-        GObject *source_object;
+        g_autoptr (GObject) source_object = NULL;
 
         source_object = g_async_result_get_source_object (result);
         object = g_async_initable_new_finish (G_ASYNC_INITABLE (source_object),
                                               result,
                                               error);
-        g_object_unref (source_object);
+
         if (object != NULL)
                 return GCLUE_SIMPLE (object);
         else
@@ -858,7 +847,7 @@ gclue_simple_new_sync (const char        *desktop_id,
 {
         GClueSimple *simple;
         GMainLoop *main_loop;
-        GTask *task;
+        g_autoptr (GTask) task = NULL;
 
         task = g_task_new (NULL, cancellable, NULL, NULL);
         main_loop = g_main_loop_new (NULL, FALSE);
@@ -875,8 +864,6 @@ gclue_simple_new_sync (const char        *desktop_id,
         g_main_loop_run (main_loop);
 
         simple = g_task_propagate_pointer (task, error);
-
-        g_object_unref (task);
 
         return simple;
 }
@@ -942,7 +929,7 @@ gclue_simple_new_with_thresholds_sync (const char        *desktop_id,
 {
         GClueSimple *simple;
         GMainLoop *main_loop;
-        GTask *task;
+        g_autoptr (GTask) task = NULL;
 
         task = g_task_new (NULL, cancellable, NULL, NULL);
         main_loop = g_main_loop_new (NULL, FALSE);
@@ -961,8 +948,6 @@ gclue_simple_new_with_thresholds_sync (const char        *desktop_id,
         g_main_loop_run (main_loop);
 
         simple = g_task_propagate_pointer (task, error);
-
-        g_object_unref (task);
 
         return simple;
 }
