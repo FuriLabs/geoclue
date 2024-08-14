@@ -302,7 +302,6 @@ on_location_proxy_ready (GObject      *source_object,
         if (error != NULL) {
                 if (priv->task != NULL) {
                         g_task_return_error (priv->task, g_steal_pointer (&error));
-                        g_object_unref (priv->task);
                 } else {
                         g_warning ("Failed to create location proxy: %s",
                                    error->message);
@@ -315,7 +314,6 @@ on_location_proxy_ready (GObject      *source_object,
 
         if (priv->task != NULL) {
                 g_task_return_boolean (priv->task, TRUE);
-                g_object_unref (priv->task);
         } else {
                 g_object_notify (G_OBJECT (user_data), "location");
         }
@@ -357,14 +355,14 @@ on_client_started (GObject      *source_object,
         gclue_client_call_start_finish (client, res, &error);
         if (error != NULL) {
                 g_task_return_error (task, error);
-                g_object_unref (task);
-
                 return;
         }
 
         location = gclue_client_get_location (client);
 
         on_location_updated (client, NULL, location, simple);
+
+        g_object_unref (task);
 }
 
 static void
@@ -504,7 +502,6 @@ on_portal_location_updated (XdpLocation *portal,
 
         if (priv->task) {
                 g_task_return_boolean (priv->task, TRUE);
-                g_object_unref (priv->task);
         }
         else {
                 g_object_notify (G_OBJECT (simple), "location");
@@ -535,7 +532,6 @@ on_started (GDBusConnection *bus,
         if (response != 0) {
                 clear_portal (simple);
                 g_task_return_new_error (priv->task, G_IO_ERROR, G_IO_ERROR_FAILED, "Start failed");
-                g_object_unref (priv->task);
         }
 }
 
@@ -552,8 +548,9 @@ on_portal_started_finish (GObject      *source_object,
         if (!xdp_location_call_start_finish (priv->portal, NULL, res, &error)) {
                 clear_portal (simple);
                 g_task_return_new_error (task, G_IO_ERROR, G_IO_ERROR_FAILED, "Start failed");
-                g_object_unref (task);
         }
+
+        g_object_unref (task);
 }
 
 static void
@@ -704,14 +701,14 @@ gclue_simple_init_async (GAsyncInitable     *initable,
                                                 PORTAL_OBJECT_PATH,
                                                 cancellable,
                                                 on_portal_created,
-                                                task);
+                                                g_object_ref (task));
         } else {
                 gclue_client_proxy_create_full (simple->priv->desktop_id,
                                                 simple->priv->accuracy_level,
                                                 GCLUE_CLIENT_PROXY_CREATE_AUTO_DELETE,
                                                 cancellable,
                                                 on_client_created,
-                                                task);
+                                                g_object_ref (task));
         }
 }
 
@@ -720,7 +717,9 @@ gclue_simple_init_finish (GAsyncInitable *initable,
                           GAsyncResult   *result,
                           GError        **error)
 {
-        return g_task_propagate_boolean (G_TASK (result), error);
+        g_autoptr (GTask) task = G_TASK (result);
+
+        return g_task_propagate_boolean (task, error);
 }
 
 static void
