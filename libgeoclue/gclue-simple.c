@@ -523,7 +523,6 @@ on_started (GDBusConnection *bus,
         g_variant_get (parameters, "(u@a{sv})", &response, &ret);
 
         if (response != 0) {
-                clear_portal (simple);
                 g_task_return_new_error (priv->task, G_IO_ERROR, G_IO_ERROR_FAILED, "Start failed");
         }
 }
@@ -539,7 +538,6 @@ on_portal_started_finish (GObject      *source_object,
         g_autoptr (GError) error = NULL;
 
         if (!xdp_location_call_start_finish (priv->portal, NULL, res, &error)) {
-                clear_portal (simple);
                 g_task_return_new_error (task, G_IO_ERROR, G_IO_ERROR_FAILED, "Start failed");
         }
 }
@@ -560,13 +558,11 @@ on_session_created (GObject *source,
         GVariantBuilder options;
 
         if (!xdp_location_call_create_session_finish (priv->portal, &handle, result, &error)) {
-                clear_portal (simple);
                 g_task_return_error (task, g_steal_pointer (&error));
                 return;
         }
 
         if (!g_str_equal (handle, priv->session_id)) {
-                clear_portal (simple);
                 g_task_return_new_error (task, G_IO_ERROR, G_IO_ERROR_FAILED, "Unexpected session id");
                 return;
         }
