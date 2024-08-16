@@ -178,3 +178,8 @@ users=
 allowed=true
 system=true
 users=
+
+[furios-camera]
+allowed=true
+system=true
+users=
