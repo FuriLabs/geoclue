@@ -63,14 +63,11 @@ struct _GClueSimplePrivate
         GClueClient *client;
         GClueLocation *location;
 
-        gulong update_id;
-
         GTask *task;
         GCancellable *cancellable;
 
         char *sender;
         XdpLocation *portal;
-        gulong location_updated_id;
         guint response_id;
         char *session_id;
 };
@@ -104,10 +101,6 @@ gclue_simple_finalize (GObject *object)
         GClueSimplePrivate *priv = GCLUE_SIMPLE (object)->priv;
 
         g_clear_pointer (&priv->desktop_id, g_free);
-        if (priv->update_id != 0) {
-                g_signal_handler_disconnect (priv->client, priv->update_id);
-                priv->update_id = 0;
-        }
         if (priv->cancellable != NULL)
                 g_cancellable_cancel (priv->cancellable);
         g_clear_object (&priv->cancellable);
@@ -389,11 +382,11 @@ on_client_created (GObject      *source_object,
         priv->task = g_steal_pointer (&task);
         g_object_add_weak_pointer (G_OBJECT (priv->task), (gpointer*) &priv->task);
 
-        priv->update_id =
-                g_signal_connect (priv->client,
-                                  "location-updated",
-                                  G_CALLBACK (on_location_updated),
-                                  simple);
+        g_signal_connect_object (priv->client,
+                                 "location-updated",
+                                 G_CALLBACK (on_location_updated),
+                                 simple,
+                                 G_CONNECT_DEFAULT);
 
         gclue_client_call_start (priv->client,
                                  g_task_get_cancellable (priv->task),
@@ -452,7 +445,6 @@ clear_portal (GClueSimple *simple)
         }
 
         g_clear_object (&priv->portal);
-        priv->location_updated_id = 0;
         g_clear_pointer (&priv->session_id, g_free);
         g_clear_pointer (&priv->sender, g_free);
 }
@@ -640,10 +632,11 @@ on_portal_created (GObject      *source_object,
 
         bus = g_dbus_proxy_get_connection (G_DBUS_PROXY (priv->portal));
 
-        priv->location_updated_id = g_signal_connect (priv->portal,
-                                                      "location-updated",
-                                                      G_CALLBACK (on_portal_location_updated),
-                                                      simple);
+        g_signal_connect_object (priv->portal,
+                                 "location-updated",
+                                 G_CALLBACK (on_portal_location_updated),
+                                 simple,
+                                 G_CONNECT_DEFAULT);
 
         priv->sender = g_strdup (g_dbus_connection_get_unique_name (bus) + 1);
         for (i = 0; priv->sender[i]; i++)
