@@ -550,6 +550,7 @@ submit_query_callback (SoupSession  *session,
 {
         g_autoptr(GBytes) body = NULL;
         g_autoptr(GError) local_error = NULL;
+        g_autofree char *contents = NULL;
         SoupMessage *query;
         g_autofree char *uri_str = NULL;
         gint status_code;
@@ -563,9 +564,11 @@ submit_query_callback (SoupSession  *session,
                            uri_str, local_error->message);
                 return;
         }
+        contents = g_strndup (g_bytes_get_data (body, NULL), g_bytes_get_size (body));
 
         status_code = soup_message_get_status (query);
-        if (status_code != SOUP_STATUS_OK && status_code != SOUP_STATUS_NO_CONTENT) {
+
+        if (!gclue_mozilla_parse_submit_response (contents, status_code, NULL)) {
                 g_warning ("Failed to submit location data to '%s': %s",
                            uri_str, soup_message_get_reason_phrase (query));
                 return;

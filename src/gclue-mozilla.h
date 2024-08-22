@@ -91,6 +91,10 @@ gclue_mozilla_create_submit_query (GClueMozilla  *mozilla,
                                    GClueLocation   *location,
                                    GError         **error);
 gboolean
+gclue_mozilla_parse_submit_response (const char *response_contents,
+                                     gboolean status_code,
+                                     GError         **error);
+gboolean
 gclue_mozilla_should_ignore_bss (WPABSS *bss);
 
 const char *gclue_mozilla_get_locate_url (GClueMozilla *mozilla);

@@ -383,6 +383,14 @@ gclue_mozilla_parse_response (const char *json,
         return location;
 }
 
+gboolean
+gclue_mozilla_parse_submit_response (const char *response_contents,
+                                     gboolean status_code,
+                                     GError    **error)
+{
+        return status_code != SOUP_STATUS_OK && status_code != SOUP_STATUS_NO_CONTENT;
+}
+
 const char *
 gclue_mozilla_get_submit_url (GClueMozilla *mozilla)
 {
