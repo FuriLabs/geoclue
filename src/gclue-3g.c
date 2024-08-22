@@ -128,6 +128,26 @@ static void cancel_location_3gpp_timeout (GClue3G *g3g)
         priv->location_3gpp_timeout_id = 0;
 }
 
+static GClueLocation *
+gclue_3g_parse_response (GClueWebSource *source,
+                         const char     *content,
+                         GError        **error)
+{
+        const char *location_description =
+                gclue_web_source_get_query_data_description (source);
+
+        return gclue_mozilla_parse_response (content, location_description, error);
+}
+
+static gboolean
+gclue_3g_parse_submit_response (GClueWebSource *source,
+                                const char     *content,
+                                gboolean        status_code,
+                                GError        **error)
+{
+        return gclue_mozilla_parse_submit_response (content, status_code, error);
+}
+
 static void
 gclue_3g_finalize (GObject *g3g)
 {
@@ -161,7 +181,9 @@ gclue_3g_class_init (GClue3GClass *klass)
         source_class->start = gclue_3g_start;
         source_class->stop = gclue_3g_stop;
         web_class->create_query = gclue_3g_create_query;
+        web_class->parse_response = gclue_3g_parse_response;
         web_class->create_submit_query = gclue_3g_create_submit_query;
+        web_class->parse_submit_response = gclue_3g_parse_submit_response;
         web_class->get_available_accuracy_level =
                 gclue_3g_get_available_accuracy_level;
 }

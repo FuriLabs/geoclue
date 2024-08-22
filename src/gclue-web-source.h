@@ -73,9 +73,17 @@ struct _GClueWebSourceClass {
         SoupMessage *     (*create_query)        (GClueWebSource *source,
                                                   const char **query_data_description,
                                                   GError        **error);
+        GClueLocation *   (*parse_response)      (GClueWebSource *source,
+                                                  const char *content,
+                                                  GError    **error);
         SoupMessage *     (*create_submit_query) (GClueWebSource  *source,
                                                   GClueLocation   *location,
                                                   GError         **error);
+        gboolean          (*parse_submit_response)
+                                                 (GClueWebSource *source,
+                                                  const char     *content,
+                                                  gboolean        status_code,
+                                                  GError        **error);
         GClueAccuracyLevel (*get_available_accuracy_level)
                                                  (GClueWebSource *source,
                                                   gboolean        network_available);

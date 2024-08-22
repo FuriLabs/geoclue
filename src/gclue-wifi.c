@@ -188,6 +188,26 @@ on_scan_done (WPAInterface *object,
               gboolean      success,
               gpointer      user_data);
 
+static GClueLocation *
+gclue_wifi_parse_response (GClueWebSource *source,
+                           const char     *content,
+                           GError        **error)
+{
+        const char *location_description =
+                gclue_web_source_get_query_data_description (source);
+
+        return gclue_mozilla_parse_response (content, location_description, error);
+}
+
+static gboolean
+gclue_wifi_parse_submit_response (GClueWebSource *source,
+                                  const char     *content,
+                                  gboolean        status_code,
+                                  GError        **error)
+{
+        return gclue_mozilla_parse_submit_response (content, status_code, error);
+}
+
 static void
 gclue_wifi_finalize (GObject *gwifi)
 {
@@ -223,8 +243,10 @@ gclue_wifi_class_init (GClueWifiClass *klass)
         source_class->stop = gclue_wifi_stop;
         web_class->refresh_async = gclue_wifi_refresh_async;
         web_class->refresh_finish = gclue_wifi_refresh_finish;
-        web_class->create_submit_query = gclue_wifi_create_submit_query;
         web_class->create_query = gclue_wifi_create_query;
+        web_class->parse_response = gclue_wifi_parse_response;
+        web_class->create_submit_query = gclue_wifi_create_submit_query;
+        web_class->parse_submit_response = gclue_wifi_parse_submit_response;
         web_class->get_available_accuracy_level =
                 gclue_wifi_get_available_accuracy_level;
         gwifi_class->finalize = gclue_wifi_finalize;

@@ -161,9 +161,9 @@ refresh_callback (SoupSession  *session,
         uri = soup_message_get_uri (query);
         str = g_uri_to_string (uri);
         g_debug ("Got following response from '%s':\n%s", str, contents);
-        location = gclue_mozilla_parse_response (contents,
-                                                 web->priv->query_data_description,
-                                                 &local_error);
+        location = GCLUE_WEB_SOURCE_GET_CLASS (web)->parse_response (web,
+                                                                     contents,
+                                                                     &local_error);
         if (local_error != NULL) {
                 g_task_return_error (task, g_steal_pointer (&local_error));
                 return;
@@ -548,6 +548,7 @@ submit_query_callback (SoupSession  *session,
                        GAsyncResult *result,
                        gpointer      user_data)
 {
+        GClueWebSource *web = GCLUE_WEB_SOURCE (user_data);
         g_autoptr(GBytes) body = NULL;
         g_autoptr(GError) local_error = NULL;
         g_autofree char *contents = NULL;
@@ -568,7 +569,8 @@ submit_query_callback (SoupSession  *session,
 
         status_code = soup_message_get_status (query);
 
-        if (!gclue_mozilla_parse_submit_response (contents, status_code, NULL)) {
+        if (!GCLUE_WEB_SOURCE_GET_CLASS (web)->parse_submit_response
+                        (web, contents, status_code, &local_error)) {
                 g_warning ("Failed to submit location data to '%s': %s",
                            uri_str, soup_message_get_reason_phrase (query));
                 return;
