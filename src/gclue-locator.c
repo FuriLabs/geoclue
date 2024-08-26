@@ -432,18 +432,8 @@ gclue_locator_constructed (GObject *object)
         }
 #endif
 #if GCLUE_USE_WIFI_SOURCE
-        GClueWifi *wifi = NULL;
         if (gclue_config_get_enable_wifi_source (gconfig)) {
-                wifi = gclue_wifi_get_singleton (locator->priv->accuracy_level);
-        } else {
-                if (gclue_config_get_enable_static_source (gconfig)) {
-                        g_debug ("Disabling GeoIP-only source since static source is enabled");
-                } else {
-                        /* City-level accuracy will give us GeoIP-only source */
-                        wifi = gclue_wifi_get_singleton (GCLUE_ACCURACY_LEVEL_CITY);
-                }
-        }
-        if (wifi) {
+                GClueWifi *wifi = gclue_wifi_get_singleton (locator->priv->accuracy_level);
                 locator->priv->sources = g_list_append (locator->priv->sources,
                                                         wifi);
         }
