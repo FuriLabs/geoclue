@@ -12,13 +12,13 @@ option('gtk-doc',
        description: 'Whether to generate the API reference for Geocode-GLib')
 option('3g-source',
        type: 'boolean', value: true,
-       description: 'Enable 3G source (requires ModemManager')
+       description: 'Enable 3G source (requires ModemManager)')
 option('cdma-source',
        type: 'boolean', value: true,
-       description: 'Enable CDMA source (requires ModemManager')
+       description: 'Enable CDMA source (requires ModemManager)')
 option('modem-gps-source',
        type: 'boolean', value: true,
-       description: 'Enable modem GPS source (requires ModemManager')
+       description: 'Enable modem GPS source (requires ModemManager)')
 option('nmea-source',
        type: 'boolean', value: true,
        description: 'Enable network NMEA source (requires Avahi libraries)')
