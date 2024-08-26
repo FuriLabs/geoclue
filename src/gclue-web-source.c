@@ -666,3 +666,9 @@ gclue_web_source_set_submit_url (GClueWebSource *source,
 {
         source->priv->submit_url = url;
 }
+
+const char *gclue_web_source_get_query_data_description
+                                        (GClueWebSource      *source)
+{
+        return source->priv->query_data_description;
+}

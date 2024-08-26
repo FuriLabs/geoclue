@@ -88,6 +88,8 @@ void gclue_web_source_set_locate_url    (GClueWebSource      *source,
                                          const char          *url);
 void gclue_web_source_set_submit_url    (GClueWebSource      *source,
                                          const char          *url);
+const char *gclue_web_source_get_query_data_description
+                                        (GClueWebSource      *source);
 
 G_END_DECLS
 
