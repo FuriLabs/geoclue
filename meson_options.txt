@@ -10,6 +10,9 @@ option('vapi',
 option('gtk-doc',
        type: 'boolean', value: true,
        description: 'Whether to generate the API reference for Geocode-GLib')
+option('wifi-source',
+       type: 'boolean', value: true,
+       description: 'Enable WiFi source')
 option('3g-source',
        type: 'boolean', value: true,
        description: 'Enable 3G source (requires ModemManager)')

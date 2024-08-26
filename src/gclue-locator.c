@@ -29,8 +29,11 @@
 #include "gclue-locator.h"
 
 #include "gclue-static-source.h"
-#include "gclue-wifi.h"
 #include "gclue-config.h"
+
+#if GCLUE_USE_WIFI_SOURCE
+#include "gclue-wifi.h"
+#endif
 
 #if GCLUE_USE_3G_SOURCE
 #include "gclue-3g.h"
@@ -400,7 +403,6 @@ gclue_locator_constructed (GObject *object)
         GClueLocator *locator = GCLUE_LOCATOR (object);
         GClueLocationSource *submit_source = NULL;
         GClueConfig *gconfig = gclue_config_get_singleton ();
-        GClueWifi *wifi = NULL;
         GList *node;
         GClueMinUINT *threshold;
 
@@ -420,6 +422,8 @@ gclue_locator_constructed (GObject *object)
                                                         cdma);
         }
 #endif
+#if GCLUE_USE_WIFI_SOURCE
+        GClueWifi *wifi = NULL;
         if (gclue_config_get_enable_wifi_source (gconfig)) {
                 wifi = gclue_wifi_get_singleton (locator->priv->accuracy_level);
         } else {
@@ -434,6 +438,7 @@ gclue_locator_constructed (GObject *object)
                 locator->priv->sources = g_list_append (locator->priv->sources,
                                                         wifi);
         }
+#endif
 #if GCLUE_USE_MODEM_GPS_SOURCE
         if (gclue_config_get_enable_modem_gps_source (gconfig)) {
                 GClueModemGPS *gps = gclue_modem_gps_get_singleton ();

@@ -32,6 +32,7 @@ conf.set_quoted('LOCALEDIR', localedir)
 conf.set_quoted('SYSCONFDIR', sysconfdir)
 conf.set_quoted('DEFAULT_WIFI_URL', get_option('default-wifi-url'))
 conf.set_quoted('DEFAULT_WIFI_SUBMIT_URL', get_option('default-wifi-submit-url'))
+conf.set10('GCLUE_USE_WIFI_SOURCE', get_option('wifi-source'))
 conf.set10('GCLUE_USE_3G_SOURCE', get_option('3g-source'))
 conf.set10('GCLUE_USE_CDMA_SOURCE', get_option('cdma-source'))
 conf.set10('GCLUE_USE_MODEM_GPS_SOURCE', get_option('modem-gps-source'))
@@ -90,11 +91,12 @@ summary = '''
         Backend:                  @4@
         Convenience library:      @5@
         Introspection:            @6@
-        3G source:                @7@
-        CDMA source:              @8@
-        Modem GPS source:         @9@
-        Network NMEA source:      @10@
-        Compass:                  @11@
+        WiFi source:              @7@
+        3G source:                @8@
+        CDMA source:              @9@
+        Modem GPS source:         @10@
+        Network NMEA source:      @11@
+        Compass:                  @12@
 '''.format(gclue_version,
            get_option('prefix'),
            cc.get_id(),
@@ -102,6 +104,7 @@ summary = '''
            get_option('enable-backend'),
            get_option('libgeoclue'),
            get_option('introspection'),
+           get_option('wifi-source'),
            get_option('3g-source'),
            get_option('cdma-source'),
            get_option('modem-gps-source'),
