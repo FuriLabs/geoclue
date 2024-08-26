@@ -138,6 +138,7 @@ refresh_callback (SoupSession  *session,
         g_autoptr(GError) local_error = NULL;
         g_autofree char *contents = NULL;
         g_autofree char *str = NULL;
+        g_autofree char *short_contents = NULL;
         g_autoptr(GClueLocation) location = NULL;
         GUri *uri;
 
@@ -160,7 +161,8 @@ refresh_callback (SoupSession  *session,
         contents = g_strndup (g_bytes_get_data (body, NULL), g_bytes_get_size (body));
         uri = soup_message_get_uri (query);
         str = g_uri_to_string (uri);
-        g_debug ("Got following response from '%s':\n%s", str, contents);
+        short_contents = g_strndup (contents, 256);
+        g_debug ("Got a response of %ld bytes from '%s' starting with:\n%s", strlen(contents), str, short_contents);
         location = GCLUE_WEB_SOURCE_GET_CLASS (web)->parse_response (web,
                                                                      contents,
                                                                      &local_error);
