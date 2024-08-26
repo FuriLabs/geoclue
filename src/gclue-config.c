@@ -48,9 +48,11 @@ struct _GClueConfigPrivate
         gboolean enable_wifi_source;
         gboolean enable_compass;
         gboolean enable_static_source;
+        gboolean enable_ip_source;
         char *wifi_submit_url;
         char *wifi_submit_nick;
         char *nmea_socket;
+        char *ip_method;
 
         GList *app_configs;
 };
@@ -90,6 +92,7 @@ gclue_config_finalize (GObject *object)
         g_clear_pointer (&priv->wifi_submit_url, g_free);
         g_clear_pointer (&priv->wifi_submit_nick, g_free);
         g_clear_pointer (&priv->nmea_socket, g_free);
+        g_clear_pointer (&priv->ip_method, g_free);
 
         g_list_foreach (priv->app_configs, (GFunc) app_config_free, NULL);
 
@@ -205,7 +208,7 @@ load_app_configs (GClueConfig *config)
 {
         const char *known_groups[] = { "agent", "wifi", "3g", "cdma",
                                        "modem-gps", "network-nmea", "compass",
-                                       "static-source", NULL };
+                                       "static-source", "ip", NULL };
         GClueConfigPrivate *priv = config->priv;
         gsize num_groups = 0, i;
         g_auto(GStrv) groups = NULL;
@@ -406,6 +409,18 @@ load_static_source_config (GClueConfig *config)
 }
 
 static void
+load_ip_source_config (GClueConfig *config)
+{
+        GClueConfigPrivate *priv = config->priv;
+
+        load_enable_source (config, "ip", GCLUE_USE_IP_SOURCE,
+                            &priv->enable_ip_source);
+
+        load_string_value (config, "ip", "method", &priv->ip_method);
+
+}
+
+static void
 load_config_file (GClueConfig *config, const char *path) {
         g_autoptr(GError) error = NULL;
 
@@ -429,6 +444,7 @@ load_config_file (GClueConfig *config, const char *path) {
         load_network_nmea_config (config);
         load_compass_config (config);
         load_static_source_config (config);
+        load_ip_source_config (config);
 }
 
 static void
@@ -529,6 +545,10 @@ gclue_config_print (GClueConfig *config)
                  string_or_none (priv->wifi_submit_nick));
         g_debug ("Static source: %s",
                  enabled_disabled (priv->enable_static_source));
+        g_debug ("IP source: %s",
+                 enabled_disabled (priv->enable_ip_source));
+        g_debug ("\tIP method: %s",
+                 string_or_none (priv->ip_method));
         g_debug ("Compass: %s",
                  enabled_disabled (priv->enable_compass));
         g_debug ("Application configs:");
@@ -566,6 +586,7 @@ gclue_config_init (GClueConfig *config)
         priv->enable_wifi_source = TRUE;
         priv->enable_compass = TRUE;
         priv->enable_static_source = TRUE;
+        priv->enable_ip_source = TRUE;
 
         /* Default strings */
         priv->wifi_url = g_strdup (DEFAULT_WIFI_URL);
@@ -621,6 +642,13 @@ out:
                 g_warning ("\"wifi/submission-url\" is not set, "
                            "disabling WiFi/3G submissions");
                 priv->wifi_submit = FALSE;
+        }
+        if (priv->enable_ip_source && (!string_present (priv->ip_method) ||
+            (g_strcmp0 (priv->ip_method, "ichnaea") != 0 &&
+             g_strcmp0 (priv->ip_method, "gmaps") != 0))) {
+                g_warning ("Unknown IP source method '%s', disabling source", priv->ip_method);
+                priv->enable_ip_source = FALSE;
+                g_clear_pointer (&priv->ip_method, g_free);
         }
         gclue_config_print (config);
 }
@@ -817,4 +845,16 @@ gboolean
 gclue_config_get_enable_static_source (GClueConfig *config)
 {
         return config->priv->enable_static_source;
+}
+
+gboolean
+gclue_config_get_enable_ip_source (GClueConfig *config)
+{
+        return config->priv->enable_ip_source;
+}
+
+const char *
+gclue_config_get_ip_method (GClueConfig *config)
+{
+        return config->priv->ip_method;
 }

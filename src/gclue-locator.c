@@ -54,6 +54,10 @@
 #include "gclue-static-source.h"
 #endif
 
+#if GCLUE_USE_IP_SOURCE
+#include "gclue-ip.h"
+#endif
+
 /* This class is like a master location source that hides all individual
  * location sources from rest of the code
  */
@@ -473,6 +477,13 @@ gclue_locator_constructed (GObject *object)
                         (locator->priv->accuracy_level);
                 locator->priv->sources = g_list_append (locator->priv->sources,
                                                         static_source);
+        }
+#endif
+#if GCLUE_USE_IP_SOURCE
+        if (gclue_config_get_enable_ip_source (gconfig)) {
+                GClueIp *source = gclue_ip_get_singleton ();
+                locator->priv->sources = g_list_append (locator->priv->sources,
+                                                        source);
         }
 #endif
 

@@ -28,6 +28,9 @@ option('nmea-source',
 option('static-source',
        type: 'boolean', value: true,
        description: 'Enable static source (geolocation file)')
+option('ip-source',
+       type: 'boolean', value: true,
+       description: 'Enable ip source (GeoIP)')
 option('compass',
        type: 'boolean', value: true,
        description: 'Enable setting heading from net.hadess.SensorProxy compass')
