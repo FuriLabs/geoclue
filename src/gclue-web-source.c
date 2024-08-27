@@ -60,6 +60,7 @@ struct _GClueWebSourcePrivate {
         const char *submit_url;
         gboolean locate_url_reachable;
         gboolean submit_url_reachable;
+        gboolean refresh_needed;
 };
 
 enum
@@ -272,8 +273,11 @@ locate_url_checked_cb (GObject      *source_object,
                  reachable ? "Enabling locate URL queries" :
                              "Disabling locate URL queries");
         if (reachable) {
-                GCLUE_WEB_SOURCE_GET_CLASS (web)->refresh_async
-                        (web, NULL, query_callback, NULL);
+                refresh_accuracy_level (web);
+                if (gclue_location_source_get_active (GCLUE_LOCATION_SOURCE (web)))
+                        gclue_web_source_refresh (web);
+                else
+                        web->priv->refresh_needed = TRUE; /* postpone to start */
         }
 }
 
@@ -375,6 +379,30 @@ on_connectivity_changed (GObject    *gobject,
                          gpointer    user_data)
 {
         on_network_changed (NULL, FALSE, user_data);
+}
+
+static GClueLocationSourceStartResult
+gclue_web_source_start (GClueLocationSource *source)
+{
+        GClueLocationSourceClass *base_class;
+        GClueWebSource *web;
+        GClueLocationSourceStartResult base_result;
+
+        g_return_val_if_fail (GCLUE_IS_LOCATION_SOURCE (source),
+                              GCLUE_LOCATION_SOURCE_START_RESULT_FAILED);
+        web = GCLUE_WEB_SOURCE (source);
+
+        base_class = GCLUE_LOCATION_SOURCE_CLASS (gclue_web_source_parent_class);
+        base_result = base_class->start (source);
+        if (base_result != GCLUE_LOCATION_SOURCE_START_RESULT_OK)
+                return base_result;
+
+        if (web->priv->refresh_needed) {
+                web->priv->refresh_needed = FALSE;
+                gclue_web_source_refresh (web);
+        }
+
+        return base_result;
 }
 
 static void
@@ -502,15 +530,18 @@ gclue_web_source_set_property (GObject      *object,
 static void
 gclue_web_source_class_init (GClueWebSourceClass *klass)
 {
-        GObjectClass *gsource_class = G_OBJECT_CLASS (klass);
+        GObjectClass *object_class = G_OBJECT_CLASS (klass);
+        GClueLocationSourceClass *source_class = GCLUE_LOCATION_SOURCE_CLASS (klass);
 
         klass->refresh_async = gclue_web_source_real_refresh_async;
         klass->refresh_finish = gclue_web_source_real_refresh_finish;
 
-        gsource_class->get_property = gclue_web_source_get_property;
-        gsource_class->set_property = gclue_web_source_set_property;
-        gsource_class->finalize = gclue_web_source_finalize;
-        gsource_class->constructed = gclue_web_source_constructed;
+        source_class->start = gclue_web_source_start;
+
+        object_class->get_property = gclue_web_source_get_property;
+        object_class->set_property = gclue_web_source_set_property;
+        object_class->finalize = gclue_web_source_finalize;
+        object_class->constructed = gclue_web_source_constructed;
 
         gParamSpecs[PROP_ACCURACY_LEVEL] = g_param_spec_enum ("accuracy-level",
                                                               "AccuracyLevel",
@@ -519,7 +550,7 @@ gclue_web_source_class_init (GClueWebSourceClass *klass)
                                                               GCLUE_ACCURACY_LEVEL_CITY,
                                                               G_PARAM_READWRITE |
                                                               G_PARAM_CONSTRUCT_ONLY);
-        g_object_class_install_property (gsource_class,
+        g_object_class_install_property (object_class,
                                          PROP_ACCURACY_LEVEL,
                                          gParamSpecs[PROP_ACCURACY_LEVEL]);
 }
