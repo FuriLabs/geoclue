@@ -195,9 +195,11 @@ query_callback (GObject      *source_object,
 {
         GClueWebSource *web = GCLUE_WEB_SOURCE (source_object);
         g_autoptr(GError) local_error = NULL;
-        g_autoptr(GClueLocation) location = NULL;
 
-        location = GCLUE_WEB_SOURCE_GET_CLASS (web)->refresh_finish (web, result, &local_error);
+        /* Ignore returned location */
+        GClueLocation *location = GCLUE_WEB_SOURCE_GET_CLASS (web)->refresh_finish (web, result, &local_error);
+        if (location)
+                g_object_unref (location);
 
         if (local_error != NULL &&
             !g_error_matches (local_error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
