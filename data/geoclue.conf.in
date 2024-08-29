@@ -12,6 +12,17 @@
 # separated by a ';'.
 whitelist=@demo_agent@gnome-shell;io.elementary.desktop.agent-geoclue2;sm.puri.Phosh;lipstick
 
+# IP source configuration options
+[ip]
+
+# Enable the GeoIP source
+enable=true
+
+# Method (backend) to use for IP location. Currently implemented are:
+# 'ichnaea': Use the Ichnaea (MLS) API with the URL from the wifi source.
+# 'gmaps': Use the location determined by Google Maps.
+method=ichnaea
+
 # Network NMEA source configuration options
 [network-nmea]
 
