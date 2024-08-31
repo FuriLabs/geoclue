@@ -25,6 +25,9 @@ option('modem-gps-source',
 option('nmea-source',
        type: 'boolean', value: true,
        description: 'Enable network NMEA source (requires Avahi libraries)')
+option('static-source',
+       type: 'boolean', value: true,
+       description: 'Enable static source (geolocation file)')
 option('compass',
        type: 'boolean', value: true,
        description: 'Enable setting heading from net.hadess.SensorProxy compass')

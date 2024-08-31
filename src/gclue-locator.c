@@ -28,7 +28,6 @@
 
 #include "gclue-locator.h"
 
-#include "gclue-static-source.h"
 #include "gclue-config.h"
 
 #if GCLUE_USE_WIFI_SOURCE
@@ -49,6 +48,10 @@
 
 #if GCLUE_USE_NMEA_SOURCE
 #include "gclue-nmea-source.h"
+#endif
+
+#if GCLUE_USE_STATIC_SOURCE
+#include "gclue-static-source.h"
 #endif
 
 /* This class is like a master location source that hides all individual
@@ -460,7 +463,7 @@ gclue_locator_constructed (GObject *object)
 
         }
 #endif
-
+#if GCLUE_USE_STATIC_SOURCE
         if (gclue_config_get_enable_static_source (gconfig)) {
                 GClueStaticSource *static_source;
 
@@ -469,6 +472,7 @@ gclue_locator_constructed (GObject *object)
                 locator->priv->sources = g_list_append (locator->priv->sources,
                                                         static_source);
         }
+#endif
 
         for (node = locator->priv->sources; node != NULL; node = node->next) {
                 g_signal_connect (G_OBJECT (node->data),
