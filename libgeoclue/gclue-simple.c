@@ -334,11 +334,16 @@ on_location_updated (GClueClient *client,
 static void
 async_init_return_error_when_cancelled (GTask *task)
 {
+        GCancellable *cancellable = g_task_get_cancellable (task);
+
+        if (cancellable == NULL)
+                return;
+
         /* Sub-tasks were returning when the async init is cancelled. With no
          * further async call, and the top level task only checking cancellation
          * when g_task_return_* is called, we need to listen to this signal.
          */
-        g_signal_connect_object (g_task_get_cancellable (task),
+        g_signal_connect_object (cancellable,
                                  "cancelled",
                                  G_CALLBACK (g_task_return_error_if_cancelled),
                                  task,
