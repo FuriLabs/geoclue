@@ -20,8 +20,9 @@
  * Authors: Zeeshan Ali (Khattak) <zeeshanak@gnome.org>
  */
 
+#include "config.h"
+
 #include <glib/gi18n.h>
-#include <config.h>
 #include <string.h>
 
 #include "gclue-config.h"
@@ -303,6 +304,31 @@ error_out:
         }
 }
 
+static gboolean
+load_enable_source (GClueConfig *config,
+                    const gchar *group_name,
+                    gboolean     compiled,
+                    gboolean    *value_storage)
+{
+        gboolean enabled;
+
+        g_return_val_if_fail (value_storage != NULL, FALSE);
+
+        if (!load_boolean_value (config, group_name, "enable", &enabled))
+                return FALSE;
+
+        if (enabled && !compiled) {
+                g_warning ("Source '%s' is enabled in configuration, "
+                           "but Geoclue is compiled without it",
+                           group_name);
+                *value_storage = FALSE;
+        } else {
+                *value_storage = enabled;
+        }
+
+        return TRUE;
+}
+
 #define DEFAULT_WIFI_SUBMIT_NICK "geoclue"
 
 static void
@@ -311,7 +337,7 @@ load_wifi_config (GClueConfig *config)
         GClueConfigPrivate *priv = config->priv;
         g_autofree gchar *wifi_submit_nick = NULL;
 
-        load_boolean_value (config, "wifi", "enable",
+        load_enable_source (config, "wifi", GCLUE_USE_WIFI_SOURCE,
                             &priv->enable_wifi_source);
 
         load_string_value (config, "wifi", "url", &priv->wifi_url);
@@ -338,28 +364,28 @@ load_wifi_config (GClueConfig *config)
 static void
 load_3g_config (GClueConfig *config)
 {
-        load_boolean_value (config, "3g", "enable",
+        load_enable_source (config, "3g", GCLUE_USE_3G_SOURCE,
                             &config->priv->enable_3g_source);
 }
 
 static void
 load_cdma_config (GClueConfig *config)
 {
-        load_boolean_value (config, "cdma", "enable",
+        load_enable_source (config, "cdma", GCLUE_USE_CDMA_SOURCE,
                             &config->priv->enable_cdma_source);
 }
 
 static void
 load_modem_gps_config (GClueConfig *config)
 {
-        load_boolean_value (config, "modem-gps", "enable",
+        load_enable_source (config, "modem-gps", GCLUE_USE_MODEM_GPS_SOURCE,
                             &config->priv->enable_modem_gps_source);
 }
 
 static void
 load_network_nmea_config (GClueConfig *config)
 {
-        load_boolean_value (config, "network-nmea", "enable",
+        load_enable_source (config, "network-nmea", GCLUE_USE_NMEA_SOURCE,
                             &config->priv->enable_nmea_source);
         load_string_value (config, "network-nmea", "nmea-socket",
                            &config->priv->nmea_socket);
@@ -368,14 +394,14 @@ load_network_nmea_config (GClueConfig *config)
 static void
 load_compass_config (GClueConfig *config)
 {
-        load_boolean_value (config, "compass", "enable",
+        load_enable_source (config, "compass", GCLUE_USE_COMPASS,
                             &config->priv->enable_compass);
 }
 
 static void
 load_static_source_config (GClueConfig *config)
 {
-        load_boolean_value (config, "static-source", "enable",
+        load_enable_source (config, "static-source", GCLUE_USE_STATIC_SOURCE,
                             &config->priv->enable_static_source);
 }
 
