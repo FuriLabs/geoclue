@@ -62,9 +62,9 @@ Contributors:
 - Modem manager: add polkit rule to allow GPS access
 - Allow disabling compass at build and at runtime
 - Fix heading computation for identical locations
-- Be strict with time and distance threshold 
+- Be strict with time and distance threshold
 - Fix the XDG location portal integration
-- Replace agent wait timeout with a queue 
+- Replace agent wait timeout with a queue
 - Other bugs fixes
 
 Contributors:
@@ -72,10 +72,10 @@ Contributors:
 - Laurent Bigonville
 - Angus Ainslie
 - Dan Nicholson
-- Guido Günther 
+- Guido Günther
 - Jan Alexander Steffens
-- Abderrahim Kitouni 
-- clayton craft 
+- Abderrahim Kitouni
+- clayton craft
 - Ian Douglas Scott
 - Chupligin Sergey
 - Dor Askayo
