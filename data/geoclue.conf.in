@@ -50,6 +50,7 @@ enable=@default_wifi_enable@
 # URL to a WiFi geolocation service compatible with the Ichnaea API
 # (https://ichnaea.readthedocs.io/en/latest/api/geolocate.html).
 # An API key can be set by using the 'key' URL parameter.
+# If unset, defaults to a location service defined at build-time.
 #url=https://example.com/v1/geolocate?key=YOUR_KEY
 
 # To use the Google geolocation service, uncomment this URL
