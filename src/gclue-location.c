@@ -449,6 +449,8 @@ parse_coordinate_string (const char *coordinate,
         if (dot_str == NULL)
                 return INVALID_COORDINATE;
         dot_offset = dot_str - coordinate;
+        if (dot_offset < 3)
+                return INVALID_COORDINATE;
 
         degrees_str = g_strndup (coordinate, dot_offset - 2);
         degrees = g_ascii_strtod (degrees_str, NULL);
