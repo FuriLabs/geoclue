@@ -428,12 +428,11 @@ parse_coordinate_string (const char *coordinate,
 {
         gdouble minutes, degrees, out;
         g_autofree gchar *degrees_str = NULL;
-        gchar *dot_str;
+        const char *c, *dot_str, *coordinate_end;
+        char *conversion_end;
         gint dot_offset;
 
-        if (coordinate[0] == '\0' ||
-            direction[0] == '\0' ||
-            direction[0] == '\0')
+        if (!coordinate || !direction || coordinate[0] == '\0' || direction[0] == '\0')
                 return INVALID_COORDINATE;
 
         if (direction[0] != 'N' &&
@@ -445,17 +444,29 @@ parse_coordinate_string (const char *coordinate,
                 return INVALID_COORDINATE;
         }
 
+        for (c = coordinate; *c != '\0'; c++) {
+                if (!(g_ascii_isdigit (*c) || *c == '.')) {
+                        g_warning ("Invalid coordinate string '%s'", coordinate);
+                        return INVALID_COORDINATE;
+                }
+        }
+        coordinate_end = c;
+
         dot_str = g_strstr_len (coordinate, 6, ".");
-        if (dot_str == NULL)
-                return INVALID_COORDINATE;
         dot_offset = dot_str - coordinate;
-        if (dot_offset < 3)
+        if (!dot_str || dot_offset < 3) {
+                g_warning ("Invalid coordinate string '%s'", coordinate);
                 return INVALID_COORDINATE;
+        }
 
         degrees_str = g_strndup (coordinate, dot_offset - 2);
         degrees = g_ascii_strtod (degrees_str, NULL);
 
-        minutes = g_ascii_strtod (dot_str - 2, NULL);
+        minutes = g_ascii_strtod (dot_str - 2, &conversion_end);
+        if (conversion_end != coordinate_end) {
+                g_warning ("Invalid coordinate string '%s'", coordinate);
+                return INVALID_COORDINATE;
+        }
 
         /* Include the minutes as part of the degrees */
         out = degrees + (minutes / 60.0);
