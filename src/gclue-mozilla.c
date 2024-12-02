@@ -257,6 +257,7 @@ gclue_mozilla_create_query (GClueMozilla  *mozilla,
                 for (iter = bss_list; iter != NULL; iter = iter->next) {
                         WPABSS *bss = WPA_BSS (iter->data);
                         char mac[BSSID_STR_LEN + 1] = { 0 };
+                        char ssid[MAX_SSID_LEN + 1] = { 0 };
                         gint16 strength_dbm;
                         guint age_ms;
 
@@ -268,6 +269,10 @@ gclue_mozilla_create_query (GClueMozilla  *mozilla,
                         json_builder_set_member_name (builder, "macAddress");
                         get_bssid_from_bss (bss, mac);
                         json_builder_add_string_value (builder, mac);
+
+                        json_builder_set_member_name (builder, "ssid");
+                        get_ssid_from_bss (bss, ssid);
+                        json_builder_add_string_value (builder, ssid);
 
                         json_builder_set_member_name (builder, "signalStrength");
                         strength_dbm = wpa_bss_get_signal (bss);
@@ -486,6 +491,7 @@ gclue_mozilla_create_submit_query (GClueMozilla  *mozilla,
                 for (iter = bss_list; iter != NULL; iter = iter->next) {
                         WPABSS *bss = WPA_BSS (iter->data);
                         char mac[BSSID_STR_LEN + 1] = { 0 };
+                        char ssid[MAX_SSID_LEN + 1] = { 0 };
                         gint16 strength_dbm;
                         guint16 frequency;
                         guint age_ms;
@@ -498,6 +504,10 @@ gclue_mozilla_create_submit_query (GClueMozilla  *mozilla,
                         json_builder_set_member_name (builder, "macAddress");
                         get_bssid_from_bss (bss, mac);
                         json_builder_add_string_value (builder, mac);
+
+                        json_builder_set_member_name (builder, "ssid");
+                        get_ssid_from_bss (bss, ssid);
+                        json_builder_add_string_value (builder, ssid);
 
                         json_builder_set_member_name (builder, "signalStrength");
                         strength_dbm = wpa_bss_get_signal (bss);
