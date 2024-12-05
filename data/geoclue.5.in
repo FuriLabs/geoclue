@@ -35,6 +35,23 @@ separated by a ';'.
 .B whitelist=geoclue-demo-agent;gnome-shell;io.elementary.desktop.agent-geoclue2
 .br
 .SH LOCATION SOURCE CONFIGURATION OPTIONS
+.IP \fB[ip]
+.br
+IP source configuration options
+.IP
+.B \fBenable=true
+.br
+Enable the GeoIP source
+.br
+.IP
+.B \fBmethod=gmaps
+.br
+Method (backend) to use for IP location. Currently implemented are:
+.br
+"ichnaea": Use the Ichnaea API with the URL from the wifi source.
+.br
+"gmaps": Use the location determined by Google Maps.
+.br
 .IP \fB[network-nmea]
 .br
 Network NMEA source configuration options
