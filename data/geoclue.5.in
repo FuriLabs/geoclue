@@ -34,6 +34,7 @@ separated by a ';'.
 .IP
 .B whitelist=geoclue-demo-agent;gnome-shell;io.elementary.desktop.agent-geoclue2
 .br
+.SH LOCATION SOURCE CONFIGURATION OPTIONS
 .IP \fB[network-nmea]
 .br
 Network NMEA source configuration options
