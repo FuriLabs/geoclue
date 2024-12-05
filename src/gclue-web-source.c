@@ -28,6 +28,7 @@
 #include "gclue-error.h"
 #include "gclue-location.h"
 #include "gclue-mozilla.h"
+#include "config.h"
 
 /**
  * SECTION:gclue-web-source
@@ -402,16 +403,45 @@ gclue_web_source_finalize (GObject *gsource)
         G_OBJECT_CLASS (gclue_web_source_parent_class)->finalize (gsource);
 }
 
+static char *
+get_os_info (void)
+{
+        g_autofree char *pretty_name = NULL;
+        g_autofree char *os_name = g_get_os_info (G_OS_INFO_KEY_NAME);
+        g_autofree char *os_version = g_get_os_info (G_OS_INFO_KEY_VERSION);
+
+        if (os_name && os_version)
+                return g_strdup_printf ("%s; %s", os_name, os_version);
+
+        pretty_name = g_get_os_info (G_OS_INFO_KEY_PRETTY_NAME);
+        if (pretty_name)
+                return g_steal_pointer (&pretty_name);
+
+        /* Translators: Not marked as translatable as debug output should stay English */
+        return g_strdup ("Unknown");
+}
+
+#define USER_AGENT (PACKAGE_NAME "/" PACKAGE_VERSION)
+
+static char *
+get_user_agent (void)
+{
+        g_autofree char *os_info = get_os_info ();
+        return g_strdup_printf ("%s (%s)", USER_AGENT, os_info);
+}
+
 static void
 gclue_web_source_constructed (GObject *object)
 {
         GNetworkMonitor *monitor;
         GClueWebSourcePrivate *priv = GCLUE_WEB_SOURCE (object)->priv;
+        g_autofree char *user_agent = get_user_agent ();
 
         G_OBJECT_CLASS (gclue_web_source_parent_class)->constructed (object);
 
         priv->soup_session = soup_session_new ();
         soup_session_set_proxy_resolver (priv->soup_session, NULL);
+        soup_session_set_user_agent (priv->soup_session, user_agent);
 
         monitor = g_network_monitor_get_default ();
         priv->network_changed_id =
