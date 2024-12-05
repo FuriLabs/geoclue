@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <glib.h>
+#include <json-glib/json-glib.h>
 #include <string.h>
 #include "config.h"
 #include "gclue-ip.h"
@@ -144,6 +145,62 @@ gmaps_parse_response (GClueWebSource *source,
         return location;
 }
 
+/* reallyfreegeoip method */
+
+#define REALLYFREEGEOIP_URL "https://reallyfreegeoip.org/json/"
+#define REALLYFREEGEOIP_ACCURACY (20000.0)
+
+static SoupMessage *
+reallyfreegeoip_create_query (GClueWebSource *source,
+                              const char    **query_data_description,
+                              GError        **error)
+{
+        g_autoptr(SoupMessage) query = NULL;
+
+        query = soup_message_new ("GET", REALLYFREEGEOIP_URL);
+        if (query_data_description) {
+                *query_data_description = "reallyfreegeoip IP";
+        }
+
+        return g_steal_pointer (&query);
+}
+
+static GClueLocation *
+reallyfreegeoip_parse_response (GClueWebSource *source,
+                                const char *response,
+                                GError    **error)
+{
+        g_autoptr(JsonParser) parser = NULL;
+        JsonNode *node;
+        JsonObject *object;
+        double latitude, longitude, accuracy;
+        GClueLocation *location;
+
+        parser = json_parser_new ();
+
+        if (!json_parser_load_from_data (parser, response, -1, error))
+                return NULL;
+
+        node = json_parser_get_root (parser);
+        object = json_node_get_object (node);
+
+        latitude = json_object_get_double_member (object, "latitude");
+        longitude = json_object_get_double_member (object, "longitude");
+        accuracy = REALLYFREEGEOIP_ACCURACY;
+        g_debug ("Parsed reallyfreegeoip values lat=%.8f, lon=%.8f, default accuracy=%.0f",
+                 latitude, longitude, accuracy);
+        if (latitude <= -180.0 || latitude > 180.0 ||
+            longitude > 90.0 || longitude < -90.0) {
+                g_warning ("reallyfreegeoip coordinates are invalid: lat=%.8f, lon=%.8f",
+                           latitude, longitude);
+                return NULL;
+        }
+        location = gclue_location_new (latitude, longitude, accuracy,
+                                       gclue_web_source_get_query_data_description(source));
+
+        return location;
+}
+
 /* GClueIp common */
 
 static void
@@ -209,6 +266,9 @@ gclue_ip_class_init (GClueIpClass *klass)
         } else if (g_strcmp0 (method, "gmaps") == 0) {
                 web_class->create_query = gmaps_create_query;
                 web_class->parse_response = gmaps_parse_response;
+        } else if (g_strcmp0 (method, "reallyfreegeoip") == 0) {
+                web_class->create_query = reallyfreegeoip_create_query;
+                web_class->parse_response = reallyfreegeoip_parse_response;
         } else {
                 g_error ("Unknown IP method '%s'", method);
         }
@@ -237,6 +297,8 @@ gclue_ip_init (GClueIp *ip)
                         ("center=[0-9\\.]*%2C[0-9\\.]*&amp;zoom=[0-9]*&amp;",
                          G_REGEX_DEFAULT, G_REGEX_MATCH_DEFAULT, NULL);
                 gclue_web_source_set_locate_url (web_source, GMAPS_URL);
+        } else if (g_strcmp0 (method, "reallyfreegeoip") == 0) {
+                gclue_web_source_set_locate_url (web_source, REALLYFREEGEOIP_URL);
         } else {
                 g_error ("Unknown IP method '%s'", method);
         }

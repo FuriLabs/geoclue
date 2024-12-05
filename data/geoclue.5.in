@@ -51,6 +51,7 @@ Method (backend) to use for IP location. Currently implemented are:
 "ichnaea": Use the Ichnaea API with the URL from the wifi source.
 .br
 "gmaps": Use the location determined by Google Maps.
+"reallyfreegeoip": Use the location from reallyfreegeoip.org.
 .br
 .IP \fB[network-nmea]
 .br

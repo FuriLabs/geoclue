@@ -645,7 +645,8 @@ out:
         }
         if (priv->enable_ip_source && (!string_present (priv->ip_method) ||
             (g_strcmp0 (priv->ip_method, "ichnaea") != 0 &&
-             g_strcmp0 (priv->ip_method, "gmaps") != 0))) {
+             g_strcmp0 (priv->ip_method, "gmaps") != 0 &&
+             g_strcmp0 (priv->ip_method, "reallyfreegeoip") != 0))) {
                 g_warning ("Unknown IP source method '%s', disabling source", priv->ip_method);
                 priv->enable_ip_source = FALSE;
                 g_clear_pointer (&priv->ip_method, g_free);
