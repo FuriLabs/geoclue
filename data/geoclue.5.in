@@ -17,10 +17,9 @@ order. Thus, a configuration file '90-config.conf' will overwrite parameters
 specified in another configuration file '50-config.conf' in the conf.d
 directory.
 .PP
-All configurations settings below are mandatory and the defaults are
-what you see before you edit them in geoclue.conf. If you want to keep the default
-values around, copy and comment out the appropriate line(s) before
-changing them.
+All configurations settings below are mandatory and the defaults are what you
+see before you edit them in geoclue.conf. If you want to keep the default values
+around, copy and comment out the appropriate line(s) before changing them.
 .PP
 Missing 'enable' key for a particular source in the main configuration file
 causes that source to be enabled by default. Adding 'enable' key setting
@@ -99,7 +98,8 @@ URL to submission API of Mozilla Location Service
 .IP
 .B submission-nick=geoclue
 .br
-A nickname to submit network data with. If empty, omitted from the submission. Otherwise, must be 2 to 32 characters long. Defaults to "geoclue".
+A nickname to submit network data with. If empty, omitted from the submission.
+Otherwise, must be 2 to 32 characters long. Defaults to "geoclue".
 .br
 .IP \fB[compass]
 .br
@@ -113,7 +113,11 @@ Enable Compass
 .br
 Static source configuration options.
 .br
-This source reads location from "geolocation" file in @sysconfdir@. While this file is constantly monitored for changes during geoclue operation, and the reported static location is updated accordingly, this source isn't meant for inputting a dynamically changing location to geoclue (please use the Network NMEA source for that).
+This source reads location from "geolocation" file in @sysconfdir@. While this
+file is constantly monitored for changes during geoclue operation, and the
+reported static location is updated accordingly, this source isn't meant for
+inputting a dynamically changing location to geoclue (please use the Network
+NMEA source for that).
 .IP
 .B \fBenable=true
 .br
@@ -205,7 +209,8 @@ users=
 .br
 .SH STATIC LOCATION FILE
 .SS Basic format:
-The static location file in @sysconfdir@ (used by the static source) is a text file consisting of the following:
+The static location file in @sysconfdir@ (used by the static source) is a text
+file consisting of the following:
 .nr step 1 1
 .IP \n[step]
 Latitude (floating point number; positive values mean north, negative south)
@@ -220,7 +225,8 @@ Accuracy radius (floating point number; in meters)
 These values need to be separated by newline characters.
 .SS Additional format information:
 .IP \[bu]
-The '\[sh]' character starts a comment, which continues until the end of the current line.
+The '\[sh]' character starts a comment, which continues until the end of the
+current line.
 .IP \[bu]
 Leading and trailing white-space on each line is ignored.
 .IP \[bu]
@@ -235,14 +241,16 @@ Empty lines (or containing just white-space or a comment) are ignored.
 1.83         # accuracy radius (the diameter of the torch is 12 feet)
 .EE
 .SS Notes:
-For extra security, the static location file can be made readable just by the geoclue user:
+For extra security, the static location file can be made readable just by the
+geoclue user:
 .EX
 # chown @dbus_srv_user@ @sysconfdir@/geolocation
 # chmod 600 @sysconfdir@/geolocation
 .EE
 .br
 .SH CLIENT LIST
-Sending SIGUSR1 to a running geoclue process prints the current list of clients to the log.
+Sending SIGUSR1 to a running geoclue process prints the current list of clients
+to the log.
 .br
 .SH AUTHOR
 .na
