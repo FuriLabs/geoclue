@@ -477,6 +477,17 @@ parse_coordinate_string (const char *coordinate,
         return out;
 }
 
+static gboolean
+coordinates_ok (double latitude,
+                double longitude)
+{
+        if (latitude > 90.0 || latitude < -90 ||
+            longitude > 180.0 || longitude < -180.0)
+                return FALSE;
+        else
+                return TRUE;
+}
+
 static gdouble
 parse_altitude_string (const char *altitude,
                        const char *unit)
@@ -631,8 +642,9 @@ gclue_location_create_from_gga (const char *gga)
         timestamp = parse_nmea_timestamp (parts[1]);
         latitude = parse_coordinate_string (parts[2], parts[3]);
         longitude = parse_coordinate_string (parts[4], parts[5]);
-        if (latitude == INVALID_COORDINATE || longitude == INVALID_COORDINATE) {
-                g_warning ("Invalid coordinate on NMEA GGA sentence.");
+        if (!coordinates_ok (latitude, longitude)) {
+                g_warning ("Invalid coordinates (%f, %f) on NMEA GGA sentence.",
+                           latitude, longitude);
                 return NULL;
         }
 
@@ -677,9 +689,9 @@ gclue_location_create_from_rmc (const char     *rmc,
         guint64 timestamp = parse_nmea_timestamp (parts[1]);
         gdouble lat = parse_coordinate_string (parts[3], parts[4]);
         gdouble lon = parse_coordinate_string (parts[5], parts[6]);
-
-        if (lat == INVALID_COORDINATE || lon == INVALID_COORDINATE) {
-                g_warning ("Invalid coordinate on NMEA RMC sentence.");
+        if (!coordinates_ok (lat, lon)) {
+                g_warning ("Invalid coordinates (%f, %f) on NMEA RMC sentence.",
+                           lat, lon);
                 return NULL;
         }
 
