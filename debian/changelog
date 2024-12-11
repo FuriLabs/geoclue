@@ -5,7 +5,9 @@ geoclue-2.0 (2.7.2-1) UNRELEASED; urgency=medium
   * debian/watch: Fix the logic after GitLab changes
   * debian/geoclue-2.0.lintian-overrides: Drop
     package-supports-alternative-init-but-no-init.d-script, not used anymore
-  * debian/control: Bump Standards-Version to 4.7.0 (no further changes)
+  * debian/control:
+    - Bump Standards-Version to 4.7.0 (no further changes)
+    - Update build-dependencies to please lintian: pkg-config => pkgconf
 
  -- Laurent Bigonville <bigon@debian.org>  Wed, 11 Dec 2024 11:29:09 +0100
 
