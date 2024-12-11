@@ -1,8 +1,9 @@
-geoclue-2.0 (2.7.1-3) UNRELEASED; urgency=medium
+geoclue-2.0 (2.7.2-1) UNRELEASED; urgency=medium
 
+  * New upstream release
   * debian/watch: Fix the logic after GitLab changes
 
- -- Laurent Bigonville <bigon@debian.org>  Wed, 11 Dec 2024 11:27:56 +0100
+ -- Laurent Bigonville <bigon@debian.org>  Wed, 11 Dec 2024 11:29:09 +0100
 
 geoclue-2.0 (2.7.1-2) unstable; urgency=medium
 
