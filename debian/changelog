@@ -1,6 +1,7 @@
 geoclue-2.0 (2.7.2-1) UNRELEASED; urgency=medium
 
   * New upstream release
+    - Bump build-dependencies
   * debian/watch: Fix the logic after GitLab changes
 
  -- Laurent Bigonville <bigon@debian.org>  Wed, 11 Dec 2024 11:29:09 +0100
