@@ -8,6 +8,8 @@ geoclue-2.0 (2.7.2-1) UNRELEASED; urgency=medium
   * debian/control:
     - Bump Standards-Version to 4.7.0 (no further changes)
     - Update build-dependencies to please lintian: pkg-config => pkgconf
+  * debian/rules: Use beaconDB as a source, with the maintainer approval
+    (Closes: #1074427)
 
  -- Laurent Bigonville <bigon@debian.org>  Wed, 11 Dec 2024 11:29:09 +0100
 
