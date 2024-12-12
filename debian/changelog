@@ -1,4 +1,4 @@
-geoclue-2.0 (2.7.2-1) UNRELEASED; urgency=medium
+geoclue-2.0 (2.7.2-1) unstable; urgency=low
 
   * New upstream release
     - Bump build-dependencies
@@ -12,7 +12,7 @@ geoclue-2.0 (2.7.2-1) UNRELEASED; urgency=medium
     (Closes: #1074427)
   * debian/patches: Cherry-pick several patches for beaconDB
 
- -- Laurent Bigonville <bigon@debian.org>  Wed, 11 Dec 2024 11:29:09 +0100
+ -- Laurent Bigonville <bigon@debian.org>  Thu, 12 Dec 2024 11:49:19 +0100
 
 geoclue-2.0 (2.7.1-2) unstable; urgency=medium
 
