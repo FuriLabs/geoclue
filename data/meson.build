@@ -8,10 +8,18 @@ if get_option('enable-backend')
         conf.set('demo_agent', '')
     endif
 
+    if get_option('default-wifi-submit-url') != ''
+        conf.set('default_wifi_submit_url', get_option('default-wifi-submit-url'))
+    else
+        conf.set('default_wifi_submit_url', '<UNSET>')
+    endif
+
     if get_option('default-wifi-url') != ''
         conf.set('default_wifi_enable', 'true')
+        conf.set('default_wifi_url', get_option('default-wifi-url'))
     else
         conf.set('default_wifi_enable', 'false')
+        conf.set('default_wifi_url', '<UNSET>')
     endif
 
     conf_dir = join_paths(sysconfdir, 'geoclue')

@@ -50,7 +50,8 @@ enable=@default_wifi_enable@
 # URL to a WiFi geolocation service compatible with the Ichnaea API
 # (https://ichnaea.readthedocs.io/en/latest/api/geolocate.html).
 # An API key can be set by using the 'key' URL parameter.
-# If unset, defaults to a location service defined at build-time.
+# If unset, defaults to an URL defined at build-time,
+# this URL is '@default_wifi_url@''
 #url=https://example.com/v1/geolocate?key=YOUR_KEY
 
 # To use the Positon geolocation service, uncomment this URL.
@@ -98,6 +99,8 @@ submit-data=false
 
 # URL to submit data to a WiFi geolocation service with an Ichnaea compatible API
 # (https://ichnaea.readthedocs.io/en/latest/api/geosubmit2.html).
+# If unset, defaults to an URL defined at build-time,
+# this URL is '@default_wifi_submit_url@'.
 #submission-url=https://example.com/v2/geosubmit?key=YOUR_KEY
 
 # A nickname to submit network data with. If empty, omitted from the submission.
