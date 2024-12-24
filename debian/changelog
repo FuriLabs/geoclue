@@ -1,3 +1,11 @@
+geoclue-2.0 (2.6.0-2+deb12u1) bookworm; urgency=medium
+
+  * Switch to beaconDB instead of the new retired MLS (Closes: #1074427)
+  * d/README.Debian: Update the README to explicitly state we are using beaconDB
+  * Add SSID to queries, cherry-picked from upstream for beaconDB
+
+ -- Laurent Bigonville <bigon@debian.org>  Tue, 24 Dec 2024 18:06:58 +0100
+
 geoclue-2.0 (2.6.0-2) unstable; urgency=medium
 
   [ Laurent Bigonville ]
