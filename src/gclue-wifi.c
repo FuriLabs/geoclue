@@ -22,7 +22,6 @@
 #include <stdlib.h>
 #include <glib.h>
 #include <string.h>
-#include <config.h>
 #include "gclue-wifi.h"
 #include "gclue-3g.h"
 #include "gclue-config.h"
@@ -1028,13 +1027,6 @@ gclue_wifi_constructed (GObject *object)
 
         G_OBJECT_CLASS (gclue_wifi_parent_class)->constructed (object);
 
-        if (get_accuracy_level (wifi) == GCLUE_ACCURACY_LEVEL_CITY) {
-                GClueConfig *config = gclue_config_get_singleton ();
-
-                if (!gclue_config_get_enable_wifi_source (config))
-                        goto refresh_n_exit;
-        }
-
         /* FIXME: We should be using async variant */
         priv->supplicant = wpa_supplicant_proxy_new_for_bus_sync
                         (G_BUS_TYPE_SYSTEM,
@@ -1080,7 +1072,7 @@ on_wifi_destroyed (gpointer data,
 }
 
 /**
- * gclue_wifi_new:
+ * gclue_wifi_get_singleton:
  *
  * Get the #GClueWifi singleton, for the specified max accuracy level @level.
  *
@@ -1090,29 +1082,18 @@ on_wifi_destroyed (gpointer data,
 GClueWifi *
 gclue_wifi_get_singleton (GClueAccuracyLevel level)
 {
-        static GClueWifi *wifi[] = { NULL, NULL, NULL };
+        static GClueWifi *wifi[] = { NULL, NULL };
         guint i;
-        GClueConfig *config = gclue_config_get_singleton ();
-        gboolean wifi_enabled;
         gboolean scramble_location = FALSE;
         gboolean compute_movement = FALSE;
 
         g_return_val_if_fail (level >= GCLUE_ACCURACY_LEVEL_CITY, NULL);
 
-        wifi_enabled = gclue_config_get_enable_wifi_source (config);
-        if (level == GCLUE_ACCURACY_LEVEL_CITY) {
+        if (level <= GCLUE_ACCURACY_LEVEL_NEIGHBORHOOD) {
                 i = 0;
-                if (wifi_enabled)
-                        scramble_location = TRUE;
-        } else if (level == GCLUE_ACCURACY_LEVEL_NEIGHBORHOOD) {
-                g_return_val_if_fail (wifi_enabled, NULL);
-
-                i = 1;
                 scramble_location = TRUE;
         } else {
-                g_return_val_if_fail (wifi_enabled, NULL);
-
-                i = 2;
+                i = 1;
                 compute_movement = TRUE;
         }
 
