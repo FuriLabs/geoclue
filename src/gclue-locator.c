@@ -476,6 +476,11 @@ gclue_locator_constructed (GObject *object)
         }
 #endif
 
+        if (locator->priv->sources == NULL) {
+                g_warning ("No sources enabled in configuration, "
+                           "location not available");
+        }
+
         for (node = locator->priv->sources; node != NULL; node = node->next) {
                 g_signal_connect (G_OBJECT (node->data),
                                   "notify::available-accuracy-level",
