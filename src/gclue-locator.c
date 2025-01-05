@@ -213,8 +213,10 @@ refresh_available_accuracy_level (GClueLocator *locator)
                         (locator->priv->sources,
                          (GCompareFunc) compare_accuracy_level);
 
-        new = gclue_location_source_get_available_accuracy_level
-                        (GCLUE_LOCATION_SOURCE (locator->priv->sources->data));
+        new = locator->priv->sources ?
+                gclue_location_source_get_available_accuracy_level
+                                (GCLUE_LOCATION_SOURCE (locator->priv->sources->data)) :
+                GCLUE_ACCURACY_LEVEL_NONE;
 
         existing = gclue_location_source_get_available_accuracy_level
                         (GCLUE_LOCATION_SOURCE (locator));
