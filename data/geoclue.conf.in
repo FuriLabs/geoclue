@@ -54,6 +54,9 @@ enable=@default_wifi_enable@
 # this URL is '@default_wifi_url@''
 #url=https://example.com/v1/geolocate?key=YOUR_KEY
 
+# To use the BeaconDB geolocation service, uncomment this URL.
+#url=https://api.beacondb.net/v1/geolocate
+
 # To use the Positon geolocation service, uncomment this URL.
 #
 # NOTE: Distributors of geoclue may only uncomment this URL if the
