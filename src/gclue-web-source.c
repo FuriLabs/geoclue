@@ -242,6 +242,9 @@ get_internet_available (void)
                 G_NETWORK_CONNECTIVITY_FULL;
 }
 
+/* This should be equal to WIFI_SCAN_TIMEOUT_HIGH_ACCURACY in gclue-wifi.c */
+#define WEB_LOCATION_TIMEOUT 10
+
 static void
 locate_url_checked_cb (GObject      *source_object,
                        GAsyncResult *result,
@@ -249,6 +252,7 @@ locate_url_checked_cb (GObject      *source_object,
 {
         GNetworkMonitor *mon = G_NETWORK_MONITOR (source_object);
         GClueWebSource *web;
+        GClueLocation *current_location;
         gboolean reachable, last_reachable;
         g_autoptr(GError) error = NULL;
 
@@ -266,13 +270,18 @@ locate_url_checked_cb (GObject      *source_object,
         web = GCLUE_WEB_SOURCE (user_data);
         last_reachable = web->priv->locate_url_reachable;
         web->priv->locate_url_reachable = reachable;
-        if (last_reachable == reachable)
-                return; /* We already reacted to network change */
+        if (last_reachable != reachable) {
+                g_debug ("Network changed: %s",
+                         reachable ? "Enabling locate URL queries" :
+                                     "Disabling locate URL queries");
+        }
+        if (!reachable)
+                return;
 
-        g_debug ("Network changed: %s",
-                 reachable ? "Enabling locate URL queries" :
-                             "Disabling locate URL queries");
-        if (reachable) {
+        current_location = gclue_location_source_get_location (GCLUE_LOCATION_SOURCE (web));
+        if (!current_location || (g_get_real_time () / G_USEC_PER_SEC)
+            > (gclue_location_get_timestamp (current_location) + WEB_LOCATION_TIMEOUT)) {
+                g_debug ("Network changed: Refreshing");
                 refresh_accuracy_level (web);
                 if (gclue_location_source_get_active (GCLUE_LOCATION_SOURCE (web)))
                         gclue_web_source_refresh (web);
