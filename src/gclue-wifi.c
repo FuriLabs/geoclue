@@ -647,8 +647,7 @@ connect_bss_signals (GClueWifi *wifi)
         if (priv->bss_added_id != 0)
                 return;
         if (priv->interface == NULL) {
-                gclue_web_source_refresh (GCLUE_WEB_SOURCE (wifi));
-
+                gclue_web_source_refresh_available_accuracy_level (GCLUE_WEB_SOURCE (wifi));
                 return;
         }
 
@@ -934,7 +933,8 @@ on_interface_proxy_ready (GObject      *source_object,
         if (gclue_location_source_get_active (GCLUE_LOCATION_SOURCE (wifi)))
                 connect_bss_signals (wifi);
         else
-                gclue_web_source_refresh (GCLUE_WEB_SOURCE (wifi));
+                gclue_web_source_refresh_available_accuracy_level (GCLUE_WEB_SOURCE (wifi));
+
 }
 
 static void
@@ -984,7 +984,7 @@ on_interface_removed (WPASupplicant *supplicant,
                 g_debug ("Removed interface was the WiFi source");
         }
 
-        gclue_web_source_refresh (GCLUE_WEB_SOURCE (wifi));
+        gclue_web_source_refresh_available_accuracy_level (GCLUE_WEB_SOURCE (wifi));
 }
 
 static void
@@ -1037,7 +1037,7 @@ gclue_wifi_constructed (GObject *object)
                 if (error)
                         g_warning ("Failed to connect to wpa_supplicant service: %s",
                                    error->message);
-                goto refresh_n_exit;
+                return;
         }
 
         g_signal_connect_object (priv->supplicant,
@@ -1055,9 +1055,6 @@ gclue_wifi_constructed (GObject *object)
                                     interfaces[0],
                                     NULL,
                                     wifi);
-
-refresh_n_exit:
-        gclue_web_source_refresh (GCLUE_WEB_SOURCE (object));
 }
 
 static void
@@ -1419,15 +1416,27 @@ gclue_wifi_refresh_async (GClueWebSource      *source,
                           gpointer             user_data)
 {
         GClueWifi *wifi = GCLUE_WIFI (source);
-        g_autoptr(GTask) task = g_task_new (source, cancellable, callback, user_data);
-        g_autoptr(GPtrArray) bss_array = get_location_cache_bss_array (wifi);
-        g_autoptr(GVariant) cache_key = get_location_cache_hashtable_key (wifi, bss_array);
-        g_autoptr(GArray) signal_array = get_location_cache_signal_array (wifi, bss_array);
-        GClueLocation *cached_location = find_cached_location (wifi->priv->location_cache,
-                                                               cache_key, signal_array);
+        GClueLocation *cached_location;
         RefreshTaskData *tdata;
+        g_autoptr(GTask) task = g_task_new (source, cancellable, callback, user_data);
+        g_autoptr(GPtrArray) bss_array = NULL;
+        g_autoptr(GVariant) cache_key = NULL;
+        g_autoptr(GArray) signal_array = NULL;
 
         g_task_set_source_tag (task, gclue_wifi_refresh_async);
+
+        /* Don't create a location without a BSS list, we have the IP source for that */
+        if (!wifi->priv->bss_proxies || g_hash_table_size (wifi->priv->bss_proxies) < 1) {
+                GError *error = g_error_new (G_IO_ERROR, G_IO_ERROR_NOT_INITIALIZED,
+                                             "Empty BSS list");
+                g_task_return_error (task, error);
+                return;
+        }
+
+        bss_array = get_location_cache_bss_array (wifi);
+        cache_key = get_location_cache_hashtable_key (wifi, bss_array);
+        signal_array = get_location_cache_signal_array (wifi, bss_array);
+        cached_location = find_cached_location (wifi->priv->location_cache, cache_key, signal_array);
 
         if (gclue_location_source_get_active (GCLUE_LOCATION_SOURCE (source))) {
                 /* Try the cache. */
