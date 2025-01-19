@@ -892,10 +892,8 @@ gclue_wifi_get_available_accuracy_level (GClueWebSource *source,
         GClueWifi *wifi = GCLUE_WIFI (source);
         GClueWifiPrivate *priv = wifi->priv;
 
-        if (!net_available)
+        if (!net_available || !priv->interface)
                 return GCLUE_ACCURACY_LEVEL_NONE;
-        else if (!priv->interface)
-                return GCLUE_ACCURACY_LEVEL_CITY;
         else
                 return MIN (get_accuracy_level (wifi), GCLUE_ACCURACY_LEVEL_STREET);
 }
