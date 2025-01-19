@@ -90,6 +90,7 @@ struct _GClueWebSourceClass {
 };
 
 void gclue_web_source_refresh           (GClueWebSource      *source);
+void gclue_web_source_refresh_available_accuracy_level (GClueWebSource *source);
 void gclue_web_source_set_submit_source (GClueWebSource      *source,
                                          GClueLocationSource *submit_source);
 void gclue_web_source_set_locate_url    (GClueWebSource      *source,

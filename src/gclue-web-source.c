@@ -38,9 +38,6 @@
  * Baseclass for all sources that solely use a web resource for geolocation.
  **/
 
-static void
-refresh_accuracy_level (GClueWebSource *web);
-
 struct _GClueWebSourcePrivate {
         GCancellable *cancellable;
 
@@ -92,7 +89,7 @@ gclue_web_source_real_refresh_async (GClueWebSource      *source,
         task = g_task_new (source, cancellable, callback, user_data);
         g_task_set_source_tag (task, gclue_web_source_real_refresh_async);
 
-        refresh_accuracy_level (source);
+        gclue_web_source_refresh_available_accuracy_level (source);
 
         if (!gclue_location_source_get_active (GCLUE_LOCATION_SOURCE (source))) {
                 g_task_return_new_error (task, G_IO_ERROR, G_IO_ERROR_NOT_INITIALIZED,
@@ -215,8 +212,8 @@ query_callback (GObject      *source_object,
         }
 }
 
-static void
-refresh_accuracy_level (GClueWebSource *web)
+void
+gclue_web_source_refresh_available_accuracy_level (GClueWebSource *web)
 {
         GClueAccuracyLevel new, existing;
 
@@ -282,7 +279,7 @@ locate_url_checked_cb (GObject      *source_object,
         if (!current_location || (g_get_real_time () / G_USEC_PER_SEC)
             > (gclue_location_get_timestamp (current_location) + WEB_LOCATION_TIMEOUT)) {
                 g_debug ("Network changed: Refreshing");
-                refresh_accuracy_level (web);
+                gclue_web_source_refresh_available_accuracy_level (web);
                 if (gclue_location_source_get_active (GCLUE_LOCATION_SOURCE (web)))
                         gclue_web_source_refresh (web);
                 else
