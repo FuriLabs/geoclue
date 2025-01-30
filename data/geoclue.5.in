@@ -44,7 +44,7 @@ IP source configuration options
 Enable the GeoIP source
 .br
 .IP
-.B \fBmethod=gmaps
+.B \fBmethod=ichnaea
 .br
 Method (backend) to use for IP location. Currently implemented are:
 .br
