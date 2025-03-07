@@ -96,6 +96,12 @@ gboolean            gclue_config_get_enable_compass     (GClueConfig     *config
 gboolean            gclue_config_get_enable_static_source
                                                         (GClueConfig *config);
 gboolean            gclue_config_get_enable_ip_source   (GClueConfig     *config);
+gboolean            gclue_config_get_enable_binder_source
+                                                        (GClueConfig     *config);
+const char *        gclue_config_get_binder_ntp_server  (GClueConfig     *config);
+gboolean            gclue_config_get_binder_supl_enabled
+                                                        (GClueConfig     *config);
+const char *        gclue_config_get_binder_supl_server (GClueConfig     *config);
 
 G_END_DECLS
 

@@ -50,6 +50,17 @@ enable=true
 # Enable Modem-GPS source
 enable=true
 
+# binder hal source configuration options
+[binder]
+
+# Enable binder source
+enable=true
+
+# supl-server=""
+supl-enabled=false
+
+ntp-server=""
+
 # WiFi source configuration options
 [wifi]
 

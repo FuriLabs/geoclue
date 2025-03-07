@@ -48,11 +48,16 @@ struct _GClueConfigPrivate
         gboolean enable_wifi_source;
         gboolean enable_compass;
         gboolean enable_static_source;
+        gboolean enable_binder_source;
         gboolean enable_ip_source;
         char *wifi_submit_url;
         char *wifi_submit_nick;
         char *nmea_socket;
         char *ip_method;
+
+        gboolean supl_enabled;
+        char *supl_server;
+        char *ntp_server;
 
         GList *app_configs;
 };
@@ -208,7 +213,7 @@ load_app_configs (GClueConfig *config)
 {
         const char *known_groups[] = { "agent", "wifi", "3g", "cdma",
                                        "modem-gps", "network-nmea", "compass",
-                                       "static-source", "ip", NULL };
+                                       "static-source", "ip", "binder", NULL };
         GClueConfigPrivate *priv = config->priv;
         gsize num_groups = 0, i;
         g_auto(GStrv) groups = NULL;
@@ -386,6 +391,21 @@ load_modem_gps_config (GClueConfig *config)
 }
 
 static void
+load_binder_config (GClueConfig *config)
+{
+        GClueConfigPrivate *priv = config->priv;
+
+        load_enable_source (config, "binder", GCLUE_USE_BINDER_SOURCE,
+                            &priv->enable_binder_source);
+        load_string_value (config, "binder", "ntp-server",
+                           &priv->ntp_server);
+        load_boolean_value (config, "binder", "supl-enabled",
+                            &priv->supl_enabled);
+        load_string_value (config, "binder", "supl-server",
+                           &priv->supl_server);
+}
+
+static void
 load_network_nmea_config (GClueConfig *config)
 {
         load_enable_source (config, "network-nmea", GCLUE_USE_NMEA_SOURCE,
@@ -441,6 +461,7 @@ load_config_file (GClueConfig *config, const char *path) {
         load_3g_config (config);
         load_cdma_config (config);
         load_modem_gps_config (config);
+        load_binder_config (config);
         load_network_nmea_config (config);
         load_compass_config (config);
         load_static_source_config (config);
@@ -525,6 +546,8 @@ gclue_config_print (GClueConfig *config)
                  enabled_disabled (priv->enable_cdma_source));
         g_debug ("Modem GPS source: %s",
                  enabled_disabled (priv->enable_modem_gps_source));
+        g_debug ("Binder source: %s",
+                 config->priv->enable_binder_source? "enabled": "disabled");
         g_debug ("WiFi source: %s",
                  enabled_disabled (priv->enable_wifi_source));
         {
@@ -587,6 +610,7 @@ gclue_config_init (GClueConfig *config)
         priv->enable_compass = TRUE;
         priv->enable_static_source = TRUE;
         priv->enable_ip_source = TRUE;
+        priv->enable_binder_source = TRUE;
 
         /* Default strings */
         priv->wifi_url = g_strdup (DEFAULT_WIFI_URL);
@@ -826,6 +850,30 @@ gboolean
 gclue_config_get_enable_nmea_source (GClueConfig *config)
 {
         return config->priv->enable_nmea_source;
+}
+
+gboolean
+gclue_config_get_enable_binder_source(GClueConfig *config)
+{
+        return config->priv->enable_binder_source;
+}
+
+const char *
+gclue_config_get_binder_ntp_server (GClueConfig *config)
+{
+        return config->priv->ntp_server;
+}
+
+gboolean
+gclue_config_get_binder_supl_enabled (GClueConfig *config)
+{
+        return config->priv->supl_enabled;
+}
+
+const char *
+gclue_config_get_binder_supl_server (GClueConfig *config)
+{
+        return config->priv->supl_server;
 }
 
 void

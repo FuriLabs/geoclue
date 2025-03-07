@@ -34,6 +34,9 @@ option('ip-source',
 option('compass',
        type: 'boolean', value: true,
        description: 'Enable setting heading from net.hadess.SensorProxy compass')
+option('binder-source',
+       type: 'boolean', value: false,
+       description: 'Enable Android HAL GPS source (requires gbinder)')
 option('enable-backend',
        type: 'boolean', value: true,
        description: 'Enable backend (the geoclue service)')

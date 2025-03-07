@@ -58,6 +58,10 @@
 #include "gclue-ip.h"
 #endif
 
+#if GCLUE_USE_BINDER_SOURCE
+#include "gclue-binder-source.h"
+#endif
+
 /* This class is like a master location source that hides all individual
  * location sources from rest of the code
  */
@@ -457,6 +461,13 @@ gclue_locator_constructed (GObject *object)
                         submit_source = GCLUE_LOCATION_SOURCE (nmea);
                 }
 
+        }
+#endif
+#if GCLUE_USE_BINDER_SOURCE
+        if (gclue_config_get_enable_binder_source (gconfig)) {
+                GClueBinderSource *binder = gclue_binder_source_get_singleton ();
+                locator->priv->sources = g_list_append (locator->priv->sources,
+                                                        binder);
         }
 #endif
 #if GCLUE_USE_STATIC_SOURCE

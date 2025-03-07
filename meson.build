@@ -40,6 +40,7 @@ conf.set10('GCLUE_USE_NMEA_SOURCE', get_option('nmea-source'))
 conf.set10('GCLUE_USE_STATIC_SOURCE', get_option('static-source'))
 conf.set10('GCLUE_USE_IP_SOURCE', get_option('ip-source'))
 conf.set10('GCLUE_USE_COMPASS', get_option('compass'))
+conf.set10('GCLUE_USE_BINDER_SOURCE', get_option('binder-source'))
 
 configure_file(output: 'config.h', configuration : conf)
 configinc = include_directories('.')
@@ -101,6 +102,7 @@ summary = '''
         Static source:            @12@
         IP source:                @13@
         Compass:                  @14@
+        Binder HAL source:        @15@
 '''.format(gclue_version,
            get_option('prefix'),
            cc.get_id(),
@@ -115,5 +117,6 @@ summary = '''
            get_option('nmea-source'),
            get_option('static-source'),
            get_option('ip-source'),
-           get_option('compass'))
+           get_option('compass'),
+           get_option('binder-source'))
 message(summary)
