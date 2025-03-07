@@ -47,9 +47,14 @@ struct _GClueConfigPrivate
         gboolean enable_wifi_source;
         gboolean enable_compass;
         gboolean enable_static_source;
+        gboolean enable_binder_source;
         char *wifi_submit_url;
         char *wifi_submit_nick;
         char *nmea_socket;
+
+        gboolean supl_enabled;
+        char *supl_server;
+        char *ntp_server;
 
         GList *app_configs;
 };
@@ -135,7 +140,7 @@ load_app_configs (GClueConfig *config)
 {
         const char *known_groups[] = { "agent", "wifi", "3g", "cdma",
                                        "modem-gps", "network-nmea", "compass",
-                                       "static-source", NULL };
+                                       "static-source", "binder", NULL };
         GClueConfigPrivate *priv = config->priv;
         gsize num_groups = 0, i;
         g_auto(GStrv) groups = NULL;
@@ -386,6 +391,71 @@ load_modem_gps_config (GClueConfig *config, gboolean initial)
                 load_enable_source_config (config, "modem-gps", initial,
                                            config->priv->enable_modem_gps_source);
 }
+#define DEFAULT_NTP_SERVER "pool.ntp.org"
+#define DEFAULT_SUPL_SERVER "localhost:7275"
+
+static void
+load_network_binder_config (GClueConfig *config, gboolean initial)
+{
+        GClueConfigPrivate *priv = config->priv;
+        g_autoptr(GError) error = NULL;
+        g_autofree char *ntp_server = NULL;
+        g_autofree char *supl_server = NULL;
+
+        priv->enable_binder_source =
+                load_enable_source_config (config, "binder", initial,
+                                           priv->enable_binder_source);
+
+        if (initial || g_key_file_has_key (priv->key_file, "binder", "ntp-server", NULL)) {
+                ntp_server = g_key_file_get_string (priv->key_file,
+                                                    "binder",
+                                                    "ntp-server",
+                                                    &error);
+                if (error == NULL) {
+                        g_clear_pointer (&priv->ntp_server, g_free);
+                        priv->ntp_server = g_steal_pointer (&ntp_server);
+                } else if (initial) {
+                        g_debug ("Using the default NTP server: %s", error->message);
+                        g_clear_pointer (&priv->ntp_server, g_free);
+                        priv->ntp_server = g_strdup (DEFAULT_NTP_SERVER);
+                } else
+                        g_warning ("Failed to get config \"binder/ntp-server\": %s", error->message);
+
+                g_clear_error (&error);
+        }
+
+        if (initial || g_key_file_has_key (priv->key_file, "binder", "supl-enabled", NULL)) {
+                priv->supl_enabled = g_key_file_get_boolean (priv->key_file,
+                                                             "binder",
+                                                             "supl-enabled",
+                                                             &error);
+                if (error != NULL) {
+                        g_warning ("Failed to get config \"binder/supl-enabled\": %s",
+                                   error->message);
+                        return;
+                }
+                g_clear_error (&error);
+        }
+
+        if (initial || g_key_file_has_key (priv->key_file, "binder", "supl-server", NULL)) {
+                supl_server = g_key_file_get_string (priv->key_file,
+                                                     "binder",
+                                                     "supl-server",
+                                                     &error);
+
+                if (error == NULL) {
+                        g_clear_pointer (&priv->supl_server, g_free);
+                        priv->supl_server = g_steal_pointer (&supl_server);
+                } else if (initial) {
+                        g_debug ("Using the default SUPL server: %s", error->message);
+                        g_clear_pointer (&priv->supl_server, g_free);
+                        priv->supl_server = g_strdup (DEFAULT_SUPL_SERVER);
+                } else
+                        g_warning ("Failed to get config \"binder/supl-server\": %s", error->message);
+
+                g_clear_error (&error);
+        }
+}
 
 static void
 load_network_nmea_config (GClueConfig *config, gboolean initial)
@@ -447,6 +517,7 @@ load_config_file (GClueConfig *config, const char *path, gboolean initial) {
         load_3g_config (config, initial);
         load_cdma_config (config, initial);
         load_modem_gps_config (config, initial);
+        load_network_binder_config (config, initial);
         load_network_nmea_config (config, initial);
         load_compass_config (config, initial);
         load_static_source_config (config, initial);
@@ -515,6 +586,8 @@ gclue_config_print (GClueConfig *config)
                  config->priv->enable_cdma_source? "enabled": "disabled");
         g_debug ("Modem GPS source: %s",
                  config->priv->enable_modem_gps_source? "enabled": "disabled");
+        g_debug ("Binder source: %s",
+                 config->priv->enable_binder_source? "enabled": "disabled");
         g_debug ("WiFi source: %s",
                  config->priv->enable_wifi_source? "enabled": "disabled");
         redacted_locate_url = redact_api_key (config->priv->wifi_url);
@@ -768,6 +841,30 @@ gboolean
 gclue_config_get_enable_nmea_source (GClueConfig *config)
 {
         return config->priv->enable_nmea_source;
+}
+
+gboolean
+gclue_config_get_enable_binder_source(GClueConfig *config)
+{
+        return config->priv->enable_binder_source;
+}
+
+const char *
+gclue_config_get_binder_ntp_server (GClueConfig *config)
+{
+        return config->priv->ntp_server;
+}
+
+gboolean
+gclue_config_get_binder_supl_enabled (GClueConfig *config)
+{
+        return config->priv->supl_enabled;
+}
+
+const char *
+gclue_config_get_binder_supl_server (GClueConfig *config)
+{
+        return config->priv->supl_server;
 }
 
 void
