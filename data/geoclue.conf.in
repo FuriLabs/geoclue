@@ -57,7 +57,10 @@ ntp-server="pool.ntp.org"
 # Enable WiFi source
 # If this source and the static source below are both disabled a GeoIP-only
 # source will be used instead.
-enable=false
+enable=true
+
+# To use the BeaconDB geolocation service, uncomment this URL.
+url=https://api.beacondb.net/v1/geolocate
 
 # URL to the WiFi geolocation service. If not set, defaults to Mozilla's
 # Location Service with a hardcoded key. To use a custom key, uncomment this URL
