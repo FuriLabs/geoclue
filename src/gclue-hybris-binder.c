@@ -630,8 +630,6 @@ process_nmea (gint64 timestamp,
         parse_rmc (nmea);
 }
 
-const double MpsToKnots = 1.943844;
-
 GBinderLocalReply *
 geoclue_binder_gnss_callback(GBinderLocalObject *obj,
                              GBinderRemoteRequest *req,
@@ -670,8 +668,8 @@ geoclue_binder_gnss_callback(GBinderLocalObject *obj,
             }
 
             if (location->gnssLocationFlags & HYBRIS_GNSS_LOCATION_HAS_SPEED) {
-                loc->speed = location->speedMetersPerSec * MpsToKnots;
-                g_debug ("lcGeoclueHybrisGnss: Speed: %f knots", loc->speed);
+                loc->speed = location->speedMetersPerSec;
+                g_debug ("lcGeoclueHybrisGnss: Speed: %f", loc->speed);
             }
 
             if (location->gnssLocationFlags & HYBRIS_GNSS_LOCATION_HAS_BEARING) {
