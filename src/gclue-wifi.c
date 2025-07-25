@@ -928,6 +928,27 @@ on_interface_added (WPASupplicant *supplicant,
         if (wifi->priv->interface != NULL)
                 return;
 
+        /* Check if this interface should be skipped */
+        WPAInterface *temp_interface = wpa_interface_proxy_new_for_bus_sync (
+                G_BUS_TYPE_SYSTEM,
+                G_DBUS_PROXY_FLAGS_NONE,
+                "fi.w1.wpa_supplicant1",
+                path,
+                NULL,
+                NULL);
+
+        if (temp_interface != NULL) {
+                const gchar *ifname = wpa_interface_get_ifname (temp_interface);
+                if (ifname != NULL) {
+                        if (g_str_has_prefix (ifname, "ap") || g_str_has_prefix (ifname, "p2p")) {
+                                g_debug ("Skipping interface '%s' (starts with ap* or p2p*)", ifname);
+                                g_object_unref (temp_interface);
+                                return;
+                        }
+                }
+                g_object_unref (temp_interface);
+        }
+
         wpa_interface_proxy_new_for_bus (G_BUS_TYPE_SYSTEM,
                                          G_DBUS_PROXY_FLAGS_NONE,
                                          "fi.w1.wpa_supplicant1",
@@ -1037,11 +1058,41 @@ gclue_wifi_constructed (GObject *object)
                                  wifi, 0);
 
         interfaces = wpa_supplicant_get_interfaces (priv->supplicant);
-        if (interfaces != NULL && interfaces[0] != NULL)
-                on_interface_added (priv->supplicant,
-                                    interfaces[0],
-                                    NULL,
-                                    wifi);
+        if (interfaces != NULL) {
+                gint i;
+                for (i = 0; interfaces[i] != NULL; i++) {
+                        const gchar *interface_path = interfaces[i];
+                        gboolean should_skip = FALSE;
+
+                        /* Extract interface name from the path and check if it starts with "ap" or "p2p" */
+                        WPAInterface *temp_interface = wpa_interface_proxy_new_for_bus_sync (
+                                G_BUS_TYPE_SYSTEM,
+                                G_DBUS_PROXY_FLAGS_NONE,
+                                "fi.w1.wpa_supplicant1",
+                                interface_path,
+                                NULL,
+                                NULL);
+
+                        if (temp_interface != NULL) {
+                                const gchar *ifname = wpa_interface_get_ifname (temp_interface);
+                                if (ifname != NULL) {
+                                        if (g_str_has_prefix (ifname, "ap") || g_str_has_prefix (ifname, "p2p")) {
+                                                g_debug ("Skipping interface '%s' (starts with ap* or p2p*)", ifname);
+                                                should_skip = TRUE;
+                                        }
+                                }
+                                g_object_unref (temp_interface);
+                        }
+
+                        if (!should_skip) {
+                                on_interface_added (priv->supplicant,
+                                                    interface_path,
+                                                    NULL,
+                                                    wifi);
+                                break;
+                        }
+                }
+        }
 
 refresh_n_exit:
         gclue_web_source_refresh (GCLUE_WEB_SOURCE (object));
