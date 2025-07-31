@@ -1,7 +1,9 @@
 geoclue-2.0 (2.7.2-3) UNRELEASED; urgency=medium
 
   [ Laurent Bigonville ]
-  * debian/README.Debian: Update the README to explicitly state we are using beaconDB
+  * d/README.Debian: Update the README to explicitly state we are using beaconDB
+  * debian/copyright: Update the FSF address
+  * debian/control: Bump Standards-Version to 4.7.2 (no further changes)
 
   [ Alessandro Astone ]
   * Fix AppArmor rules for DBus (LP: #2030951, Closes: #1110134)
@@ -9,7 +11,7 @@ geoclue-2.0 (2.7.2-3) UNRELEASED; urgency=medium
   [ Chris Talbot ]
   * debian/rules: Make beacondb.net default for wifi submissions
 
- -- Laurent Bigonville <bigon@debian.org>  Thu, 31 Jul 2025 18:36:20 +0200
+ -- Laurent Bigonville <bigon@debian.org>  Thu, 31 Jul 2025 18:54:30 +0200
 
 geoclue-2.0 (2.7.2-2) unstable; urgency=medium
 
