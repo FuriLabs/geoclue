@@ -1,4 +1,10 @@
-geoclue-2.0 (2.7.2-3) UNRELEASED; urgency=medium
+geoclue-2.0 (2.8.0-1) UNRELEASED; urgency=medium
+
+  * Team upload
+
+  [ Jeremy Bícha ]
+  * New upstream release
+  * Update debian/upstream/metadata
 
   [ Laurent Bigonville ]
   * d/README.Debian: Update the README to explicitly state we are using beaconDB
