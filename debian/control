@@ -6,6 +6,7 @@ Build-Depends: debhelper-compat (= 13),
                dh-apparmor,
                dh-exec,
                dh-sequence-gir,
+               dh-sequence-installsysusers,
                gir1.2-gio-2.0-dev,
                gir1.2-gobject-2.0-dev,
                libavahi-client-dev (>= 0.6.10),
@@ -27,7 +28,7 @@ Rules-Requires-Root: no
 
 Package: geoclue-2.0
 Architecture: any
-Depends: adduser, ${misc:Depends}, ${shlibs:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Recommends: avahi-daemon,
             iio-sensor-proxy [linux-any],
             modemmanager [linux-any],
