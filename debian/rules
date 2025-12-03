@@ -16,13 +16,6 @@ override_dh_auto_configure:
 		-Dsystemd-system-unit-dir=/usr/lib/systemd/system \
 		${MM_NM_FLAGS}
 
-override_dh_auto_test:
-	# testsuite fails on missing latitude (et.al)
-	# which is only available when using GeoLiteCity.dat
-	# database, which "geoip-database" package in debian
-	# does not include.
-	dh_auto_test || true
-
 %:
 	dh $@
 
