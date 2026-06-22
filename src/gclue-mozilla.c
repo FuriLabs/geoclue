@@ -356,6 +356,14 @@ gclue_mozilla_parse_response (const char *json,
                 return NULL;
 
         if (json_object_has_member (object, "fallback")) {
+                g_set_error_literal (error,
+                                     G_IO_ERROR,
+                                     G_IO_ERROR_FAILED,
+                                     "Fallback locations disabled");
+                return NULL;
+        }
+
+        if (json_object_has_member (object, "fallback")) {
                 const char *fallback;
 
                 fallback = json_object_get_string_member (object, "fallback");
